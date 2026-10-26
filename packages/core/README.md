@@ -16,6 +16,7 @@ import { parseCard, toFrontMatter, toJSON, equal, submit, decide, checkSubmissio
 | `parseId`, `sameNamespace`, `inRoot`, `encodeUpstream`, `decodeUpstream` | The id grammar, including percent-encoded upstream ids (§5). |
 | `parseYaml`, `stringifyYaml` | The restricted YAML subset (§3). |
 | `checkSubmission`, `submit`, `decide`, `canSupersede`, `acknowledge`, `markSeen` | Lifecycle transitions (§5–§8). Each returns its effect, including `changed`: the cards to persist, in the order the head assigns them `change_seq`. Nothing here touches the counter. `submit(stored, incoming, now, target, ceiling?)` sets the head-owned `delivery` from the producer's urgency ceiling (§9), which the head passes in. |
+| `mintOrder`, `visibleTo`, `claim`, `renew`, `expireIfDue`, `applyOutcome`, `ulid`, `ulidOf` | The orders extension (Appendix A), pure like the lifecycle: the head mints orders, keeps the wildcard eligibility snapshot, and applies leases and outcomes with its own clock. `decide` takes `dismissed` on an order and cancels it. |
 | `clampUrgency` | `urgency` (absent is `brief`) lowered to a ceiling (§9). |
 | `PbcpError`, `ERROR_CODES` | Refusals with their status and normative code (§7.4). |
 | `ProducerCardSchema`, `HeadFieldsSchema`, `DecisionSchema`, `HeadDescriptionSchema` | Zod schemas; types `ProducerCard`, `Card`, `Decision`, `HeadDescription`. |

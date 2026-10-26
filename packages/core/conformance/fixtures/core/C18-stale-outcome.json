@@ -1,0 +1,289 @@
+{
+  "name": "C18 an outcome with a stale orders.claim_seq is stored but leaves exec_state alone; the current lease's outcome moves it to done; a terminal order never changes",
+  "rfc": [
+    "A.3"
+  ],
+  "extension": "orders",
+  "steps": [
+    {
+      "op": "clock",
+      "args": {
+        "set": "2026-10-07T09:00:00Z"
+      }
+    },
+    {
+      "op": "syncAll",
+      "args": {
+        "token": "hermes",
+        "executor": true,
+        "after": 0
+      },
+      "expect": {
+        "status": 200,
+        "body": {
+          "changes": {
+            "$len": 0
+          }
+        }
+      }
+    },
+    {
+      "op": "syncAll",
+      "args": {
+        "token": "cal",
+        "executor": true,
+        "after": 0
+      },
+      "expect": {
+        "status": 200,
+        "body": {
+          "changes": {
+            "$len": 0
+          }
+        }
+      }
+    },
+    {
+      "op": "order",
+      "args": {
+        "to_producer": "*",
+        "title": "Book the dentist",
+        "body": "Any weekday morning."
+      },
+      "expect": {
+        "status": 201
+      },
+      "save": {
+        "o": "body.id"
+      }
+    },
+    {
+      "op": "claim",
+      "args": {
+        "token": "hermes",
+        "executor": true,
+        "id": {
+          "$var": "o"
+        },
+        "lease": 60
+      },
+      "expect": {
+        "status": 200
+      }
+    },
+    {
+      "op": "clock",
+      "args": {
+        "set": "2026-10-07T09:02:00Z"
+      }
+    },
+    {
+      "op": "claim",
+      "args": {
+        "token": "cal",
+        "executor": true,
+        "id": {
+          "$var": "o"
+        },
+        "lease": 60
+      },
+      "expect": {
+        "status": 200,
+        "body": {
+          "claim_seq": 2
+        }
+      }
+    },
+    {
+      "op": "put",
+      "args": {
+        "token": "hermes",
+        "executor": true,
+        "card": {
+          "protocol": "pbcp/1",
+          "id": "hermes:order:o1:outcome",
+          "kind": "signal",
+          "to_person": "morten",
+          "producer": "hermes",
+          "title": "Done",
+          "body": "Booked for Tuesday.",
+          "emitted_at": "2026-10-07T09:00:00Z",
+          "thread": {
+            "$var": "o"
+          },
+          "references": [
+            {
+              "$var": "o"
+            }
+          ],
+          "orders.claim_seq": 1
+        }
+      },
+      "expect": {
+        "status": 201
+      }
+    },
+    {
+      "op": "syncAll",
+      "args": {
+        "token": "hermes",
+        "executor": true,
+        "after": 0
+      },
+      "expect": {
+        "status": 200,
+        "body": {
+          "changes": {
+            "$contains": [
+              {
+                "card": {
+                  "id": "hermes:order:o1:outcome",
+                  "orders.claim_seq": 1
+                }
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "op": "syncAll",
+      "args": {
+        "token": "cal",
+        "executor": true,
+        "after": 0
+      },
+      "expect": {
+        "status": 200,
+        "body": {
+          "changes": {
+            "$contains": [
+              {
+                "card": {
+                  "id": {
+                    "$var": "o"
+                  },
+                  "exec_state": "claimed",
+                  "claimed_by": "cal",
+                  "claim_seq": 2
+                }
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "op": "put",
+      "args": {
+        "token": "cal",
+        "executor": true,
+        "card": {
+          "protocol": "pbcp/1",
+          "id": "cal:order:o1:outcome",
+          "kind": "signal",
+          "to_person": "morten",
+          "producer": "cal",
+          "title": "Done",
+          "body": "Booked for Tuesday.",
+          "emitted_at": "2026-10-07T09:00:00Z",
+          "thread": {
+            "$var": "o"
+          },
+          "references": [
+            {
+              "$var": "o"
+            }
+          ],
+          "orders.claim_seq": 2
+        }
+      },
+      "expect": {
+        "status": 201
+      }
+    },
+    {
+      "op": "syncAll",
+      "args": {
+        "token": "cal",
+        "executor": true,
+        "after": 0
+      },
+      "expect": {
+        "status": 200,
+        "body": {
+          "changes": {
+            "$contains": [
+              {
+                "card": {
+                  "id": {
+                    "$var": "o"
+                  },
+                  "exec_state": "done",
+                  "claimed_by": {
+                    "$absent": true
+                  }
+                }
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "op": "put",
+      "args": {
+        "token": "cal",
+        "executor": true,
+        "card": {
+          "protocol": "pbcp/1",
+          "id": "cal:order:o2:outcome",
+          "kind": "signal",
+          "to_person": "morten",
+          "producer": "cal",
+          "title": "Failed",
+          "body": "Booked for Tuesday.",
+          "emitted_at": "2026-10-07T09:00:00Z",
+          "thread": {
+            "$var": "o"
+          },
+          "references": [
+            {
+              "$var": "o"
+            }
+          ],
+          "orders.claim_seq": 2,
+          "orders.result": "failed"
+        }
+      },
+      "expect": {
+        "status": 201
+      }
+    },
+    {
+      "op": "syncAll",
+      "args": {
+        "token": "cal",
+        "executor": true,
+        "after": 0
+      },
+      "expect": {
+        "status": 200,
+        "body": {
+          "changes": {
+            "$contains": [
+              {
+                "card": {
+                  "id": {
+                    "$var": "o"
+                  },
+                  "exec_state": "done"
+                }
+              }
+            ]
+          }
+        }
+      }
+    }
+  ]
+}

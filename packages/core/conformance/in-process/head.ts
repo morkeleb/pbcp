@@ -2,8 +2,9 @@
 // monotonic counter. It is the smallest thing that can run the fixtures, not a head.
 
 import {
-  acknowledge, CARD_LIMIT_BYTES, checkSubmission, decide, markSeen, parseCardOrThrow, PbcpError, PROTOCOL, submit,
-  type Card, type Decision, type Urgency,
+  acknowledge, applyOutcome, CARD_LIMIT_BYTES, checkSubmission, claim, decide, expireIfDue, isOrder, markSeen, mintOrder,
+  outcomeTarget, parseCardOrThrow, PbcpError, PROTOCOL, submit, ulid, visibleTo,
+  type Card, type Decision, type OrderCard, type Urgency,
 } from '../../src/index.js';
 import type { HeadUnderTest, Response } from '../types.js';
 
@@ -17,12 +18,22 @@ export function inProcessHead(opts: InProcessOptions = {}): HeadUnderTest {
   const owner = opts.owner ?? 'morten';
   const pageSize = opts.pageSize ?? 2;
   let cards = new Map<string, Card>();
-  let tokens = new Map<string, { root: string; ceiling?: Urgency }>();
+  let tokens = new Map<string, { root: string; ceiling?: Urgency; executor?: boolean }>();
+  /** Head-private wildcard eligibility snapshots, by order id (A.1). */
+  let eligible = new Map<string, readonly string[] | null>();
   let counter = 0;
   let now = '2026-10-07T00:00:00Z';
 
-  const persist = (changed: Card[]): void => {
-    for (const c of changed) cards.set(c.id, { ...c, change_seq: ++counter });
+  const persist = (changed: Array<Card | OrderCard>): void => {
+    for (const c of changed) cards.set(c.id, { ...c, change_seq: ++counter } as Card);
+  };
+  const order = (id: string): OrderCard | undefined => {
+    const c = cards.get(id);
+    return c && isOrder(c) ? c : undefined;
+  };
+  /** A.2: the head owns the lease clock; lapsed leases are returned to `open` before any read or write sees them. */
+  const expireAll = () => {
+    for (const c of [...cards.values()]) if (isOrder(c)) persist(expireIfDue(c, now).changed);
   };
 
   /** §7.4: any missing or unknown producer token is 401 unauthorized. */
@@ -54,12 +65,13 @@ export function inProcessHead(opts: InProcessOptions = {}): HeadUnderTest {
     async reset() {
       cards = new Map();
       tokens = new Map();
+      eligible = new Map();
       counter = 0;
     },
 
     async token(root, opts) {
       const t = `token-${root}-${tokens.size + 1}`;
-      tokens.set(t, { root, ...(opts?.ceiling ? { ceiling: opts.ceiling } : {}) });
+      tokens.set(t, { root, ...(opts?.ceiling ? { ceiling: opts.ceiling } : {}), ...(opts?.executor ? { executor: true } : {}) });
       return t;
     },
 
@@ -78,6 +90,14 @@ export function inProcessHead(opts: InProcessOptions = {}): HeadUnderTest {
         const target = incoming.supersedes === undefined ? null : (cards.get(incoming.supersedes) ?? null);
         const r = submit(cards.get(incoming.id) ?? null, incoming, now, target, ceiling);
         persist(r.changed);
+        // A.3: a stored outcome moves its order's exec_state only if it comes from the current lease.
+        const target_ = r.changed.length > 0 ? outcomeTarget(incoming) : undefined;
+        const o = target_ === undefined ? undefined : order(target_);
+        if (o) {
+          const expiry = expireIfDue(o, now);
+          persist(expiry.changed);
+          persist(applyOutcome(expiry.card, incoming, now).changed);
+        }
         return { status: r.status, body: r.changed.length > 0 ? cards.get(incoming.id) : r.card };
       });
     },
@@ -85,6 +105,7 @@ export function inProcessHead(opts: InProcessOptions = {}): HeadUnderTest {
     async changes(token, cursor) {
       return handle(() => {
         const { root } = producer(token);
+        expireAll();
         // §7.2: `after` is a non-negative decimal integer.
         const after = typeof cursor === 'string' && /^\d+$/.test(cursor) ? Number(cursor) : cursor;
         if (typeof after !== 'number' || !Number.isSafeInteger(after) || after < 0) throw new PbcpError('invalid_cursor', `after must be a non-negative integer, got ${JSON.stringify(cursor)}`);
@@ -94,7 +115,8 @@ export function inProcessHead(opts: InProcessOptions = {}): HeadUnderTest {
         for (const c of pending) {
           if (changes.length === pageSize) break;
           next = c.change_seq;
-          if (c.producer === root) changes.push({ seq: c.change_seq, card: c });
+          const o = order(c.id);
+          if (c.producer === root || (o && visibleTo(o, root, eligible.get(o.id)))) changes.push({ seq: c.change_seq, card: c });
         }
         return { status: 200, body: { changes, next } };
       });
@@ -108,6 +130,29 @@ export function inProcessHead(opts: InProcessOptions = {}): HeadUnderTest {
     async decideWithToken() {
       return handle(() => {
         throw new PbcpError('unauthorized', 'decide takes the owner\'s credential, not a producer token');
+      });
+    },
+
+    async order(input) {
+      return handle(() => {
+        const executors = [...new Set([...tokens.values()].filter((t) => t.executor).map((t) => t.root))];
+        const random = new Uint8Array(10).map((_, i) => (counter * 31 + i * 7 + cards.size) & 255);
+        const { order: o, eligible: e } = mintOrder(input, { ulid: ulid(Date.parse(now) + counter, random), now, executors });
+        eligible.set(o.id, e);
+        persist([o]);
+        return { status: 201, body: cards.get(o.id) };
+      });
+    },
+
+    async claim(token, id, lease) {
+      return handle(() => {
+        const { root } = producer(token);
+        const o = order(id);
+        // An order the caller cannot read, or a card that is not an order, is not there for it (OPEN, Orders).
+        if (!o || !visibleTo(o, root, eligible.get(id))) throw new PbcpError('not_found', `no order ${id} for ${root}`);
+        const r = claim(o, root, lease, now);
+        persist(r.changed);
+        return { status: r.status, body: cards.get(id) };
       });
     },
 

@@ -1,0 +1,95 @@
+{
+  "name": "C32 renewing a cancelled order is 410 and the body carries the order with exec_state cancelled",
+  "rfc": [
+    "A.5"
+  ],
+  "extension": "orders",
+  "steps": [
+    {
+      "op": "clock",
+      "args": {
+        "set": "2026-10-07T09:00:00Z"
+      }
+    },
+    {
+      "op": "syncAll",
+      "args": {
+        "token": "hermes",
+        "executor": true,
+        "after": 0
+      },
+      "expect": {
+        "status": 200,
+        "body": {
+          "changes": {
+            "$len": 0
+          }
+        }
+      }
+    },
+    {
+      "op": "order",
+      "args": {
+        "to_producer": "*",
+        "title": "Book the dentist",
+        "body": "Any weekday morning."
+      },
+      "expect": {
+        "status": 201
+      },
+      "save": {
+        "o": "body.id"
+      }
+    },
+    {
+      "op": "claim",
+      "args": {
+        "token": "hermes",
+        "executor": true,
+        "id": {
+          "$var": "o"
+        },
+        "lease": 60
+      },
+      "expect": {
+        "status": 200
+      }
+    },
+    {
+      "op": "decide",
+      "args": {
+        "id": {
+          "$var": "o"
+        },
+        "decision": {
+          "decision": "dismissed"
+        }
+      },
+      "expect": {
+        "status": 200
+      }
+    },
+    {
+      "op": "claim",
+      "args": {
+        "token": "hermes",
+        "executor": true,
+        "id": {
+          "$var": "o"
+        },
+        "lease": 60
+      },
+      "expect": {
+        "status": 410,
+        "body": {
+          "id": {
+            "$var": "o"
+          },
+          "kind": "order",
+          "exec_state": "cancelled",
+          "state": "decided"
+        }
+      }
+    }
+  ]
+}

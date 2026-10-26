@@ -10,8 +10,13 @@ export function conformanceSuite(opts: {
   only?: RegExp;
   /** Include SHOULD-level fixtures (default true). */
   should?: boolean;
+  /** Extensions the head implements, e.g. `['orders']`; fixtures for other extensions are skipped (default none). */
+  extensions?: string[];
 }): void {
-  const pick = (f: Fixture) => (!opts.only || opts.only.test(f.name)) && (opts.should !== false || f.level !== 'SHOULD');
+  const pick = (f: Fixture) =>
+    (!opts.only || opts.only.test(f.name)) &&
+    (opts.should !== false || f.level !== 'SHOULD') &&
+    (f.extension === undefined || (opts.extensions ?? []).includes(f.extension));
   const head = opts.head;
   if (head) {
     describe('core conformance', () => {

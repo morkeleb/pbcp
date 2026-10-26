@@ -13,6 +13,7 @@ The fixtures in `fixtures/` are the protocol's executable definition. They are p
 - `"credential": "none"` sends no credential at all (`HeadUnderTest` receives `null`); `"credential": "invalid"` sends a producer token the head never issued.
 - Every fixture starts from an empty head (`reset()`).
 - C01–C24 check error responses by status only. From C25 on, fixtures also check the error code, which §7.4 makes normative.
+- A fixture with `"extension": "orders"` tests the orders extension (Appendix A) and runs only for a head that implements it (`conformanceSuite({ extensions: ['orders'] })`). Executor tokens are minted with `"executor": true` beside `"token"`; a fixture uses the same flag on every call for that root.
 - A fixture with `"level": "SHOULD"` checks a recommendation, not a requirement. A head may fail it and still conform; runners report it separately (`conformanceSuite({ should: false })` skips them).
 - R07 applies to heads that pre-render diagrams (RFC §3.1 "Determinism"); a head that renders on the client skips it.
 
@@ -41,6 +42,8 @@ Each step runs its `op` with `args`, checks the result against `expect`, then ev
 | `changes` | `token` or `credential`, `after` (a number, or a string sent as given) | `{ status, body: { changes: [{ seq, card }], next } }`, one page |
 | `syncAll` | `token`, `after` | runner composite: calls `changes` until `next` stops moving. `{ status, body: { changes, next, pages, ascending } }` where `changes` is every entry across pages in order and `ascending` is true iff seqs strictly increase |
 | `decide` | `id`, `decision` (`{ decision, edited_proposal?, comment?, delegated_to? }`) | `{ status, body }` — as the owner; 404 for an unknown id |
+| `order` | `to_producer`, `title`, `body` | `{ status, body }` — the owner gives an order; body is the minted order (orders extension) |
+| `claim` | `token`, `executor`?, `id`, `lease` | `{ status, body }` — `POST /cards/{id}/claim` with `{ lease_seconds }`; body is the order on 200, 409 and 410 (orders extension) |
 | `decideWithToken` | `token`, `id`, `decision` | `{ status, body }` — the same request with a producer token instead of the owner's credential |
 | `seen` | `id` | `{ status, body }` — the head presents the card to its owner (sets `seen_at`) |
 | `acknowledge` | `id` | `{ status, body }` — the owner explicitly acknowledges an artifact or signal |
@@ -125,6 +128,11 @@ Dot-separated: `body.change_seq`, `body.changes.0.seq`. A segment `[k=v]` select
 | C13 | Id outside token root → 403; `producer` ≠ id root → 400 | §5, §12 |
 | C14 | Head-owned field on PUT (core and orders-extension fields) → 400; unknown fields accepted | §3.1, §4.2, A.1 |
 | C15 | `protocol: pbcp/2`, `pbcp/1.1`, or no `protocol` → 400 | §2 |
+| C16 | Orders: a `*` order reaches executors only; a named order reaches the producer it names | A.1 |
+| C17 | Orders: second claim during a live lease → 409; at expiry (`<=` now) another claim → 200, `claim_seq` 2 | A.2 |
+| C18 | Orders: an outcome with a stale `orders.claim_seq` is stored, `exec_state` unchanged; the current lease's outcome → `done`; terminal never changes | A.3 |
+| C19 | Orders: `dismissed` → `exec_state` cancelled, lease released; renewal and claim → 410; other decisions → 400 | A.1, A.5 |
+| C20 | Orders: a `*` order minted before an executor was eligible is never returned to it, and its claim is 404 | A.1 |
 | C21 | Choice list with two defaults, a duplicate id, or a protocol decision as an id → 400; `edit` is never a decision, `edited` always is | §4.4, §7.3 |
 | C22 | Percent-encoded `upstream-id` round-trips unchanged and is not normalised; a malformed escape → 400 | §5 |
 | C24 | Unknown producer fields are preserved through PUT and sync (SHOULD) | §3.1 |
@@ -135,6 +143,8 @@ Dot-separated: `body.change_seq`, `body.changes.0.seq`. A segment `[k=v]` select
 | C29 | Malformed `after` → 400 `invalid_cursor` | §7.2, §7.4 |
 | C30 | A producer token on decide → 401 `unauthorized`; the card stays open | §7.3 |
 | C31 | `GET /` `seq` is the highest `change_seq`; syncing from it returns only later changes | §7.5, §7.2 |
+| C32 | Orders: renewing a cancelled order → 410 with the order and `exec_state: cancelled` in the body | A.5 |
+| C33 | Orders: `claim_seq` counts claims and renewals across expiry (1, 2, re-claim 3, 4) | A.1–A.3 |
 | R01 | Each core-tier type renders; the text around it is intact | §3.1 |
 | R02 | An unknown diagram type falls back with its label; text intact | §3.1 |
 | R03 | A fence with a parse error falls back with the message; the other fences still render | §3.1 |
@@ -144,4 +154,4 @@ Dot-separated: `body.change_seq`, `body.changes.0.seq`. A segment `[k=v]` select
 | R07 | Identical fence in two cards yields one cached render | §3.1 |
 | R08 | Image with alt `fallback` after a rendered fence is hidden; after an unrenderable fence it replaces the fallback block | §3.1 |
 
-C16–C20 (orders extension) are milestone 3. C23 (a parked change advances the cursor and is reported, RFC §7.2) is a producer obligation, so it is a client test in `packages/client`, not a head fixture.
+C23 (a parked change advances the cursor and is reported, RFC §7.2) is a producer obligation, so it is a client test in `packages/client`, not a head fixture.

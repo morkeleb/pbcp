@@ -28,7 +28,9 @@ export interface HeadUnderTest {
   seen(cardId: string): Promise<Response>;
   /** The owner explicitly acknowledges an artifact or signal (§4.2). */
   acknowledge(cardId: string): Promise<Response>;
-  /** Orders extension (milestone 3); unused by C01–C15. */
+  /** Orders extension (Appendix A): the owner gives an order; the head mints `head:order:<ulid>`. Body: the order card. */
+  order?(input: { to_producer: string; title: string; body: string }): Promise<Response>;
+  /** Orders extension: `POST /cards/{id}/claim` with `{ lease_seconds }` as the producer holding `token` (A.2). */
   claim?(token: string, cardId: string, lease: number): Promise<Response>;
   clock: { set(iso: string): void };
 }
@@ -75,5 +77,7 @@ export interface Fixture {
   rfc?: string[];
   /** Absent means MUST. A SHOULD fixture checks a recommendation; a head may fail it and still conform. */
   level?: 'MUST' | 'SHOULD';
+  /** The extension the fixture tests (`orders`); only heads that implement it run it. Absent means core. */
+  extension?: string;
   steps: Step[];
 }

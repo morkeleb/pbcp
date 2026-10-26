@@ -1,0 +1,184 @@
+{
+  "name": "C33 claim_seq counts every claim and renewal across expiry: claim 1, renew 2, re-claim after expiry 3, renew 4",
+  "rfc": [
+    "A.1",
+    "A.2",
+    "A.3"
+  ],
+  "extension": "orders",
+  "steps": [
+    {
+      "op": "clock",
+      "args": {
+        "set": "2026-10-07T09:00:00Z"
+      }
+    },
+    {
+      "op": "syncAll",
+      "args": {
+        "token": "hermes",
+        "executor": true,
+        "after": 0
+      },
+      "expect": {
+        "status": 200,
+        "body": {
+          "changes": {
+            "$len": 0
+          }
+        }
+      }
+    },
+    {
+      "op": "syncAll",
+      "args": {
+        "token": "cal",
+        "executor": true,
+        "after": 0
+      },
+      "expect": {
+        "status": 200,
+        "body": {
+          "changes": {
+            "$len": 0
+          }
+        }
+      }
+    },
+    {
+      "op": "order",
+      "args": {
+        "to_producer": "*",
+        "title": "Book the dentist",
+        "body": "Any weekday morning."
+      },
+      "expect": {
+        "status": 201
+      },
+      "save": {
+        "o": "body.id"
+      }
+    },
+    {
+      "op": "claim",
+      "args": {
+        "token": "hermes",
+        "executor": true,
+        "id": {
+          "$var": "o"
+        },
+        "lease": 60
+      },
+      "expect": {
+        "status": 200,
+        "body": {
+          "claim_seq": 1,
+          "claimed_by": "hermes"
+        }
+      }
+    },
+    {
+      "op": "clock",
+      "args": {
+        "set": "2026-10-07T09:00:30Z"
+      }
+    },
+    {
+      "op": "claim",
+      "args": {
+        "token": "hermes",
+        "executor": true,
+        "id": {
+          "$var": "o"
+        },
+        "lease": 60
+      },
+      "expect": {
+        "status": 200,
+        "body": {
+          "claim_seq": 2,
+          "claimed_by": "hermes"
+        }
+      }
+    },
+    {
+      "op": "clock",
+      "args": {
+        "set": "2026-10-07T09:01:15Z"
+      }
+    },
+    {
+      "op": "claim",
+      "args": {
+        "token": "cal",
+        "executor": true,
+        "id": {
+          "$var": "o"
+        },
+        "lease": 60
+      },
+      "expect": {
+        "status": 409
+      }
+    },
+    {
+      "op": "clock",
+      "args": {
+        "set": "2026-10-07T09:01:30Z"
+      }
+    },
+    {
+      "op": "claim",
+      "args": {
+        "token": "cal",
+        "executor": true,
+        "id": {
+          "$var": "o"
+        },
+        "lease": 60
+      },
+      "expect": {
+        "status": 200,
+        "body": {
+          "claim_seq": 3,
+          "claimed_by": "cal"
+        }
+      }
+    },
+    {
+      "op": "claim",
+      "args": {
+        "token": "hermes",
+        "executor": true,
+        "id": {
+          "$var": "o"
+        },
+        "lease": 60
+      },
+      "expect": {
+        "status": 409,
+        "body": {
+          "claim_seq": 3
+        }
+      }
+    },
+    {
+      "op": "claim",
+      "args": {
+        "token": "cal",
+        "executor": true,
+        "id": {
+          "$var": "o"
+        },
+        "lease": 60
+      },
+      "expect": {
+        "status": 200,
+        "body": {
+          "claim_seq": 4,
+          "claimed_by": "cal"
+        }
+      }
+    }
+  ]
+}
