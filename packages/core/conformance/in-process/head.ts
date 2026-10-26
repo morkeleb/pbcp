@@ -37,7 +37,7 @@ export function inProcessHead(opts: InProcessOptions = {}): HeadUnderTest {
   const ownerOp = (id: string, op: (c: Card) => { status: number; card: Card; changed: Card[] }): Response =>
     handle(() => {
       const stored = cards.get(id);
-      if (!stored) return { status: 404, body: { error: 'not_found', message: id } };
+      if (!stored) throw new PbcpError('not_found', `no card ${id}`);
       const r = op(stored);
       persist(r.changed);
       return { status: r.status, body: cards.get(id) };

@@ -18,12 +18,15 @@ export const ERROR_CODES = {
   not_acknowledgeable: 400,
   supersede_self: 400,
   supersede_target_missing: 400,
+  id_mismatch: 400,
   // 401
   unauthorized: 401,
   // 403 — outside the producer's namespace, or not this head's owner
   outside_root: 403,
   cross_namespace_supersede: 403,
   wrong_person: 403,
+  // 404 — no card with this id (decide and other owner-side calls)
+  not_found: 404,
   // 409 — locked
   locked: 409,
   already_decided: 409,
