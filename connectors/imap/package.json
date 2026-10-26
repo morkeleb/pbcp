@@ -1,0 +1,21 @@
+{
+  "name": "@pbcp/connector-imap",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Example producer: unseen IMAP mail to cards.",
+  "license": "MIT",
+  "type": "module",
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "start": "node dist/src/index.js"
+  },
+  "dependencies": {
+    "@pbcp/client": "workspace:*",
+    "@pbcp/core": "workspace:*",
+    "imapflow": "^2.9.1",
+    "mailparser": "^3.12.4"
+  },
+  "devDependencies": {
+    "@types/mailparser": "^3.9.0"
+  }
+}

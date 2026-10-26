@@ -1,0 +1,37 @@
+{
+  "name": "@pbcp/core",
+  "version": "0.0.0",
+  "description": "PBCP protocol core: card schema, id grammar, restricted YAML, lifecycle transitions. No I/O.",
+  "license": "MIT",
+  "type": "module",
+  "exports": {
+    ".": {
+      "source": "./src/index.ts",
+      "types": "./dist/src/index.d.ts",
+      "default": "./dist/src/index.js"
+    },
+    "./conformance": {
+      "source": "./conformance/index.ts",
+      "types": "./dist/conformance/index.d.ts",
+      "default": "./dist/conformance/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    "conformance/fixtures"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json"
+  },
+  "dependencies": {
+    "zod": "^4.6.7"
+  },
+  "peerDependencies": {
+    "vitest": "*"
+  },
+  "peerDependenciesMeta": {
+    "vitest": {
+      "optional": true
+    }
+  }
+}
