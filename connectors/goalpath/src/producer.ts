@@ -1,4 +1,4 @@
-import { card, type HeadClient, type StateStore } from '@pbcp/client';
+import { card, type StateStore, type SubmitResponse } from '@pbcp/client';
 import { encodeUpstream as enc, type Card, type ProducerCard } from '@pbcp/core';
 import type { Check, CodeLink, Edge, GoalPathSource, Item, Milestone, Week } from './source.js';
 
@@ -7,7 +7,6 @@ export interface Config { toPerson: string; projectId: string; tz: string; diges
 export interface Approval { card: string; round: number; label: string; thread: string; prev?: string; submitted?: boolean; decided?: boolean; answered?: boolean; left?: boolean }
 /** The current card of a milestone's risk chain. */
 export interface Risk { card: string; projected: string; slipping: boolean }
-export interface State { approvals: Record<string, Approval>; risks: Record<string, Risk>; digest?: string }
 
 const ACTIVE = new Set(['Started', 'Finished', 'Delivered']);
 const FAILED = new Set(['failure', 'failed', 'error', 'timed_out']);
@@ -103,17 +102,27 @@ export function digestCard(date: string, items: Item[], ms: Milestone[], trend: 
   });
 }
 
-/** `head`, `produce` and `onDecision` for runProducer. State changes only after the head accepted the card, so a failed submit is retried. */
-export function goalpathProducer(head: Pick<HeadClient, 'submit' | 'sync'>, gp: GoalPathSource, store: StateStore<State>, cfg: Config, clock = () => new Date()) {
-  const status = new Map<string, number>();
-  const ok = (id: string) => status.get(id) === 200 || status.get(id) === 201;
-  const load = async (): Promise<State> => ({ approvals: {}, risks: {}, ...(await store.get('state')) });
-  const mutate = async (fn: (s: State) => void) => { const s = await load(); fn(s); await store.set('state', s); };
-  const closed = (a: Approval) => !!(a.decided || a.answered);
-  return {
-    head: { sync: (after: number) => head.sync(after), submit: async (c: ProducerCard) => { status.delete(c.id); const r = await head.submit(c); status.set(c.id, r.status); return r; } },
+/** One state entry per key in the store's `goalpath` namespace: `risk:<milestone-id>`, `approval:<item-id>`, `digest`. */
+export const NAMESPACE = 'goalpath';
 
+/**
+ * `produce`, `onSubmitted` and `onDecision` for runProducer. State changes only once the head answered the card
+ * (onSubmitted), so a failed submit is recomputed and retried on the next pass.
+ */
+export function goalpathProducer(gp: GoalPathSource, store: StateStore, cfg: Config, clock = () => new Date()) {
+  const kv = store.kv<Risk | Approval | string>(NAMESPACE);
+  const risk = async (id: string) => (await kv.get(`risk:${id}`)) as Risk | undefined;
+  const approval = async (id: string) => (await kv.get(`approval:${id}`)) as Approval | undefined;
+  const setApproval = (id: string, a: Approval) => kv.set(`approval:${id}`, a);
+  const approvals = async () => Promise.all((await kv.keys('approval:')).map(async (k) => [k.slice('approval:'.length), (await kv.get(k)) as Approval] as const));
+  const closed = (a: Approval) => !!(a.decided || a.answered);
+  /** What to record once the head answered a card, by card id; filled by produce, run by onSubmitted. */
+  const then = new Map<string, (r: SubmitResponse) => Promise<void>>();
+  const after = (c: ProducerCard, fn: (r: SubmitResponse) => Promise<void>) => (then.set(c.id, fn), c);
+  const ok = (r: SubmitResponse) => r.status !== 409;
+  return {
     async *produce(): AsyncGenerator<ProducerCard> {
+      then.clear();
       const now = clock();
       const [ms, items, edges] = await Promise.all([gp.milestones(), gp.myItems(), gp.dependencies()]);
       const open = items.filter((i) => i.status !== 'Accepted');
@@ -121,33 +130,27 @@ export function goalpathProducer(head: Pick<HeadClient, 'submit' | 'sync'>, gp: 
       const byId = new Map(ms.map((m) => [m.id, m]));
 
       for (const m of ms.filter((m) => owned.has(m.id))) {
-        const c = riskCard(m, (await load()).risks[m.id], ms, edges, cfg, now);
-        if (!c) continue;
-        yield c;
-        if (ok(c.id)) await mutate((s) => { s.risks[m.id] = { card: c.id, projected: m.projected!, slipping: late(m) }; });
+        const c = riskCard(m, await risk(m.id), ms, edges, cfg, now);
+        if (c) yield after(c, async (r) => void (ok(r) && (await kv.set(`risk:${m.id}`, { card: c.id, projected: m.projected!, slipping: late(m) }))));
       }
 
       const queue = new Map(open.filter((i) => i.status === (cfg.approvalStatus ?? 'Finished')).map((i) => [i.id, i]));
       for (const i of queue.values()) {
-        let a = (await load()).approvals[i.id];
+        let a = await approval(i.id);
         if (a && closed(a) && !a.left) continue;
         if (!a || closed(a)) {
           const round = (a?.round ?? 0) + 1;
-          const fresh: Approval = { card: approvalId(i.id, round), round, label: label(i), thread: i.milestoneId ?? cfg.projectId, prev: a?.card };
-          await mutate((s) => { s.approvals[i.id] = fresh; });
-          a = fresh;
+          a = { card: approvalId(i.id, round), round, label: label(i), thread: i.milestoneId ?? cfg.projectId, prev: a?.card };
+          await setApproval(i.id, a);
         }
         if (a.submitted) continue;
-        const c = approvalCard(i, byId.get(i.milestoneId ?? ''), a, cfg, now);
-        yield c;
-        if (status.has(c.id)) await mutate((s) => { s.approvals[i.id]!.submitted = true; });
+        const fresh = a;
+        yield after(approvalCard(i, byId.get(i.milestoneId ?? ''), a, cfg, now), () => setApproval(i.id, { ...fresh, submitted: true }));
       }
-      for (const [id, a] of Object.entries((await load()).approvals)) {
+      for (const [id, a] of await approvals()) {
         if (queue.has(id) || !a.submitted || a.left) continue;
-        if (closed(a)) { await mutate((s) => { s.approvals[id]!.left = true; }); continue; }
-        const c = answeredCard(a, items.find((i) => i.id === id), cfg, now);
-        yield c;
-        if (ok(c.id)) await mutate((s) => { Object.assign(s.approvals[id]!, { answered: true, left: true }); });
+        if (closed(a)) { await setApproval(id, { ...a, left: true }); continue; }
+        yield after(answeredCard(a, items.find((i) => i.id === id), cfg, now), async (r) => void (ok(r) && (await setApproval(id, { ...a, answered: true, left: true }))));
       }
 
       const runs = new Set<string>();
@@ -160,17 +163,22 @@ export function goalpathProducer(head: Pick<HeadClient, 'submit' | 'sync'>, gp: 
           }
 
       const [date, time] = local(now, cfg.tz).split(' ') as [string, string];
-      if ((await load()).digest !== date && time.slice(0, 5) >= (cfg.digestAt ?? '20:00')) {
+      if ((await kv.get('digest')) !== date && time.slice(0, 5) >= (cfg.digestAt ?? '20:00')) {
         const c = digestCard(date, items, ms, await gp.unplannedTrend(cfg.trendWeeks ?? 4), cfg, now);
-        yield c;
-        if (ok(c.id)) await mutate((s) => { s.digest = date; });
+        yield after(c, async (r) => void (ok(r) && (await kv.set('digest', date))));
       }
+    },
+
+    async onSubmitted(c: ProducerCard, r: SubmitResponse) {
+      const fn = then.get(c.id);
+      then.delete(c.id);
+      await fn?.(r);
     },
 
     /** Writes a head decision on the current approval card back to GoalPath, once. GoalPath wins when it answered first. */
     async onDecision(c: Card) {
       if (c.kind !== 'decision' || c.decision === undefined) return;
-      const [itemId, a] = Object.entries((await load()).approvals).find(([, a]) => a.card === c.id) ?? [];
+      const [itemId, a] = (await approvals()).find(([, a]) => a.card === c.id) ?? [];
       if (!itemId || !a || a.decided || a.answered) return;
       const note = async (...parts: (string | undefined)[]) => { const text = parts.filter(Boolean).join('\n\n'); if (text) await gp.addComment(itemId, text); };
       // §4.3: `edited` accepts the proposal ("Accept GP-N") with the person's text in place of it.
@@ -178,7 +186,7 @@ export function goalpathProducer(head: Pick<HeadClient, 'submit' | 'sync'>, gp: 
         await gp.setItemStatus(itemId, c.decision === 'reject' ? 'Rejected' : 'Accepted');
         await note(c.edited_proposal, c.comment);
       } else if (c.decision === 'delegated') await note(`Delegated to ${c.delegated_to}.`, c.comment);
-      await mutate((s) => { s.approvals[itemId]!.decided = true; });
+      await setApproval(itemId, { ...a, decided: true });
     },
   };
 }

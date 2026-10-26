@@ -19,7 +19,8 @@ export const ERROR_CODES = {
   supersede_self: 400,
   supersede_target_missing: 400,
   id_mismatch: 400,
-  // 401
+  invalid_cursor: 400,
+  // 401 — any missing or invalid credential: a producer token, or the owner's on decide
   unauthorized: 401,
   // 403 — outside the producer's namespace, or not this head's owner
   outside_root: 403,

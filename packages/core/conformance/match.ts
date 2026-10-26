@@ -5,13 +5,18 @@ export type Vars = Record<string, unknown>;
 const isObj = (v: unknown): v is Record<string, unknown> => typeof v === 'object' && v !== null && !Array.isArray(v);
 const isMatcher = (v: unknown): v is Record<string, unknown> => isObj(v) && Object.keys(v).some((k) => k.startsWith('$'));
 
-/** Replaces every `{ "$var": name }` with the saved value. */
+/** Replaces every `{ "$var": name }` with the saved value, and every `{ "$repeat": [text, n] }` with `text` n times. */
 export function resolve(v: unknown, vars: Vars): unknown {
   if (Array.isArray(v)) return v.map((x) => resolve(x, vars));
   if (isObj(v)) {
     if (Object.keys(v).length === 1 && typeof v.$var === 'string') {
       if (!(v.$var in vars)) throw new Error(`unknown variable ${v.$var}`);
       return vars[v.$var];
+    }
+    if (Object.keys(v).length === 1 && Array.isArray(v.$repeat)) {
+      const [text, n] = v.$repeat as [unknown, unknown];
+      if (typeof text !== 'string' || typeof n !== 'number') throw new Error('$repeat takes [text, count]');
+      return text.repeat(n);
     }
     return Object.fromEntries(Object.entries(v).map(([k, x]) => [k, resolve(x, vars)]));
   }

@@ -1,21 +1,22 @@
 import { HeadClient, card } from '@pbcp/client';
-import { afterEach, describe, expect, it, vi } from 'vitest';
-import { stubHead, type Stub } from '../../../../../packages/client/test/stub.js';
-import { pollContext } from '../../fake-context.js';
+import { stubHead, type Stub } from '@pbcp/client/testing';
+import { describe, expect, it } from 'vitest';
+import { pollContext as context, type PollOptions } from '../../fake-context.js';
 import { PbcpTrigger } from './PbcpTrigger.node.js';
 
-afterEach(() => vi.unstubAllGlobals());
+let stub: Stub;
+/** A poll context whose `helpers.httpRequest` reaches the current stub head. */
+const pollContext = (o: Omit<PollOptions, 'fetch'> & { fetch?: typeof fetch } = {}) => context({ fetch: (...a) => stub.fetch(...a), ...o });
 
-/** A stub head holding `n` cards (seq 1..n), every other one a decision; the nodes reach it through the global fetch. */
+/** A stub head holding `n` cards (seq 1..n), every other one a decision; the nodes reach it through n8n's request helper. */
 async function headWith(n: number, pageSize = 2): Promise<Stub> {
-  const stub = stubHead({ pageSize });
+  stub = stubHead({ pageSize });
   const head = new HeadClient({ baseUrl: 'https://head.test', token: 't', fetch: stub.fetch });
   for (let i = 1; i <= n; i++) {
     const kind = i % 2 ? 'decision' : 'artifact';
     await head.submit(card({ producer: 'n8n', namespace: 'test', upstream: `c${i}`, kind, to_person: 'morten', title: `card ${i}`, body: '' }));
   }
   stub.requests.length = 0;
-  vi.stubGlobal('fetch', stub.fetch);
   return stub;
 }
 
@@ -23,18 +24,30 @@ const poll = (ctx: ReturnType<typeof pollContext>['ctx']) => new PbcpTrigger().p
 const seqs = (out: Awaited<ReturnType<typeof poll>>) => out?.[0]?.map((i) => i.json.seq) ?? null;
 
 describe('PbcpTrigger', () => {
-  it('starts at the head\'s position on the first poll, then emits only what changed after it', async () => {
+  it("starts at the head's seq from describe on the first poll, without reading the feed, then emits only what changed after it", async () => {
     const stub = await headWith(3);
+    stub.decideHere('n8n:test:c3', { decision: 'approve' }); // seq 4: the head's position is past the last card's first seq
     const { ctx, staticData } = pollContext();
     expect(await poll(ctx)).toBeNull();
-    expect(staticData.after).toBe(3);
-    expect(stub.requests.map((r) => r.url)).toEqual(['https://head.test/changes?after=0', 'https://head.test/changes?after=2', 'https://head.test/changes?after=3']);
+    expect(staticData.after).toBe(4);
+    expect(stub.requests.map((r) => `${r.method} ${r.url}`)).toEqual(['GET https://head.test/']);
 
     stub.decideHere('n8n:test:c1', { decision: 'approve' });
     const out = await poll(ctx);
-    expect(out?.[0]).toEqual([{ json: { seq: 4, card: expect.objectContaining({ id: 'n8n:test:c1', state: 'decided', decision: 'approve' }) } }]);
-    expect(staticData.after).toBe(4);
+    expect(out?.[0]).toEqual([{ json: { seq: 5, card: expect.objectContaining({ id: 'n8n:test:c1', state: 'decided', decision: 'approve' }) } }]);
+    expect(staticData.after).toBe(5);
     expect(await poll(ctx)).toBeNull();
+    expect(stub.requests.filter((r) => r.url === 'https://head.test/')).toHaveLength(1);
+  });
+
+  it('sends through n8n\'s request helper: full response, status errors as responses, the JSON as a text body', async () => {
+    await headWith(1);
+    const { ctx, calls } = pollContext({ staticData: { after: 0 } });
+    await poll(ctx);
+    expect(calls[0]).toEqual({
+      method: 'GET', url: 'https://head.test/changes?after=0', headers: { authorization: 'Bearer tok', accept: 'application/json' }, body: undefined,
+      json: false, encoding: 'text', returnFullResponse: true, ignoreHttpStatusErrors: true,
+    });
   });
 
   it('with startFrom beginning, pages through everything and stores the last next', async () => {
@@ -64,11 +77,11 @@ describe('PbcpTrigger', () => {
   it('a later page that fails is not skipped: earlier items are returned and only their cursor stored', async () => {
     const stub = await headWith(5);
     let n = 0;
-    vi.stubGlobal('fetch', (...args: Parameters<typeof fetch>) => {
+    const flaky: typeof fetch = (...args) => {
       if (++n === 2) stub.script(500, { error: 'boom' });
       return stub.fetch(...args);
-    });
-    const { ctx, staticData, warnings } = pollContext({ staticData: { after: 0 } });
+    };
+    const { ctx, staticData, warnings } = pollContext({ staticData: { after: 0 }, fetch: flaky });
     expect(seqs(await poll(ctx))).toEqual([1, 2]);
     expect(staticData.after).toBe(2);
     expect(warnings).toHaveLength(1);

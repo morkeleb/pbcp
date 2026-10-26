@@ -9,9 +9,10 @@ The fixtures in `fixtures/` are the protocol's executable definition. They are p
 
 - The head under test is owned by person id `morten` (the RFC's example owner). Every card is addressed `to_person: "morten"`.
 - The head clock starts at an arbitrary time; fixtures that care set it with the `clock` op.
-- Tokens are named by their namespace root. `"token": "goalpath"` means "a producer token bound to root `goalpath`"; the runner mints one per root on first use.
+- Tokens are named by their namespace root. `"token": "goalpath"` means "a producer token bound to root `goalpath`"; the runner mints one per root on first use. `"ceiling": "brief"` beside it mints that producer's token with an urgency ceiling (§9); a fixture uses the same ceiling on every call for that root, since a head may hold ceilings per producer.
+- `"credential": "none"` sends no credential at all (`HeadUnderTest` receives `null`); `"credential": "invalid"` sends a producer token the head never issued.
 - Every fixture starts from an empty head (`reset()`).
-- Error responses are checked by status only. The error body and its codes are normative (RFC §7.4), but the fixtures leave them to the status table so a failing head is diagnosed by number.
+- C01–C24 check error responses by status only. From C25 on, fixtures also check the error code, which §7.4 makes normative.
 - A fixture with `"level": "SHOULD"` checks a recommendation, not a requirement. A head may fail it and still conform; runners report it separately (`conformanceSuite({ should: false })` skips them).
 - R07 applies to heads that pre-render diagrams (RFC §3.1 "Determinism"); a head that renders on the client skips it.
 
@@ -35,10 +36,12 @@ Each step runs its `op` with `args`, checks the result against `expect`, then ev
 
 | op | args | result |
 | --- | --- | --- |
-| `put` | `token`, `card` (object = JSON; string = file form, `text/markdown`) | `{ status, body }` — body is the stored card on 200/201/409 |
-| `changes` | `token`, `after` | `{ status, body: { changes: [{ seq, card }], next } }`, one page |
+| `describe` | `token` or `credential` | `{ status, body }` — `GET /` (§7.5) |
+| `put` | `token` or `credential`, `ceiling`?, `card` (object = JSON; string = file form, `text/markdown`) | `{ status, body }` — body is the stored card on 200/201/409 |
+| `changes` | `token` or `credential`, `after` (a number, or a string sent as given) | `{ status, body: { changes: [{ seq, card }], next } }`, one page |
 | `syncAll` | `token`, `after` | runner composite: calls `changes` until `next` stops moving. `{ status, body: { changes, next, pages, ascending } }` where `changes` is every entry across pages in order and `ascending` is true iff seqs strictly increase |
 | `decide` | `id`, `decision` (`{ decision, edited_proposal?, comment?, delegated_to? }`) | `{ status, body }` — as the owner; 404 for an unknown id |
+| `decideWithToken` | `token`, `id`, `decision` | `{ status, body }` — the same request with a producer token instead of the owner's credential |
 | `seen` | `id` | `{ status, body }` — the head presents the card to its owner (sets `seen_at`) |
 | `acknowledge` | `id` | `{ status, body }` — the owner explicitly acknowledges an artifact or signal |
 | `clock` | `set` (RFC 3339) | sets the head clock |
@@ -71,7 +74,7 @@ interface RenderResult {
 
 ### Values in `args`
 
-`{ "$var": "name" }` anywhere in `args` is replaced by the saved variable.
+`{ "$var": "name" }` anywhere in `args` is replaced by the saved variable. `{ "$repeat": ["x", 60000] }` is replaced by the text repeated that many times, so a fixture can send a large card without carrying it.
 
 ### Matching (`expect`)
 
@@ -99,6 +102,10 @@ interface RenderResult {
 
 Dot-separated: `body.change_seq`, `body.changes.0.seq`. A segment `[k=v]` selects the first array element whose (dotted) key `k` equals `v`: `body.changes.[card.id=goalpath:item:4421].seq`.
 
+## Reference renderer
+
+`@pbcp/core/conformance/render` exports `referenceRenderer()`, the `RenderUnderTest` the in-process run uses. It classifies without drawing, so a head can run R01–R08 against it before its own renderer exists.
+
 ## Cases
 
 | # | Case | RFC |
@@ -121,6 +128,13 @@ Dot-separated: `body.change_seq`, `body.changes.0.seq`. A segment `[k=v]` select
 | C21 | Choice list with two defaults, a duplicate id, or a protocol decision as an id → 400; `edit` is never a decision, `edited` always is | §4.4, §7.3 |
 | C22 | Percent-encoded `upstream-id` round-trips unchanged and is not normalised; a malformed escape → 400 | §5 |
 | C24 | Unknown producer fields are preserved through PUT and sync (SHOULD) | §3.1 |
+| C25 | `GET /` describes the head: `protocol`, `owner`, `seq`, `extensions`, `render.mermaid` | §7.5 |
+| C26 | Missing or invalid producer token → 401 `unauthorized` on PUT and sync | §7.1, §7.2, §7.4 |
+| C27 | A 64 KiB card is accepted; one over 1 MiB → 413 `too_large` | §3.1, §7.1 |
+| C28 | A ceiling clamps `delivery`; `urgency` is stored and returned unchanged | §4.2, §9 |
+| C29 | Malformed `after` → 400 `invalid_cursor` | §7.2, §7.4 |
+| C30 | A producer token on decide → 401 `unauthorized`; the card stays open | §7.3 |
+| C31 | `GET /` `seq` is the highest `change_seq`; syncing from it returns only later changes | §7.5, §7.2 |
 | R01 | Each core-tier type renders; the text around it is intact | §3.1 |
 | R02 | An unknown diagram type falls back with its label; text intact | §3.1 |
 | R03 | A fence with a parse error falls back with the message; the other fences still render | §3.1 |

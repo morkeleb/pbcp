@@ -68,6 +68,8 @@ export const HeadFieldsSchema = z.object({
   change_seq: z.number().int().nonnegative(),
   received_at: Timestamp,
   changed_at: Timestamp,
+  /** §4.2, §9: `urgency` clamped to the producer's ceiling when the content was stored. */
+  delivery: z.enum(URGENCIES),
   seen_at: Timestamp.optional(),
   acknowledged_at: Timestamp.optional(),
   snoozed_until: Timestamp.optional(),

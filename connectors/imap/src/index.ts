@@ -1,31 +1,25 @@
-import { HeadClient, fileCursor, fileState, runProducer } from '@pbcp/client';
-import type { Card } from '@pbcp/core';
+import { HeadClient, fileStore, runProducer } from '@pbcp/client';
+import type { Card, ProducerCard } from '@pbcp/core';
 import { ImapFlow } from 'imapflow';
 import { namespaceOf, toCard, type Fetched, type MailRef } from './mail.js';
 
-const required = (name: string): never => {
-  throw new Error(`${name} is required`);
-};
-const env = (name: string, fallback?: string): string => process.env[name] || fallback || required(name);
+const env = (name: string, fallback?: string): string =>
+  process.env[name] || fallback || (() => { throw new Error(`${name} is required`); })();
 
 const user = env('IMAP_USER');
 const account = namespaceOf(env('PBCP_MAIL_ACCOUNT', user));
 const mailboxes = env('IMAP_MAILBOXES', 'INBOX').split(',').map((s) => s.trim());
 const archive = env('IMAP_ARCHIVE', 'Archive');
-const cursor = env('PBCP_CURSOR', 'pbcp-imap.cursor.json');
-const state = fileState<MailRef>(env('PBCP_STATE', `${cursor.replace(/\.cursor\.json$/, '')}.state.json`));
+const store = fileStore(env('PBCP_STORE', env('PBCP_CURSOR', 'pbcp-imap.store.json')));
+const state = store.kv<MailRef>('mail');
+let pending: [string, MailRef] | undefined; // the decision card being submitted, until the head answers
 const head = new HeadClient({ baseUrl: env('PBCP_HEAD_URL'), token: env('PBCP_TOKEN') });
 const toPerson = process.env.PBCP_TO_PERSON || (await head.describe()).owner;
 
 async function withImap<T>(mailbox: string, fn: (c: ImapFlow) => Promise<T>): Promise<T> {
   const c = new ImapFlow({ host: env('IMAP_HOST'), port: Number(env('IMAP_PORT', '993')), secure: true, auth: { user, pass: env('IMAP_PASSWORD') }, logger: false });
-  c.on('error', (e) => console.error(e));
-  await c.connect();
-  try {
-    return await c.mailboxOpen(mailbox).then(() => fn(c));
-  } finally {
-    await c.logout();
-  }
+  await c.on('error', (e) => console.error(e)).connect();
+  try { return await c.mailboxOpen(mailbox).then(() => fn(c)); } finally { await c.logout(); }
 }
 
 async function* produce() {
@@ -36,7 +30,7 @@ async function* produce() {
     });
     for (const m of fetched) {
       const { card, ref } = await toCard(m, { account, toPerson });
-      if (card.kind === 'decision') await state.set(card.id, ref);
+      pending = card.kind === 'decision' ? [card.id, ref] : undefined;
       yield card;
     }
   }
@@ -56,5 +50,10 @@ async function onDecision(card: Card) {
   await state.delete(card.id);
 }
 
-const run = runProducer({ head, cursor: fileCursor(cursor), produce, onDecision });
+/** A decision card's message ref is recorded once the head has answered (201, 200 or 409), never for a failed submit. */
+async function onSubmitted(card: ProducerCard) {
+  if (pending?.[0] === card.id) await state.set(card.id, pending[1]);
+}
+
+const run = runProducer({ head, store, produce, onSubmitted, onDecision });
 for (const sig of ['SIGINT', 'SIGTERM'] as const) process.once(sig, () => void run.stop().then(() => process.exit(0)));

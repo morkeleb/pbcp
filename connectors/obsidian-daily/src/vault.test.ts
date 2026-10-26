@@ -1,9 +1,9 @@
 import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { HeadClient, fileState, memoryCursor, producerPass } from '@pbcp/client';
+import { HeadClient, fileStore, memoryStore, producerPass, type ProducerOptions } from '@pbcp/client';
+import { stubHead } from '@pbcp/client/testing';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { stubHead } from '../../../packages/client/test/stub.js';
 import { dailyNotes } from './vault.js';
 
 let root: string;
@@ -19,12 +19,13 @@ describe('dailyNotes against the stub head', () => {
   it('submits new notes, skips unchanged ones, and replaces changed ones', async () => {
     const stub = stubHead();
     const head = new HeadClient({ baseUrl: 'https://head.test', token: 't', fetch: stub.fetch });
-    const state = fileState<string>(join(root, 'state.json'));
+    const store = fileStore(join(root, 'store.json'));
     const errors: unknown[] = [];
     const pass = () =>
       producerPass({
-        ...dailyNotes({ vault: join(root, 'My Vault'), folder: 'Daily', toPerson: 'morten', head, state }),
-        cursor: memoryCursor(),
+        ...dailyNotes({ vault: join(root, 'My Vault'), folder: 'Daily', toPerson: 'morten', state: store.kv('notes') }),
+        head,
+        store,
         onError: (e) => errors.push(e),
       });
     const puts = () => stub.requests.filter((r) => r.method === 'PUT');
@@ -56,19 +57,27 @@ describe('dailyNotes against the stub head', () => {
   it('re-sends after a failed submit, and an identical re-send changes nothing at the head', async () => {
     const stub = stubHead();
     const head = new HeadClient({ baseUrl: 'https://head.test', token: 't', fetch: stub.fetch });
-    const opts = (state = fileState<string>(join(root, 'state.json'))) => ({
-      ...dailyNotes({ vault: join(root, 'My Vault'), folder: 'Daily', toPerson: 'morten', head, state }),
-      cursor: memoryCursor(),
-      onError: () => {},
-    });
+    const store = fileStore(join(root, 'store.json'));
+    const statuses: number[] = [];
+    const opts = (state = store.kv<string>('notes')) => {
+      const notes = dailyNotes({ vault: join(root, 'My Vault'), folder: 'Daily', toPerson: 'morten', state });
+      const onSubmitted: ProducerOptions['onSubmitted'] = async (c, r) => {
+        statuses.push(r.status);
+        await notes.onSubmitted!(c, r);
+      };
+      return { ...notes, head, store, onSubmitted, onError: () => {} };
+    };
     await note('2026-10-26.md', 'x');
     stub.script(500, { error: 'boom' });
     await producerPass(opts());
     expect(stub.cards.size).toBe(0);
+    expect(await store.kv('notes').keys()).toEqual([]);
     await producerPass(opts());
+    expect(await store.kv('notes').keys()).toEqual(['obsidian:my-vault:2026-10-26']);
     const seq = stub.cards.get('obsidian:my-vault:2026-10-26')!.change_seq;
-    await producerPass(opts(fileState<string>(join(root, 'fresh.json')))); // lost state: re-sent, head says 200
+    await producerPass(opts(memoryStore().kv('notes'))); // lost state: re-sent, head says 200
     expect(stub.requests.filter((r) => r.method === 'PUT')).toHaveLength(3);
+    expect(statuses).toEqual([201, 200]);
     expect(stub.cards.get('obsidian:my-vault:2026-10-26')!.change_seq).toBe(seq);
   });
 });

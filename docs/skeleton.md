@@ -1,6 +1,6 @@
 # PBCP Reference Implementation — Repo Skeleton
 
-Oct 26, 2026 · @Morten Nielsen · Companion to RFC Draft 0.2
+Oct 26, 2026 · @Morten Nielsen · Companion to RFC Draft 0.4
 
 ## Layout
 
@@ -118,24 +118,41 @@ export class HeadClient {
   submit(card: ProducerCard): Promise<{ status: 200|201|409; card: Card }>;   // 409 is returned, never thrown
   sync(after: number): Promise<{ changes: { seq: number; card: Card }[]; next: number }>;
   claim(id: string, leaseSeconds: number): Promise<{ claim_seq: number; exec_state: ExecState }>; // throws 409/410
-  decide(id: string, d: Decision): Promise<{ status: 200|409; card: Card }>;  // head-side interfaces only
-  describe(): Promise<HeadDescription>;                       // GET /, RFC §7.5
+  describe(): Promise<HeadDescription>;                       // GET /, RFC §7.5: protocol, owner, seq, extensions, render
+}
+// constructor also takes `transport?: Transport` instead of fetch: (req) => Promise<{ status, headers, body }>
+
+// owner.ts — the owner's side (RFC §7.3); the credential is whatever the head's own interface issues
+export class OwnerClient {
+  constructor(opts: { baseUrl: string; credential: string; fetch?: typeof fetch; transport?: Transport; paths?: {...} });
+  decide(id: string, d: Decision): Promise<{ status: 200|409; card: Card }>;  // a producer token here is a 401
+  seen(id: string): Promise<Card>;
+  ack(id: string): Promise<Card>;
 }
 
-// producer.ts — durable consumer loop, §7.2
+// store.ts — the cursor plus connector state
 export interface CursorStore { get(): Promise<number>; set(n: number): Promise<void>; }
-export const fileCursor: (path: string) => CursorStore;         // default: a JSON file next to the connector
+export interface KeyValue<T> { get(k): Promise<T|undefined>; set(k, v: T): Promise<void>; delete(k): Promise<void>; keys(prefix?): Promise<string[]>; }
+export interface StateStore extends CursorStore { kv<T>(namespace: string): KeyValue<T>; }
+export const fileStore: (path: string) => StateStore;           // one JSON file next to the connector
+export const memoryStore: () => StateStore;
+
+// producer.ts — durable consumer loop, §7.2
 
 export function runProducer(opts: {
   head: HeadClient;
-  cursor: CursorStore;
+  store: CursorStore;                                           // usually a StateStore
   produce?: () => AsyncIterable<ProducerCard>;                  // emit new cards (may be empty for pure listeners)
-  onDecision: (card: Card) => Promise<void>;                    // called once per changed card; must be idempotent
+  onSubmitted?: (card: ProducerCard, res: SubmitResponse) => void | Promise<void>;  // per answered submit, before produce resumes
+  onDecision: (card: Card) => Promise<void>;                    // after produce() finishes; once per changed card; idempotent
   intervalMs?: number;
   maxAttempts?: number;                                         // default 5; then the change is parked (RFC §7.2)
-  onParked?: (change: { seq: number; card: Card }, err: unknown) => void | Promise<void>;  // MUST report; default logs
+  onParked?: (p: { from: 'sync'; seq: number; card: Card } | { from: 'submit'; card: ProducerCard }, err: unknown) => void | Promise<void>;  // MUST report; default logs
 }): { stop(): void };
-// Loop: produce → submit each (409 → onDecision with the returned card) → sync(after) → onDecision each → cursor.set(next)
+// Loop: produce → submit each (answered → onSubmitted; refused 4xx → parked after maxAttempts) → onDecision for decided submit
+// results → sync(after) → onDecision each → store.set(next)
+
+// testing.ts (`@pbcp/client/testing`) — stubHead(): an in-memory head behind a fetch, on core's own transitions
 
 // executor.ts — Appendix A, with A.5 cancellation handling built in
 export function runExecutor(opts: {
@@ -237,9 +254,11 @@ The suite is the protocol's real definition. It ships inside `@pbcp/core/conform
 export interface HeadUnderTest {
   reset(): Promise<void>;
   token(root: string, opts?: { executor?: boolean; ceiling?: Urgency }): Promise<string>;
-  put(token: string, card: unknown): Promise<{ status: number; body: unknown }>;
-  changes(token: string, after: number): Promise<{ status: number; body: unknown }>;
+  describe(token: string | null): Promise<{ status: number; body: unknown }>;        // GET /
+  put(token: string | null, card: unknown): Promise<{ status: number; body: unknown }>;   // null: no credential
+  changes(token: string | null, after: number | string): Promise<{ status: number; body: unknown }>;
   decide(cardId: string, d: Decision): Promise<{ status: number; body: unknown }>;   // as the owner
+  decideWithToken(token: string, cardId: string, d: Decision): Promise<{ status: number; body: unknown }>;  // must be 401
   seen(cardId: string): Promise<{ status: number; body: unknown }>;                  // owner: present the card (seen_at)
   acknowledge(cardId: string): Promise<{ status: number; body: unknown }>;           // owner: acknowledge an artifact/signal
   claim(token: string, cardId: string, lease: number): Promise<{ status: number; body: unknown }>;
@@ -275,6 +294,13 @@ Each fixture is `{ name, steps: [{ op, args, expect }] }`. The first release car
 | C22 | Percent-encoded `upstream-id` round-trips unchanged, not normalised | §5 |
 | C23 | A parked change: the cursor advances and `onParked` fires (client test, not a head fixture) | §7.2 |
 | C24 | Unknown producer fields preserved through PUT and sync (SHOULD) | §3.1 |
+| C25 | `GET /` shape: `protocol`, `owner`, `seq`, `extensions`, `render.mermaid` | §7.5 |
+| C26 | Missing or invalid producer token → 401 on PUT and sync | §7.1, §7.2 |
+| C27 | 64 KiB card accepted; over 1 MiB → 413 | §3.1 |
+| C28 | Ceiling clamps `delivery`; `urgency` stored unchanged | §4.2, §9 |
+| C29 | Malformed `after` → 400 `invalid_cursor` | §7.2, §7.4 |
+| C30 | Producer token on decide → 401 | §7.3 |
+| C31 | `GET /` `seq` is the highest `change_seq`; sync from it sees only later changes | §7.5 |
 
 Rendering is tested from fixture bodies rather than over HTTP (RFC §3.1): the runner takes a `render(body) → classified fences + text` adapter and checks classification, not pixels.
 

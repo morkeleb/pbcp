@@ -18,8 +18,7 @@ An example producer on `@pbcp/client`: it turns unseen IMAP mail into cards (RFC
 | `PBCP_HEAD_URL`, `PBCP_TOKEN` | – | the head and this producer's token |
 | `PBCP_TO_PERSON` | the head's `owner` | read once from `GET /` at startup when unset |
 | `PBCP_MAIL_ACCOUNT` | `IMAP_USER` | source of the id namespace |
-| `PBCP_CURSOR` | `pbcp-imap.cursor.json` | sync cursor |
-| `PBCP_STATE` | the cursor path with `.cursor.json` replaced by `.state.json`, else `<cursor>.state.json` | producer state |
+| `PBCP_STORE` | `PBCP_CURSOR` if set, else `pbcp-imap.store.json` | one file: the sync cursor and the producer state |
 
 ## Ids
 
@@ -33,9 +32,16 @@ A card id is `mail:<namespace>:<upstream>` (§5).
 
 A card's `thread` is `thr-<id>` when the server exposes a thread id (Gmail's `X-GM-THRID`, or `OBJECTID`), else `ref-<hash>` of the first `References` entry (or `In-Reply-To`, or the message's own Message-ID). Thread keys are scoped to the producer, but moving the same account to a server with different thread support changes every thread key.
 
-## State file
+## Store file
 
-The connector does not rely on the head echoing extension fields. When it produces a decision card, before submitting it, it records the card id → `{ mailbox, uid, messageId }` in the state file. On a decision it looks the message up by uid and Message-ID in that mailbox, then by Message-ID alone, and removes the entry once it has acted. Losing the state file means decisions on cards produced before the loss are ignored. Entries for cards that are never decided (superseded, or the message read elsewhere) are not pruned; the file grows with them, and deleting it while no decision is pending is safe.
+The connector does not rely on the head echoing extension fields. Once the head has answered a decision card (`201`, `200` or `409`), it records the card id → `{ mailbox, uid, messageId }` in the store file, under `state.mail`, next to the sync cursor; a submit that fails records nothing. On a decision it looks the message up by uid and Message-ID in that mailbox, then by Message-ID alone, and removes the entry once it has acted. Losing the store file means decisions on cards produced before the loss are ignored, and the cursor starts again from 0. Entries for cards that are never decided (superseded, or the message read elsewhere) are not pruned; the file grows with them.
+
+## Upgrading from 0.3
+
+0.3 kept the cursor in `pbcp-imap.cursor.json` and the message refs in a separate `.state.json`. 0.4 keeps both in one store file and no longer reads `PBCP_STATE` or the old state file.
+
+- If you set `PBCP_CURSOR`, nothing to do: it is used as the store path, and a 0.3 cursor file is read as is. Otherwise rename `pbcp-imap.cursor.json` to `pbcp-imap.store.json`, or set `PBCP_STORE` to the old cursor file. Without either, the cursor starts at 0 and every change at the head is replayed once; that is harmless, since a decision without a recorded ref is ignored.
+- The refs in the old state file are not carried over. A message that is still unseen in its mailbox recovers on the first pass: it is produced again with the same id, the head answers `200` (or `409` if it was decided meanwhile, which is then acted on), and its ref is recorded. A decision on a card whose message was read elsewhere before the upgrade is ignored. Delete the old `.state.json` afterwards.
 
 ## Re-produced decided messages
 

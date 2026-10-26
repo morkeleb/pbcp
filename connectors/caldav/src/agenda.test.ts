@@ -1,7 +1,7 @@
-import { HeadClient, memoryCursor, producerPass, type StateStore } from '@pbcp/client';
+import { HeadClient, memoryStore, producerPass, type Parked } from '@pbcp/client';
+import { stubHead } from '@pbcp/client/testing';
 import { isId } from '@pbcp/core';
-import { describe, expect, it } from 'vitest';
-import { stubHead } from '../../../packages/client/test/stub.js';
+import { describe, expect, it, vi } from 'vitest';
 import { agendaCard, calendarProducer, ganttTitle, occurrences, plan, slug, type Occurrence, type State } from './agenda.js';
 
 const tz = 'Europe/Copenhagen';
@@ -132,19 +132,19 @@ describe('plan', () => {
 });
 
 describe('end to end against the stub head', () => {
-  const memoryState = (): StateStore<State> & { data: Map<string, State> } => {
-    const data = new Map<string, State>();
-    return { data, get: async (k) => data.get(k), set: async (k, v) => void data.set(k, v), delete: async (k) => void data.delete(k) };
+  const setup = () => {
+    const stub = stubHead();
+    const head = new HeadClient({ baseUrl: 'https://head.test', token: 't', fetch: stub.fetch });
+    const store = memoryStore();
+    return { stub, head, store, state: store.kv<State>('calendar') };
   };
 
   it('stores the agenda, signals a move, and a repeat pass is a no-op', async () => {
-    const stub = stubHead();
-    const head = new HeadClient({ baseUrl: 'https://head.test', token: 't', fetch: stub.fetch });
+    const { stub, head, store, state } = setup();
     let ics = [vcal(standup), ...others];
     let clock = now;
-    const state = memoryState();
-    const cal = calendarProducer(head, { fetch: async () => ics, state, now: () => clock }, cfg);
-    const opts = { ...cal, cursor: memoryCursor(), onDecision: async () => {}, onError: (e: unknown) => { throw e; } };
+    const cal = calendarProducer({ fetch: async () => ics, state, now: () => clock }, cfg);
+    const opts = { ...cal, head, store, onDecision: async () => {}, onError: (e: unknown) => { throw e; } };
     const puts = () => stub.requests.filter((r) => r.method === 'PUT').length;
 
     await producerPass(opts);
@@ -163,16 +163,35 @@ describe('end to end against the stub head', () => {
   });
 
   it('keeps state when a submit fails, so the next pass retries', async () => {
-    const stub = stubHead();
-    const head = new HeadClient({ baseUrl: 'https://head.test', token: 't', fetch: stub.fetch });
-    const state = memoryState();
-    const cal = calendarProducer(head, { fetch: async () => [], state, now: () => now }, cfg);
-    const opts = { ...cal, cursor: memoryCursor(), onDecision: async () => {}, onError: () => {} };
+    const { stub, head, store, state } = setup();
+    const cal = calendarProducer({ fetch: async () => [], state, now: () => now }, cfg);
+    const opts = { ...cal, head, store, onDecision: async () => {}, onError: () => {} };
     stub.script(500, { error: 'boom' });
     await producerPass(opts);
-    expect(state.data.size).toBe(0);
+    expect(await state.keys()).toEqual([]);
     await producerPass(opts);
     expect(stub.cards.get('cal:work:2026-10-26')?.title).toBe('Mon 26 Oct: nothing scheduled');
-    expect(state.data.get('state')?.agenda).toBe('2026-10-26');
+    expect((await state.get('state'))?.agenda).toBe('2026-10-26');
+  });
+
+  it('saves state once a card the head keeps refusing is parked', async () => {
+    const { stub, head, store, state } = setup();
+    const cal = calendarProducer({ fetch: async () => [], state, now: () => now }, { ...cfg, toPerson: 'someone-else' });
+    const parked: Parked[] = [];
+    const logged = vi.spyOn(console, 'error').mockImplementation(() => {});
+    const onParked = async (p: Parked, e: unknown) => {
+      parked.push(p);
+      await cal.onParked!(p, e);
+    };
+    const opts = { ...cal, head, store, onDecision: async () => {}, onError: () => {}, maxAttempts: 2, onParked };
+    const attempts = new Map<string, number>();
+    await producerPass(opts, undefined, attempts);
+    expect(await state.get('state')).toBeUndefined();
+    await producerPass(opts, undefined, attempts);
+    expect(parked.map((p) => p.card.id)).toEqual(['cal:work:2026-10-26']);
+    expect(stub.cards.size).toBe(0);
+    expect((await state.get('state'))?.agenda).toBe('2026-10-26');
+    expect(logged).toHaveBeenCalledOnce();
+    logged.mockRestore();
   });
 });

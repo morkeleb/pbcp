@@ -1,6 +1,6 @@
-// RFC §7: submit, sync, decide over HTTP. Orders (claim, renew) are out of scope here.
+// RFC §7: a producer's submit and sync, and describe, over HTTP. Decide is the owner's (owner.ts). Orders are out of scope.
 
-import { ERROR_CODES, HeadDescriptionSchema, PbcpError, type Card, type Decision, type ErrorCode, type HeadDescription, type ProducerCard } from '@pbcp/core';
+import { ERROR_CODES, HeadDescriptionSchema, PbcpError, type Card, type ErrorCode, type HeadDescription, type ProducerCard } from '@pbcp/core';
 
 export interface SubmitResponse {
   status: 200 | 201 | 409;
@@ -30,21 +30,83 @@ export class HeadHttpError extends Error {
   }
 }
 
-export interface HeadClientOptions {
+/** One HTTP request, as a transport receives it. Paths are already joined to the base URL (§7). */
+export interface TransportRequest {
+  method: string;
+  url: string;
+  headers: Record<string, string>;
+  body?: string;
+}
+
+/** The response a transport returns. Header names are lower case; a non-2xx status is a response, not an error. */
+export interface TransportResponse {
+  status: number;
+  headers: Record<string, string | undefined>;
+  body: string;
+}
+
+/** How the client sends requests. The default is `fetch`; a host with its own request layer (proxies, logging) supplies one. */
+export type Transport = (req: TransportRequest) => Promise<TransportResponse>;
+
+/** A Transport over a `fetch`-compatible function. */
+export function fetchTransport(f: typeof fetch = (input, init) => fetch(input, init)): Transport {
+  return async ({ method, url, headers, body }) => {
+    const res = await f(url, { method, headers, body });
+    return { status: res.status, headers: Object.fromEntries(res.headers), body: await res.text() };
+  };
+}
+
+export interface ClientOptions {
+  /** The head's base URL; RFC paths are relative to it (§7). */
   baseUrl: string;
-  token: string;
+  /** Requests go through `transport` when given, else through `fetch` (default: the global fetch). */
+  transport?: Transport;
   fetch?: typeof fetch;
 }
 
+export interface HeadClientOptions extends ClientOptions {
+  /** The producer token. */
+  token: string;
+}
+
+/** Sends one request with an Authorization header and decodes a JSON body. Shared by HeadClient and OwnerClient. */
+export class Requester {
+  readonly baseUrl: string;
+  private readonly transport: Transport;
+
+  constructor(opts: ClientOptions, private readonly authorization: string) {
+    this.baseUrl = opts.baseUrl.replace(/\/+$/, '');
+    this.transport = opts.transport ?? fetchTransport(opts.fetch);
+  }
+
+  /** Statuses in `accept` with a card body are results; other non-2xx responses throw (§7.4). */
+  async request(method: string, path: string, json?: unknown, accept: number[] = []): Promise<{ status: number; body: unknown }> {
+    const headers: Record<string, string> = { authorization: this.authorization, accept: 'application/json' };
+    if (json !== undefined) headers['content-type'] = 'application/json';
+    const res = await this.transport({ method, url: `${this.baseUrl}${path}`, headers, body: json === undefined ? undefined : JSON.stringify(json) });
+    let body: unknown = res.body;
+    try {
+      body = res.body === '' ? null : JSON.parse(res.body);
+    } catch {
+      // not JSON; keep the text for the error
+    }
+    if ((res.status >= 200 && res.status < 300) || (accept.includes(res.status) && isCard(body))) return { status: res.status, body };
+    throw toError(res.status, body, res.headers['retry-after'] ?? null);
+  }
+}
+
+/** A producer's client: describe, submit and sync with its producer token (§7.1, §7.2, §7.5). */
 export class HeadClient {
   readonly baseUrl: string;
-  private readonly token: string;
-  private readonly fetch: typeof fetch;
+  private readonly http: Requester;
 
   constructor(opts: HeadClientOptions) {
-    this.baseUrl = opts.baseUrl.replace(/\/+$/, '');
-    this.token = opts.token;
-    this.fetch = opts.fetch ?? ((input, init) => fetch(input, init));
+    this.http = new Requester(opts, `Bearer ${opts.token}`);
+    this.baseUrl = this.http.baseUrl;
+  }
+
+  private request(method: string, path: string, json?: unknown, accept?: number[]) {
+    return this.http.request(method, path, json, accept);
   }
 
   /** §7.5. */
@@ -72,31 +134,6 @@ export class HeadClient {
     return page as SyncResponse;
   }
 
-  /** §7.3. Head-side interfaces only; a producer never decides its own cards. */
-  async decide(id: string, d: Decision): Promise<{ status: 200 | 409; card: Card }> {
-    const { status, body } = await this.request('POST', `/cards/${encodeURIComponent(id)}/decision`, d, [409]);
-    if (status !== 200 && status !== 409) throw new HeadHttpError(status, body, `unexpected status ${status} on decide`);
-    return { status, card: expectCard(status, body) };
-  }
-
-  private async request(method: string, path: string, json?: unknown, accept: number[] = []): Promise<{ status: number; body: unknown }> {
-    const headers: Record<string, string> = { authorization: `Bearer ${this.token}`, accept: 'application/json' };
-    if (json !== undefined) headers['content-type'] = 'application/json';
-    const res = await this.fetch(`${this.baseUrl}${path}`, {
-      method,
-      headers,
-      body: json === undefined ? undefined : JSON.stringify(json),
-    });
-    const text = await res.text();
-    let body: unknown = text;
-    try {
-      body = text === '' ? null : JSON.parse(text);
-    } catch {
-      // not JSON; keep the text for the error
-    }
-    if (res.ok || (accept.includes(res.status) && isCard(body))) return { status: res.status, body };
-    throw toError(res.status, body, res.headers.get('retry-after'));
-  }
 }
 
 /** §7.4: a known code bound to this status is a PbcpError; anything else is a HeadHttpError. */
@@ -109,7 +146,7 @@ function toError(status: number, body: unknown, retryAfter: string | null): Erro
 
 const isCard = (body: unknown) => typeof body === 'object' && body !== null && typeof (body as { id?: unknown }).id === 'string';
 
-function expectCard(status: number, body: unknown): Card {
+export function expectCard(status: number, body: unknown): Card {
   if (!isCard(body)) {
     throw new HeadHttpError(status, body, 'response body is not a card');
   }
