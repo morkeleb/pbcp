@@ -43,11 +43,14 @@ export class PbcpError extends Error {
   override readonly name = 'PbcpError';
   readonly status: PbcpStatus;
   readonly code: ErrorCode;
+  /** Seconds from a `Retry-After` header, for `rate_limited` (§7.4). */
+  readonly retryAfter?: number;
 
-  constructor(code: ErrorCode, message?: string) {
+  constructor(code: ErrorCode, message?: string, opts: { retryAfter?: number } = {}) {
     super(message ?? code);
     this.code = code;
     this.status = ERROR_CODES[code];
+    if (opts.retryAfter !== undefined) this.retryAfter = opts.retryAfter;
   }
 
   toJSON(): { error: ErrorCode; message: string } {
