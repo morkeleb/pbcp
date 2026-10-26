@@ -92,14 +92,20 @@ export const decide: (stored: Card, d: Decision, now: string) =>
   | { status: 409; card: Card };
 export const canSupersede: (target: Card | null, incoming: ProducerCard) => PbcpError | null;
 
-// orders.ts (extension)
+// orders.ts (extension) — every transition also returns `changed`, as lifecycle.ts does
 export type ExecState = 'open' | 'claimed' | 'done' | 'failed' | 'cancelled';
-export const claim: (order: Card, by: string, leaseSeconds: number, now: string) =>
-  | { status: 200; card: Card }           // claim_seq incremented, expiry set
-  | { status: 409 | 410; card: Card };    // held by another live lease / terminal
-export const expireIfDue: (order: Card, now: string) => Card;            // lazy expiry, A.2
-export const applyOutcome: (order: Card, outcome: ProducerCard) =>
-  | { card: Card; stale: false } | { card: Card; stale: true };          // orders.claim_seq check, A.3
+export type OrderCard = HeadFields & { kind: 'order'; producer: 'head'; to_producer: string; exec_state: ExecState; ... };
+export const mintOrder: (input: { to_producer; title; body }, ctx: { ulid; now; executors }) =>
+  { order: OrderCard; eligible: readonly string[] | null };             // A.1: wildcard snapshot, head-private
+export const visibleTo: (order: OrderCard, root: string, eligible?) => boolean;   // A.1 recipient rule, for sync
+export const claim: (order: OrderCard, by: string, leaseSeconds: number, now: string) =>
+  | { status: 200; card: OrderCard }      // claim_seq incremented (from 1), expiry set; a holder's claim renews
+  | { status: 409 | 410; card: OrderCard };  // held by another live lease / terminal
+export const renew = claim;
+export const expireIfDue: (order: OrderCard, now: string) => { card: OrderCard };   // lazy expiry, A.2: `<=` now is expired
+export const applyOutcome: (order: OrderCard, outcome: ProducerCard, now: string) =>
+  { card: OrderCard; stale: boolean };    // holder + orders.claim_seq check; terminal never reopens, A.3
+// lifecycle.decide: `dismissed` on an order → exec_state cancelled, lease released (A.1)
 
 // errors.ts
 export class PbcpError extends Error { status: 400|401|403|409|410|413|429; code: string; }
@@ -156,11 +162,13 @@ export function runProducer(opts: {
 
 // executor.ts — Appendix A, with A.5 cancellation handling built in
 export function runExecutor(opts: {
-  head: HeadClient; cursor: CursorStore; producer: string;
+  head: HeadClient; store: CursorStore; producer: string;
   leaseSeconds?: number;                                        // default 60; renewed at half
-  run: (order: Card, ctx: ExecCtx) => Promise<Outcome>;         // the worker; ctx.checkpoint() renews and throws Cancelled on 410
-  onProgress?: (order: Card, note: string) => void;
-}): { stop(): void };
+  run: (order: OrderCard, ctx: ExecCtx) => Promise<Outcome>;    // the worker; ctx.checkpoint() renews and throws Cancelled on 410
+  onProgress?: (order: OrderCard, note: string) => void;
+  concurrency?: number;                                         // orders run at once; default 1
+}): { stop(): Promise<void> };
+// HeadClient.claim(id, leaseSeconds) → OrderCard; 409/410 throw ClaimRefused { status, code, order }
 
 export interface ExecCtx {
   checkpoint(): Promise<void>;         // call before each irreversible step: renews the lease, throws Cancelled on 410
@@ -301,6 +309,8 @@ Each fixture is `{ name, steps: [{ op, args, expect }] }`. The first release car
 | C29 | Malformed `after` → 400 `invalid_cursor` | §7.2, §7.4 |
 | C30 | Producer token on decide → 401 | §7.3 |
 | C31 | `GET /` `seq` is the highest `change_seq`; sync from it sees only later changes | §7.5 |
+| C32 | Order: renewal on a cancelled order → 410 with the order's `exec_state` in the body | A.5 |
+| C33 | Order: `claim_seq` across claim → renew → expiry → re-claim | A.1–A.3 |
 
 Rendering is tested from fixture bodies rather than over HTTP (RFC §3.1): the runner takes a `render(body) → classified fences + text` adapter and checks classification, not pixels.
 

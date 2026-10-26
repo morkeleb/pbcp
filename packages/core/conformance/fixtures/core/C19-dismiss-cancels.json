@@ -1,0 +1,188 @@
+{
+  "name": "C19 dismissed on an order cancels it and releases the lease; renewal and claim are then 410; an order takes no other decision",
+  "rfc": [
+    "A.1",
+    "A.5"
+  ],
+  "extension": "orders",
+  "steps": [
+    {
+      "op": "clock",
+      "args": {
+        "set": "2026-10-07T09:00:00Z"
+      }
+    },
+    {
+      "op": "syncAll",
+      "args": {
+        "token": "hermes",
+        "executor": true,
+        "after": 0
+      },
+      "expect": {
+        "status": 200,
+        "body": {
+          "changes": {
+            "$len": 0
+          }
+        }
+      }
+    },
+    {
+      "op": "syncAll",
+      "args": {
+        "token": "cal",
+        "executor": true,
+        "after": 0
+      },
+      "expect": {
+        "status": 200,
+        "body": {
+          "changes": {
+            "$len": 0
+          }
+        }
+      }
+    },
+    {
+      "op": "order",
+      "args": {
+        "to_producer": "*",
+        "title": "Book the dentist",
+        "body": "Any weekday morning."
+      },
+      "expect": {
+        "status": 201
+      },
+      "save": {
+        "o": "body.id"
+      }
+    },
+    {
+      "op": "order",
+      "args": {
+        "to_producer": "*",
+        "title": "Water the plants",
+        "body": "Any weekday morning."
+      },
+      "expect": {
+        "status": 201
+      },
+      "save": {
+        "other": "body.id"
+      }
+    },
+    {
+      "op": "claim",
+      "args": {
+        "token": "hermes",
+        "executor": true,
+        "id": {
+          "$var": "o"
+        },
+        "lease": 60
+      },
+      "expect": {
+        "status": 200
+      }
+    },
+    {
+      "op": "decide",
+      "args": {
+        "id": {
+          "$var": "other"
+        },
+        "decision": {
+          "decision": "approve"
+        }
+      },
+      "expect": {
+        "status": 400
+      }
+    },
+    {
+      "op": "decide",
+      "args": {
+        "id": {
+          "$var": "o"
+        },
+        "decision": {
+          "decision": "dismissed"
+        }
+      },
+      "expect": {
+        "status": 200,
+        "body": {
+          "state": "decided",
+          "decision": "dismissed",
+          "exec_state": "cancelled",
+          "claimed_by": {
+            "$absent": true
+          },
+          "claim_expires_at": {
+            "$absent": true
+          }
+        }
+      }
+    },
+    {
+      "op": "claim",
+      "args": {
+        "token": "hermes",
+        "executor": true,
+        "id": {
+          "$var": "o"
+        },
+        "lease": 60
+      },
+      "expect": {
+        "status": 410
+      }
+    },
+    {
+      "op": "claim",
+      "args": {
+        "token": "cal",
+        "executor": true,
+        "id": {
+          "$var": "o"
+        },
+        "lease": 60
+      },
+      "expect": {
+        "status": 410
+      }
+    },
+    {
+      "op": "decide",
+      "args": {
+        "id": {
+          "$var": "other"
+        },
+        "decision": {
+          "decision": "dismissed"
+        }
+      },
+      "expect": {
+        "status": 200,
+        "body": {
+          "exec_state": "cancelled"
+        }
+      }
+    },
+    {
+      "op": "claim",
+      "args": {
+        "token": "cal",
+        "executor": true,
+        "id": {
+          "$var": "other"
+        },
+        "lease": 60
+      },
+      "expect": {
+        "status": 410
+      }
+    }
+  ]
+}

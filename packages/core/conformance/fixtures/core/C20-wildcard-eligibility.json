@@ -1,0 +1,127 @@
+{
+  "name": "C20 a wildcard order minted before an executor was eligible is never returned to it, and it cannot claim it",
+  "rfc": [
+    "A.1"
+  ],
+  "extension": "orders",
+  "steps": [
+    {
+      "op": "clock",
+      "args": {
+        "set": "2026-10-07T09:00:00Z"
+      }
+    },
+    {
+      "op": "syncAll",
+      "args": {
+        "token": "hermes",
+        "executor": true,
+        "after": 0
+      },
+      "expect": {
+        "status": 200,
+        "body": {
+          "changes": {
+            "$len": 0
+          }
+        }
+      }
+    },
+    {
+      "op": "order",
+      "args": {
+        "to_producer": "*",
+        "title": "Book the dentist",
+        "body": "Any weekday morning."
+      },
+      "expect": {
+        "status": 201
+      },
+      "save": {
+        "first": "body.id"
+      }
+    },
+    {
+      "op": "syncAll",
+      "args": {
+        "token": "late",
+        "executor": true,
+        "after": 0
+      },
+      "expect": {
+        "status": 200,
+        "body": {
+          "changes": {
+            "$len": 0
+          }
+        }
+      }
+    },
+    {
+      "op": "claim",
+      "args": {
+        "token": "late",
+        "executor": true,
+        "id": {
+          "$var": "first"
+        },
+        "lease": 60
+      },
+      "expect": {
+        "status": 404
+      }
+    },
+    {
+      "op": "order",
+      "args": {
+        "to_producer": "*",
+        "title": "Renew the parking permit",
+        "body": "Any weekday morning."
+      },
+      "expect": {
+        "status": 201
+      },
+      "save": {
+        "second": "body.id"
+      }
+    },
+    {
+      "op": "syncAll",
+      "args": {
+        "token": "late",
+        "executor": true,
+        "after": 0
+      },
+      "expect": {
+        "status": 200,
+        "body": {
+          "changes": [
+            {
+              "card": {
+                "id": {
+                  "$var": "second"
+                }
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "op": "syncAll",
+      "args": {
+        "token": "hermes",
+        "executor": true,
+        "after": 0
+      },
+      "expect": {
+        "status": 200,
+        "body": {
+          "changes": {
+            "$len": 2
+          }
+        }
+      }
+    }
+  ]
+}

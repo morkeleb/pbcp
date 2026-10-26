@@ -35,17 +35,18 @@ export async function runFixture(fixture: Fixture, adapters: Adapters): Promise<
   const tokens = new Map<string, string>();
   const vars: Vars = {};
 
-  const tokenFor = async (root: unknown, ceiling?: unknown): Promise<string> => {
+  const tokenFor = async (root: unknown, ceiling?: unknown, executor?: unknown): Promise<string> => {
     if (!head) throw new Error('no HeadUnderTest');
-    const key = `${String(root)}|${String(ceiling ?? '')}`;
-    if (!tokens.has(key)) tokens.set(key, await head.token(String(root), ceiling === undefined ? undefined : { ceiling: ceiling as Urgency }));
+    const key = `${String(root)}|${String(ceiling ?? '')}|${executor === true}`;
+    const opts = { ...(ceiling === undefined ? {} : { ceiling: ceiling as Urgency }), ...(executor === true ? { executor: true } : {}) };
+    if (!tokens.has(key)) tokens.set(key, await head.token(String(root), Object.keys(opts).length ? opts : undefined));
     return tokens.get(key)!;
   };
   /** `credential: "none"` sends no credential, `"invalid"` a token the head never issued; otherwise `token` (and `ceiling`) name one. */
   const credential = async (args: Record<string, unknown>): Promise<string | null> => {
     if (args.credential === 'none') return null;
     if (args.credential === 'invalid') return INVALID_TOKEN;
-    return tokenFor(args.token, args.ceiling);
+    return tokenFor(args.token, args.ceiling, args.executor);
   };
   const needHead = (): HeadUnderTest => {
     if (!head) throw new Error('fixture needs a HeadUnderTest');
@@ -75,8 +76,20 @@ export async function runFixture(fixture: Fixture, adapters: Adapters): Promise<
       case 'decide':
         res = await needHead().decide(String(args.id), args.decision as Decision);
         break;
+      case 'order': {
+        const h = needHead();
+        if (!h.order) throw new Error('fixture needs HeadUnderTest.order (orders extension)');
+        res = await h.order({ to_producer: String(args.to_producer), title: String(args.title), body: String(args.body ?? '') });
+        break;
+      }
+      case 'claim': {
+        const h = needHead();
+        if (!h.claim) throw new Error('fixture needs HeadUnderTest.claim (orders extension)');
+        res = await h.claim(await tokenFor(args.token, args.ceiling, args.executor), String(args.id), Number(args.lease));
+        break;
+      }
       case 'decideWithToken':
-        res = await needHead().decideWithToken(await tokenFor(args.token), String(args.id), args.decision as Decision);
+        res = await needHead().decideWithToken(await tokenFor(args.token, args.ceiling, args.executor), String(args.id), args.decision as Decision);
         break;
       case 'seen':
         res = await needHead().seen(String(args.id));

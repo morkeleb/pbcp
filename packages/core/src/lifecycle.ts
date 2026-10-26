@@ -12,6 +12,7 @@ import {
 } from './card.js';
 import { PbcpError } from './errors.js';
 import { inRoot, sameNamespace } from './id.js';
+import { dismissOrder, type OrderCard } from './orders.js';
 
 export const DecisionSchema = z.strictObject({
   decision: z.string().min(1),
@@ -109,6 +110,17 @@ export function submit(stored: Card | null, incoming: ProducerCard, now: string,
 
 /** §4.3, §7.3. Head-side only: records the owner's decision and locks the card. */
 export function decide(stored: Card, d: Decision, now: string): DecideResult {
+  if ((stored.kind as string) === 'order') {
+    // A.1: `dismissed` is the only decision an order takes; it cancels execution if it is still open or claimed.
+    if (stored.state !== 'open') return { status: 409, card: stored, changed: [] };
+    const parsed = DecisionSchema.safeParse(d);
+    if (!parsed.success) throw new PbcpError('invalid_decision', parsed.error.issues.map((i) => i.message).join('; '));
+    if (parsed.data.edited_proposal !== undefined || parsed.data.delegated_to !== undefined) {
+      throw new PbcpError('invalid_decision', 'an order takes only the decision dismissed');
+    }
+    const card = dismissOrder(stored as unknown as OrderCard, parsed.data, now) as unknown as Card;
+    return { status: 200, card, changed: [card] };
+  }
   if (stored.kind !== 'decision') throw new PbcpError('not_decidable', `${stored.kind} cards take no decision`);
   if (stored.state !== 'open') return { status: 409, card: stored, changed: [] };
 

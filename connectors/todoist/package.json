@@ -1,0 +1,16 @@
+{
+  "name": "@pbcp/connector-todoist",
+  "version": "0.4.0",
+  "private": true,
+  "description": "Example executor: an order becomes a Todoist task; completing it there closes the order.",
+  "license": "MIT",
+  "type": "module",
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "start": "node dist/src/index.js"
+  },
+  "dependencies": {
+    "@pbcp/client": "workspace:*",
+    "@pbcp/core": "workspace:*"
+  }
+}

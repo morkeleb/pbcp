@@ -14,6 +14,7 @@ The Personal Brief Card Protocol: the RFC (`rfc/`), the packages that implement 
 | `connectors/hermes` | — | Hermes Agent plugin: `@pbcp/mcp` plus two skills. |
 | `connectors/n8n` | `n8n-nodes-pbcp` | n8n community nodes: a polling trigger on sync, and a submit action. |
 | `connectors/goalpath` | — | Example producer: milestone risk, approvals, red builds and a nightly digest from GoalPath. |
+| `connectors/todoist` | — | Example executor: orders become Todoist tasks; the outcome is posted when the task is completed. |
 
 ```sh
 corepack pnpm install

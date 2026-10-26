@@ -1,0 +1,151 @@
+{
+  "name": "C17 a second claim during a live lease is 409; once the lease lapses (at expiry, not after) another claim is 200 with claim_seq 2",
+  "rfc": [
+    "A.2",
+    "A.3"
+  ],
+  "extension": "orders",
+  "steps": [
+    {
+      "op": "clock",
+      "args": {
+        "set": "2026-10-07T09:00:00Z"
+      }
+    },
+    {
+      "op": "syncAll",
+      "args": {
+        "token": "hermes",
+        "executor": true,
+        "after": 0
+      },
+      "expect": {
+        "status": 200,
+        "body": {
+          "changes": {
+            "$len": 0
+          }
+        }
+      }
+    },
+    {
+      "op": "syncAll",
+      "args": {
+        "token": "cal",
+        "executor": true,
+        "after": 0
+      },
+      "expect": {
+        "status": 200,
+        "body": {
+          "changes": {
+            "$len": 0
+          }
+        }
+      }
+    },
+    {
+      "op": "order",
+      "args": {
+        "to_producer": "*",
+        "title": "Book the dentist",
+        "body": "Any weekday morning."
+      },
+      "expect": {
+        "status": 201
+      },
+      "save": {
+        "o": "body.id"
+      }
+    },
+    {
+      "op": "claim",
+      "args": {
+        "token": "hermes",
+        "executor": true,
+        "id": {
+          "$var": "o"
+        },
+        "lease": 60
+      },
+      "expect": {
+        "status": 200,
+        "body": {
+          "exec_state": "claimed",
+          "claimed_by": "hermes",
+          "claim_seq": 1,
+          "claim_expires_at": {
+            "$present": true
+          }
+        }
+      }
+    },
+    {
+      "op": "claim",
+      "args": {
+        "token": "cal",
+        "executor": true,
+        "id": {
+          "$var": "o"
+        },
+        "lease": 60
+      },
+      "expect": {
+        "status": 409,
+        "body": {
+          "id": {
+            "$var": "o"
+          },
+          "exec_state": "claimed",
+          "claimed_by": "hermes",
+          "claim_seq": 1
+        }
+      }
+    },
+    {
+      "op": "clock",
+      "args": {
+        "set": "2026-10-07T09:00:59Z"
+      }
+    },
+    {
+      "op": "claim",
+      "args": {
+        "token": "cal",
+        "executor": true,
+        "id": {
+          "$var": "o"
+        },
+        "lease": 60
+      },
+      "expect": {
+        "status": 409
+      }
+    },
+    {
+      "op": "clock",
+      "args": {
+        "set": "2026-10-07T09:01:00Z"
+      }
+    },
+    {
+      "op": "claim",
+      "args": {
+        "token": "cal",
+        "executor": true,
+        "id": {
+          "$var": "o"
+        },
+        "lease": 60
+      },
+      "expect": {
+        "status": 200,
+        "body": {
+          "exec_state": "claimed",
+          "claimed_by": "cal",
+          "claim_seq": 2
+        }
+      }
+    }
+  ]
+}

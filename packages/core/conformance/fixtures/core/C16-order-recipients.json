@@ -1,0 +1,128 @@
+{
+  "name": "C16 an order to * reaches executors only; an order named to a producer reaches that producer",
+  "rfc": [
+    "A.1"
+  ],
+  "extension": "orders",
+  "steps": [
+    {
+      "op": "clock",
+      "args": {
+        "set": "2026-10-07T09:00:00Z"
+      }
+    },
+    {
+      "op": "syncAll",
+      "args": {
+        "token": "hermes",
+        "executor": true,
+        "after": 0
+      },
+      "expect": {
+        "status": 200,
+        "body": {
+          "changes": {
+            "$len": 0
+          }
+        }
+      }
+    },
+    {
+      "op": "syncAll",
+      "args": {
+        "token": "mail",
+        "after": 0
+      },
+      "expect": {
+        "status": 200,
+        "body": {
+          "changes": {
+            "$len": 0
+          }
+        }
+      }
+    },
+    {
+      "op": "order",
+      "args": {
+        "to_producer": "*",
+        "title": "Book the dentist",
+        "body": "Any weekday morning."
+      },
+      "expect": {
+        "status": 201,
+        "body": {
+          "kind": "order",
+          "producer": "head",
+          "to_producer": "*",
+          "exec_state": "open",
+          "state": "open",
+          "to_person": {
+            "$absent": true
+          }
+        }
+      },
+      "save": {
+        "wild": "body.id"
+      }
+    },
+    {
+      "op": "order",
+      "args": {
+        "to_producer": "mail",
+        "title": "Archive the newsletters",
+        "body": "Any weekday morning."
+      },
+      "expect": {
+        "status": 201
+      },
+      "save": {
+        "named": "body.id"
+      }
+    },
+    {
+      "op": "syncAll",
+      "args": {
+        "token": "hermes",
+        "executor": true,
+        "after": 0
+      },
+      "expect": {
+        "status": 200,
+        "body": {
+          "changes": [
+            {
+              "card": {
+                "id": {
+                  "$var": "wild"
+                }
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "op": "syncAll",
+      "args": {
+        "token": "mail",
+        "after": 0
+      },
+      "expect": {
+        "status": 200,
+        "body": {
+          "changes": [
+            {
+              "card": {
+                "id": {
+                  "$var": "named"
+                },
+                "to_producer": "mail"
+              }
+            }
+          ]
+        }
+      }
+    }
+  ]
+}
