@@ -1,0 +1,10 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "pbcp",
+  "version": "0.3.0",
+  "description": "Submit cards to a PBCP head and read the person's decisions: an authority boundary for actions outside the user.",
+  "homepage": "https://github.com/morkeleb/pbcp/tree/main/connectors/hermes",
+  "repository": "https://github.com/morkeleb/pbcp",
+  "license": "MIT",
+  "keywords": ["pbcp", "decisions", "escalation"]
+}

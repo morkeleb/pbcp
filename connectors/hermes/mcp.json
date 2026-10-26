@@ -1,0 +1,14 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/mcp.schema.json",
+  "mcpServers": {
+    "pbcp": {
+      "type": "stdio",
+      "command": "npx",
+      "args": ["-y", "@pbcp/mcp"],
+      "env": {
+        "PBCP_HEAD_URL": "${PBCP_HEAD_URL}",
+        "PBCP_TOKEN": "${PBCP_TOKEN}"
+      }
+    }
+  }
+}
