@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto';
 import { isId } from '@pbcp/core';
 import { describe, expect, it } from 'vitest';
 import { namespaceOf, toCard } from './mail.js';
@@ -20,8 +21,9 @@ const cfg = { account: 'morten-example-com', toPerson: 'morten' };
 
 describe('toCard', () => {
   it('maps an INBOX message to a decision card with archive/keep', async () => {
-    const c = await toCard({ mailbox: 'INBOX', uid: 42, source: anna }, cfg);
+    const { card: c, ref } = await toCard({ mailbox: 'INBOX', uid: 42, source: anna }, cfg);
     expect(isId(c.id)).toBe(true);
+    expect(c.id).toBe(`mail:morten-example-com:${createHash('sha256').update('<CA+abc=def@mail.example.com>').digest('hex').slice(0, 24)}`);
     expect(c.id).toMatch(/^mail:morten-example-com:[0-9a-f]{24}$/);
     expect(c).toMatchObject({
       protocol: 'pbcp/1',
@@ -30,10 +32,10 @@ describe('toCard', () => {
       to_person: 'morten',
       title: 'Invoice timing for September',
       actions: ['archive', 'keep'],
-      'x-imap-mailbox': 'INBOX',
-      'x-imap-uid': 42,
-      'x-imap-message-id': '<CA+abc=def@mail.example.com>',
     });
+    expect(Object.keys(c).filter((k) => k.startsWith('x-'))).toEqual([]);
+    expect(ref).toEqual({ mailbox: 'INBOX', uid: 42, messageId: '<CA+abc=def@mail.example.com>' });
+    expect(c.body).not.toContain('Message-ID');
     expect(c.body).toContain('**From:** "Anna Berg" <anna@nordic.example>');
     expect(c.body).toContain('**Date:** 2026-10-07T13:02:11.000Z');
     expect(c.body).toContain('> Hi Morten,\n> \n> Can we pay on the 20th?\n> # not a heading');
@@ -41,8 +43,8 @@ describe('toCard', () => {
   });
 
   it('is deterministic, and the id ignores mailbox and uid', async () => {
-    const a = await toCard({ mailbox: 'INBOX', uid: 42, source: anna }, cfg);
-    const b = await toCard({ mailbox: 'Archive', uid: 7, source: Buffer.from(anna) }, cfg);
+    const { card: a } = await toCard({ mailbox: 'INBOX', uid: 42, source: anna }, cfg);
+    const { card: b } = await toCard({ mailbox: 'Archive', uid: 7, source: Buffer.from(anna) }, cfg);
     expect(b.id).toBe(a.id);
     expect(b.thread).toBe(a.thread);
     expect(b.kind).toBe('artifact');
@@ -52,20 +54,21 @@ describe('toCard', () => {
   it('threads by the server thread id when present, else the References root', async () => {
     const reply = raw({ From: 'x@y', Subject: 'Re', 'Message-ID': '<other@x>', 'In-Reply-To': '<root-1@mail.example.com>' }, 'ok');
     const root = raw({ From: 'x@y', Subject: 'Root', 'Message-ID': '<root-1@mail.example.com>' }, 'ok');
-    const fromRefs = (await toCard({ mailbox: 'INBOX', uid: 1, source: anna }, cfg)).thread;
-    expect((await toCard({ mailbox: 'INBOX', uid: 2, source: reply }, cfg)).thread).toBe(fromRefs);
-    expect((await toCard({ mailbox: 'INBOX', uid: 3, source: root }, cfg)).thread).toBe(fromRefs);
-    expect((await toCard({ mailbox: 'INBOX', uid: 1, threadId: '1781234567890', source: anna }, cfg)).thread).toBe('thr-1781234567890');
+    const fromRefs = (await toCard({ mailbox: 'INBOX', uid: 1, source: anna }, cfg)).card.thread;
+    expect((await toCard({ mailbox: 'INBOX', uid: 2, source: reply }, cfg)).card.thread).toBe(fromRefs);
+    expect((await toCard({ mailbox: 'INBOX', uid: 3, source: root }, cfg)).card.thread).toBe(fromRefs);
+    expect((await toCard({ mailbox: 'INBOX', uid: 1, threadId: '1781234567890', source: anna }, cfg)).card.thread).toBe('thr-1781234567890');
   });
 
   it('copes with a message lacking Message-ID, subject and text', async () => {
     const bare = 'From: a@b\r\n\r\n';
-    const c = await toCard({ mailbox: 'Lists', uid: 9, source: bare }, cfg);
+    const { card: c, ref } = await toCard({ mailbox: 'Lists', uid: 9, source: bare }, cfg);
     expect(isId(c.id)).toBe(true);
     expect(c.title).toBe('(no subject)');
-    expect(c.body).toBe('- **From:** a@b\n- **Date:** unknown');
-    expect('x-imap-message-id' in c).toBe(false);
-    expect((await toCard({ mailbox: 'Lists', uid: 9, source: bare }, cfg)).id).toBe(c.id);
+    expect(c.body).toBe('- **From:** a@b\n- **Date:** unknown\n\n_This message has no Message-ID; its card id is not stable across moves._');
+    expect(ref).toEqual({ mailbox: 'Lists', uid: 9, messageId: undefined });
+    expect((await toCard({ mailbox: 'Lists', uid: 9, source: bare }, cfg)).card.id).toBe(c.id);
+    expect((await toCard({ mailbox: 'Archive', uid: 3, source: bare }, cfg)).card.id).not.toBe(c.id);
   });
 });
 
