@@ -19,8 +19,7 @@ An example producer on `@pbcp/client`: each daily note in an Obsidian vault beco
 | `OBSIDIAN_DAILY_FOLDER` | `Daily` | relative to the vault |
 | `PBCP_HEAD_URL`, `PBCP_TOKEN` | – | the head and this producer's token |
 | `PBCP_TO_PERSON` | the head's `owner` | read once from `GET /` at startup when unset |
-| `PBCP_CURSOR` | `pbcp-obsidian-daily.cursor.json` | sync cursor |
-| `PBCP_STATE` | the cursor path with `.cursor.json` replaced by `.state.json` | digests of the cards last sent |
+| `PBCP_STORE` | `PBCP_CURSOR` if set, else `pbcp-obsidian-daily.store.json` | one file: the sync cursor and the digests of the cards last sent |
 | `PBCP_INTERVAL_S` | `60` | seconds between passes |
 
 ## Ids and threads
@@ -41,6 +40,13 @@ A card whose JSON wire form would exceed 64 KiB (§3) has its body cut to fit an
 
 ## Unchanged notes
 
-Every pass reads every daily note, builds its card, and compares a SHA-256 digest of the card (all fields except `emitted_at`) with the one in the state file. Only cards whose digest differs are submitted. The digest is recorded after the head answers (`201`, `200` or `409`), so a submit that fails is retried next pass. Losing the state file is safe: every note is sent once more and the head answers `200` without a change, because its equality ignores `emitted_at` (§5).
+Every pass reads every daily note, builds its card, and compares a SHA-256 digest of the card (all fields except `emitted_at`) with the one in the store file (under `state.notes`). Only cards whose digest differs are submitted. The digest is recorded once the head answers (`201`, `200` or `409`), so a submit that fails is retried next pass. Losing the store file is safe: every note is sent once more and the head answers `200` without a change, because its equality ignores `emitted_at` (§5).
 
 Editing a note changes its card in place. Deleting a note leaves its card at the head.
+
+## Upgrading from 0.3
+
+0.3 kept the cursor in `pbcp-obsidian-daily.cursor.json` and the digests in a separate `.state.json`. 0.4 keeps both in one store file and no longer reads `PBCP_STATE` or the old state file.
+
+- If you set `PBCP_CURSOR`, it is used as the store path and the 0.3 cursor file is read as is. Otherwise rename `pbcp-obsidian-daily.cursor.json` to `pbcp-obsidian-daily.store.json`, or set `PBCP_STORE`; without either, the cursor starts at 0, which costs one replay of the changes and nothing else, since decisions are ignored.
+- The digests are not carried over, so on the first pass every daily note is sent once more. The head answers `200` and changes nothing, because its equality ignores `emitted_at` (§5). Delete the old `.state.json` afterwards.

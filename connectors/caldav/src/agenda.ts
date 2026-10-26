@@ -1,5 +1,5 @@
 import { createHash } from 'node:crypto';
-import { card, type HeadClient, type StateStore } from '@pbcp/client';
+import { card, type KeyValue, type ProducerOptions } from '@pbcp/client';
 import type { ProducerCard } from '@pbcp/core';
 import ICAL from 'ical.js';
 
@@ -101,20 +101,22 @@ export function plan(occ: Occurrence[], prev: State, cfg: Config, now: Date): { 
   return { cards, next: { agenda: due ? day : prev.agenda, seen } };
 }
 
-export interface Source { fetch(from: Date, to: Date): Promise<string[]>; state: StateStore<State>; now?: () => Date }
+export interface Source { fetch(from: Date, to: Date): Promise<string[]>; state: KeyValue<State>; now?: () => Date }
 
-/** `head` and `produce` for runProducer. State is saved only when every card of the pass was accepted, so a failed submit is retried. */
-export function calendarProducer(head: Pick<HeadClient, 'submit' | 'sync'>, src: Source, cfg: Config) {
-  let failed = false;
+/** `produce`, `onSubmitted` and `onParked` for runProducer. State is saved only when the head answered every card of the pass
+ *  (onSubmitted runs before produce resumes), so a failed submit is retried; a parked card counts as answered. */
+export function calendarProducer(src: Source, cfg: Config): Pick<ProducerOptions, 'produce' | 'onSubmitted' | 'onParked'> {
+  const [answered, parked] = [new Set<string>(), new Set<string>()];
   return {
-    head: { sync: (after: number) => head.sync(after), submit: (c: ProducerCard) => head.submit(c).catch((e: unknown) => { failed = true; throw e; }) },
+    onSubmitted: (c) => void answered.add(c.id),
+    onParked: (p, e) => { if (p.from === 'submit') parked.add(p.card.id); console.error(`pbcp: parked ${p.card.id}`, e); },
     async *produce() {
       const now = src.now?.() ?? new Date();
       const [from, to] = [new Date(+now - 86_400_000), new Date(+now + 2 * 86_400_000)];
       const { cards, next } = plan(occurrences(await src.fetch(from, to), from, to), (await src.state.get('state')) ?? { seen: {} }, cfg, now);
-      failed = false;
+      answered.clear();
       yield* cards;
-      if (!failed) await src.state.set('state', next);
+      if (cards.every((c) => answered.has(c.id) || parked.has(c.id))) await src.state.set('state', next);
     },
   };
 }

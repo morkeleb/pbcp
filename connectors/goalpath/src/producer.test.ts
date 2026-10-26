@@ -1,10 +1,10 @@
 import { fileURLToPath } from 'node:url';
-import { HeadClient, memoryCursor, producerPass, type StateStore } from '@pbcp/client';
+import { HeadClient, memoryStore, producerPass, type Parked } from '@pbcp/client';
+import { stubHead } from '@pbcp/client/testing';
 import { isId, type ProducerCard } from '@pbcp/core';
 import { describe, expect, it } from 'vitest';
-import { stubHead } from '../../../packages/client/test/stub.js';
 import { fixtureSource, loadFixtures } from './fixture-source.js';
-import { approvalId, ganttTitle, goalpathProducer, type State } from './producer.js';
+import { approvalId, ganttTitle, goalpathProducer, NAMESPACE } from './producer.js';
 
 const FIX = fileURLToPath(new URL('../fixtures', import.meta.url));
 const M = (n: number) => `7a1e0c2e-4d4b-4c51-9b1a-00000000000${n}`;
@@ -14,30 +14,28 @@ const RISK = `goalpath:milestone:${M(4)}.20261124:risk`;
 const APPROVAL = `goalpath:approval:${I('12')}`;
 const BUILD = 'goalpath:build:gh-run-118842';
 
-function memState(): StateStore<State> {
-  const m = new Map<string, State>();
-  return { get: async (k) => structuredClone(m.get(k)), set: async (k, v) => void m.set(k, structuredClone(v)), delete: async (k) => void m.delete(k) };
-}
-
 function setup(now = '2026-10-26T12:00:00Z') {
   const data = loadFixtures(FIX);
   const gp = fixtureSource(data, 'p-demo');
   const stub = stubHead();
   let clock = new Date(now);
-  const producer = goalpathProducer(new HeadClient({ baseUrl: 'https://head.test', token: 't', fetch: stub.fetch }), gp, memState(), cfg, () => clock);
-  const cursor = memoryCursor();
+  const head = new HeadClient({ baseUrl: 'https://head.test', token: 't', fetch: stub.fetch });
+  const store = memoryStore();
+  const producer = goalpathProducer(gp, store, cfg, () => clock);
   const errors: unknown[] = [];
+  const parked: Parked[] = [];
+  const attempts = new Map<string, number>();
   let seen = 0;
   /** One pass; returns the cards PUT during it. */
   const pass = async () => {
-    await producerPass({ ...producer, cursor, onError: (e) => errors.push(e) });
+    await producerPass({ ...producer, head, store, onError: (e) => errors.push(e), onParked: (p) => void parked.push(p) }, undefined, attempts);
     const puts = stub.requests.filter((r) => r.method === 'PUT').map((r) => r.body as ProducerCard);
     return puts.slice(seen, (seen = puts.length));
   };
   const items = (data.list_my_items as { items: Record<string, unknown>[] }).items;
   const item = (n: string) => items.find((i) => i.id === I(n))!;
   const forecast = (n: number) => (data.get_milestone_forecast as Record<string, Record<string, unknown>>)[M(n)]!;
-  return { stub, gp, pass, errors, item, forecast, at: (t: string) => void (clock = new Date(t)) };
+  return { stub, gp, store, pass, errors, parked, item, forecast, at: (t: string) => void (clock = new Date(t)) };
 }
 
 describe('goalpath producer', () => {
@@ -80,17 +78,48 @@ describe('goalpath producer', () => {
     const [later] = await pass();
     expect(later).toMatchObject({ id: `goalpath:milestone:${M(4)}.20261202:risk`, supersedes: RISK, title: 'Billing revamp: forecast 2 Dec, 19 days past 13 Nov' });
     expect(later!.body).toContain('The forecast was 2026-11-24 when last reported.');
-    // The stub does not implement supersession: the predecessor stays open there. A head marks it superseded (§8).
-    expect(stub.cards.get(RISK)!.state).toBe('open');
+    expect(stub.cards.get(RISK)!.state).toBe('superseded');
 
     forecast(4).projectedCompletionDate = '2026-11-12';
     const [back] = await pass();
     expect(back).toMatchObject({ id: `goalpath:milestone:${M(4)}.20261112:on-track`, kind: 'signal', supersedes: later!.id, title: 'Billing revamp: back on track, forecast 12 Nov (deadline 13 Nov)' });
+    expect(stub.cards.get(later!.id)!.state).toBe('superseded');
     expect(await pass()).toHaveLength(1); // only the build; staying on track sends nothing
 
     forecast(4).projectedCompletionDate = '2026-11-20';
     const [again] = await pass();
     expect(again).toMatchObject({ id: `goalpath:milestone:${M(4)}.20261120:risk`, supersedes: back!.id });
+    expect(stub.cards.get(back!.id)!.state).toBe('superseded');
+    expect(stub.cards.get(again!.id)!.state).toBe('open');
+  });
+
+  it('known gap: a risk chain back at a projected date it already used gets a 409 result every pass, never parked', async () => {
+    const { pass, forecast, stub, store, errors, parked } = setup();
+    await pass();
+    forecast(4).projectedCompletionDate = '2026-11-12';
+    const [back] = await pass();
+    forecast(4).projectedCompletionDate = '2026-11-24'; // the date of the first, now superseded, risk card
+    for (let n = 0; n < 7; n++) {
+      const [again] = await pass();
+      expect(again).toMatchObject({ id: RISK, supersedes: back!.id });
+    }
+    // The head answers 409 with the stored, superseded card: a result, not a refusal, so nothing is counted or parked.
+    const last = stub.requests.filter((r) => r.method === 'PUT' && r.url.endsWith(encodeURIComponent(RISK))).length;
+    expect(last).toBe(8);
+    expect(stub.cards.get(RISK)!.state).toBe('superseded');
+    expect(stub.cards.get(back!.id)!.state).toBe('open');
+    expect(errors).toEqual([]);
+    expect(parked).toEqual([]);
+    expect(await store.kv(NAMESPACE).get(`risk:${M(4)}`)).toMatchObject({ card: back!.id }); // the chain stays at on-track
+    forecast(4).projectedCompletionDate = '2026-11-26'; // a new date heals it
+    expect((await pass())[0]).toMatchObject({ id: `goalpath:milestone:${M(4)}.20261126:risk`, supersedes: back!.id });
+  });
+
+  it('keeps one store entry per milestone and item, next to the cursor', async () => {
+    const { pass, store } = setup('2026-10-26T19:30:00Z');
+    await pass();
+    expect(await store.kv(NAMESPACE).keys()).toEqual([`approval:${I('12')}`, 'digest', `risk:${M(4)}`]);
+    expect(await store.get()).toBeGreaterThan(0);
   });
 
   it('retries a risk card whose submit failed, without breaking the chain', async () => {
@@ -139,8 +168,9 @@ describe('goalpath producer', () => {
     const [answered] = (await pass()).filter((c) => c.id.startsWith('goalpath:approval:'));
     expect(answered).toMatchObject({ id: `${APPROVAL}:answered`, kind: 'signal', supersedes: APPROVAL, thread: M(4), title: 'GP-12 Export invoices as CSV: answered in GoalPath' });
     expect(answered!.body).toContain('it is now Accepted');
-    // The stub leaves the predecessor open, so a decision can still land on it; GoalPath already answered, so nothing is written.
-    stub.decideHere(APPROVAL, { decision: 'reject' });
+    // The head marked the approval superseded, so a decision can no longer land on it (§8): it answers with the card as is.
+    expect(stub.decideHere(APPROVAL, { decision: 'reject' })).toMatchObject({ state: 'superseded' });
+    expect(stub.cards.get(APPROVAL)).not.toHaveProperty('decision');
     await pass();
     expect(gp.writes).toEqual([]);
     expect((await pass()).map((c) => c.id)).toEqual([BUILD]);

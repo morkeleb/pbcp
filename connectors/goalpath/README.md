@@ -24,8 +24,7 @@ An example producer on `@pbcp/client` for the GoalPath project tracker, read thr
 | `GOALPATH_INTERVAL_S` | `300` | seconds between passes |
 | `PBCP_HEAD_URL`, `PBCP_TOKEN` | – | the head and this producer's token (root `goalpath`) |
 | `PBCP_TO_PERSON` | the head's `owner` | read once from `GET /` at startup when unset |
-| `PBCP_CURSOR` | `pbcp-goalpath.cursor.json` | sync cursor |
-| `PBCP_STATE` | the cursor path with `.cursor.json` replaced by `.state.json` | producer state |
+| `PBCP_STORE` | `PBCP_CURSOR` if set, else `pbcp-goalpath.json` | one JSON file holding the sync cursor and the producer state (`fileStore` from `@pbcp/client`) |
 
 ## Cards
 
@@ -49,7 +48,7 @@ The producer root is `goalpath`. `<…-id>` is GoalPath's id, percent-encoded as
 
 ## Supersession
 
-All chains stay inside one namespace (§6) and always name the current card, which the state file records, never one already superseded (§8).
+All chains stay inside one namespace (§6) and always name the current card, which the store records, never one already superseded (§8).
 
 - **Risk.** Each distinct projected date past the deadline is its own card. A later slip (a different projected date) supersedes the current card of that milestone. The same slip seen again yields the same id; since the state's current card already has it, nothing is sent. When the forecast comes back on or before the deadline, an `on-track` signal supersedes the risk card; staying on track sends nothing; a new slip supersedes the `on-track` card. A milestone that is Done, loses its forecast, or stops being owned leaves its last card as it is.
 - **Approval answered in GoalPath.** When an approval card is open and its item is no longer in the approval status, an `:answered` signal supersedes it, saying what the status is now (or that it is no longer assigned to you). Not when the card was decided on the head: the write-back itself moves the item out of the queue.
@@ -67,13 +66,32 @@ A decision on the current approval card is applied to GoalPath through the MCP w
 | `delegated` | `add_comment("Delegated to <person>." + comment)`; no status change |
 | `dismissed` | nothing |
 
-The state file marks the round decided once the write-back succeeded, so a decision seen again (§7.2) writes nothing. A write-back that fails is retried on the next pass and parked after five failures (`@pbcp/client`). If the process dies between `set_item_status` and saving the state, the next delivery sets the same status again, which is harmless, and repeats the comment. If the item was answered in GoalPath first (an `:answered` card was sent), a decision that still reaches the head is not written back: GoalPath is authoritative. A decision made on the head after GoalPath moved the item but before the next pass sees that is written back; GoalPath's last write wins.
+The store marks the round decided once the write-back succeeded, so a decision seen again (§7.2) writes nothing. A write-back that fails is retried on the next pass and parked after five failures (`@pbcp/client`). If the process dies between `set_item_status` and saving the state, the next delivery sets the same status again, which is harmless, and repeats the comment. If the item was answered in GoalPath first (an `:answered` card was sent), a decision that still reaches the head is not written back: GoalPath is authoritative. A decision made on the head after GoalPath moved the item but before the next pass sees that is written back; GoalPath's last write wins.
 
 ## State and failures
 
-The state file holds the current card of every milestone's risk chain, every approval round (card id, round, whether it was submitted, decided, answered, and whether the item left the queue), and the date of the last digest. A card's state changes only after the head returned `200` or `201` (or, for an approval, any card), so a failed submit is recomputed and re-sent on the next pass. Approval rounds are never pruned.
+The store file is `{ "after": <cursor>, "state": { "goalpath": { … } } }`, one entry per key: `risk:<milestone-id>` (the current card of that milestone's risk chain), `approval:<item-id>` (the item's current round: card id, round, whether it was submitted, decided, answered, and whether the item left the queue), and `digest` (the date of the last digest). An entry changes only once the head answered the card (`onSubmitted`): for a risk, `:answered` or digest card on `200` or `201`, for an approval on any answer, `409` included. A failed submit is recomputed and re-sent on the next pass. A card the head keeps refusing with a 4xx (other than 401, 408, 429) is parked by `@pbcp/client` after five attempts and reported (`console.error`); it is not sent again until the process restarts or its content changes. Approval rounds are never pruned.
 
-Known gap: a risk chain that comes back to a projected date it already used (slip to 24 Nov, on track, slip to 24 Nov again) mints an id the head holds as superseded; the head answers `409` and the slip is not shown until the forecast moves again.
+Known gap: a risk chain that comes back to a projected date it already used (slip to 24 Nov, on track, slip to 24 Nov again) mints the id of a card the head holds as superseded. The head answers `409` with that stored card, which is a result, not a refusal (§5): it is not counted, parked or reported. The store keeps the `on-track` card as current, so the same `409` comes back on every pass, and the slip is not shown until the forecast moves to a date not used before, whose card supersedes the `on-track` card as usual.
+
+### Upgrading from 0.3
+
+0.3 kept the cursor (`PBCP_CURSOR`, default `pbcp-goalpath.cursor.json`) and the state (`PBCP_STATE`, default `pbcp-goalpath.state.json`) in two files; 0.4 keeps both in `PBCP_STORE`. If `PBCP_CURSOR` is set and `PBCP_STORE` is not, that file becomes the store and keeps its cursor, but the state still has to be moved in, or the connector starts from an empty state: risk chains restart without `supersedes`, and decisions on approval cards it no longer knows are not written back. Stop the process, then merge the two files (paths are the 0.3 defaults; the third is the new store):
+
+```sh
+node -e '
+const fs = require("fs"), [cursor, state, out] = process.argv.slice(1);
+const { after = 0 } = fs.existsSync(cursor) ? JSON.parse(fs.readFileSync(cursor, "utf8")) : {};
+const { risks = {}, approvals = {}, digest } = JSON.parse(fs.readFileSync(state, "utf8")).state ?? {};
+const kv = {};
+for (const [id, r] of Object.entries(risks)) kv["risk:" + id] = r;
+for (const [id, a] of Object.entries(approvals)) kv["approval:" + id] = a;
+if (digest) kv.digest = digest;
+fs.writeFileSync(out, JSON.stringify({ after, state: { goalpath: kv } }) + "\n");
+' pbcp-goalpath.cursor.json pbcp-goalpath.state.json pbcp-goalpath.json
+```
+
+Then start 0.4 with `PBCP_STORE` pointing at the new file (unset `PBCP_CURSOR` and `PBCP_STATE`), and delete the two old files.
 
 ## Guessed shapes
 

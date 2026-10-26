@@ -1,13 +1,46 @@
 // What both nodes share: the client from the credential, and errors in n8n's shape.
 
-import { HeadClient, HeadHttpError } from '@pbcp/client';
+import { HeadClient, HeadHttpError, type Transport } from '@pbcp/client';
 import { PbcpError, type Action } from '@pbcp/core';
-import { NodeApiError, NodeOperationError, type IExecuteFunctions, type INode, type IPollFunctions } from 'n8n-workflow';
+import {
+  NodeApiError, NodeOperationError,
+  type IExecuteFunctions, type IHttpRequestMethods, type IN8nHttpFullResponse, type INode, type IPollFunctions,
+} from 'n8n-workflow';
 
-/** A HeadClient on the global fetch; the nodes do not go through n8n's request helpers. */
+/**
+ * A Transport over n8n's own request helper, so the head is reached through n8n's proxy settings and request
+ * logging. The body goes out as the client's JSON text and comes back as text; a non-2xx status is a response.
+ */
+export function n8nTransport(ctx: IExecuteFunctions | IPollFunctions): Transport {
+  return async ({ method, url, headers, body }) => {
+    const res = (await ctx.helpers.httpRequest({
+      method: method as IHttpRequestMethods,
+      url,
+      headers,
+      body,
+      json: false,
+      encoding: 'text',
+      returnFullResponse: true,
+      ignoreHttpStatusErrors: true,
+    })) as IN8nHttpFullResponse;
+    const lower: Record<string, string | undefined> = {};
+    for (const [k, v] of Object.entries(res.headers ?? {})) lower[k.toLowerCase()] = v === undefined || v === null ? undefined : Array.isArray(v) ? v.join(', ') : String(v);
+    return { status: res.statusCode, headers: lower, body: text(res.body) };
+  };
+}
+
+/** The response body as text, whatever the helper made of it. */
+function text(body: unknown): string {
+  if (body === undefined || body === null) return '';
+  if (typeof body === 'string') return body;
+  if (Buffer.isBuffer(body)) return body.toString('utf8');
+  return JSON.stringify(body); // already parsed as JSON by the helper
+}
+
+/** A HeadClient from the credential, sending through n8n's request helper. */
 export async function connect(ctx: IExecuteFunctions | IPollFunctions): Promise<HeadClient> {
   const { headUrl, token } = await ctx.getCredentials<{ headUrl: string; token: string }>('pbcpApi');
-  return new HeadClient({ baseUrl: headUrl, token });
+  return new HeadClient({ baseUrl: headUrl, token, transport: n8nTransport(ctx) });
 }
 
 /** `{ status, code, message }` for a continueOnFail item; status and code only when the error has them. */

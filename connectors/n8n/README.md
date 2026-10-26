@@ -8,7 +8,7 @@ n8n community nodes for PBCP: a polling trigger on sync (RFC §7.2) and a submit
 - Or by hand: `npm i n8n-nodes-pbcp` in `~/.n8n/custom` (or your `N8N_CUSTOM_EXTENSIONS` directory), then restart n8n.
 - Requires **Node.js 22.12 or later** under n8n (see [Module format](#module-format)).
 
-**Status:** these nodes have only been unit-tested against an in-memory stub head, with a hand-made stand-in for n8n's node context. They have not been run inside a real n8n instance.
+**Status:** these nodes have only been unit-tested against an in-memory stub head, with a hand-made stand-in for n8n's node context and its request helper. They have not been run inside a real n8n instance.
 
 ## Credentials: PBCP Head
 
@@ -35,7 +35,7 @@ Both filters apply together. A change that is filtered out still moves the curso
 
 **Cursor.** The cursor (`after`) lives in the node's workflow static data, so it survives restarts and reactivation.
 
-- *First poll.* With `Start From: Now`, the first poll pages through the head to its current position, stores that, and emits nothing, so activating a workflow does not replay history. The protocol has no "current position" call, so this costs one full walk of the sync feed once. With `Beginning`, the first poll emits everything.
+- *First poll.* With `Start From: Now`, the first poll reads the head's current position, `seq` from `GET /` (describe, §7.5), stores it as the cursor, and emits nothing, so activating a workflow does not replay history; it does not read the change feed. This needs a head that implements draft 0.4 or later: a head whose describe has no `seq` makes the first poll fail. With `Beginning`, the first poll emits everything.
 - *Each poll* pages until `next` stops moving and stores the last `next` reached.
 - *A page that fails* is never skipped. If an earlier page in the same poll succeeded, the poll returns those items, stores only their `next`, and logs a warning; the failed page is fetched again on the next poll. If the first page fails, the poll throws and the cursor is untouched.
 - *`next` lower than `after`* is an error (§7.2); the cursor is not moved.
@@ -78,7 +78,9 @@ n8n loads community nodes with `require()`. `@pbcp/client` and `@pbcp/core` are 
 
 The sources are ESM like the rest of the repository (`src/package.json` says `"type": "module"`, and it is not published); `tsconfig.build.json` compiles them to CommonJS in `dist/`, where the package's own `package.json` (no `"type"`) makes Node.js read them as CommonJS.
 
-The nodes call the head with the global `fetch`, not n8n's request helpers, so n8n's proxy settings do not apply to them.
+## Requests
+
+Both nodes send every request through n8n's own request helper (`this.helpers.httpRequest`), so n8n's proxy settings and request logging apply. The client builds the request (URL, `Authorization: Bearer <token>` from the credential, JSON body as text); the helper is called with `returnFullResponse: true`, `ignoreHttpStatusErrors: true`, `json: false` and `encoding: 'text'`, and the client reads the status, headers and body itself, so a head's refusal (§7.4) reaches the node as the RFC code, not as n8n's generic HTTP error. The credential's `authenticate` block is used only by the credential test.
 
 ## Build
 

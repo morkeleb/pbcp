@@ -2,20 +2,18 @@
 // so a parameter set by expression is no different from one typed in.
 
 import { NodeApiError, NodeOperationError } from 'n8n-workflow';
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { stubHead, type Stub } from '../../../../../packages/client/test/stub.js';
+import { stubHead, type Stub } from '@pbcp/client/testing';
+import { beforeEach, describe, expect, it } from 'vitest';
 import { executeContext } from '../../fake-context.js';
 import { PbcpSubmit } from './PbcpSubmit.node.js';
 
 let stub: Stub;
 beforeEach(() => {
   stub = stubHead({ owner: 'anna' });
-  vi.stubGlobal('fetch', stub.fetch);
 });
-afterEach(() => vi.unstubAllGlobals());
 
 const base = { producer: 'n8n', namespace: 'alerts', upstream: 'disk-full', kind: 'decision', title: 'Disk full on db1', body: 'Evidence.' };
-const run = (items: Record<string, unknown>[], continueOnFail = false) => new PbcpSubmit().execute.call(executeContext(items, { continueOnFail }));
+const run = (items: Record<string, unknown>[], continueOnFail = false) => new PbcpSubmit().execute.call(executeContext(items, { continueOnFail, fetch: stub.fetch }));
 const json = (out: Awaited<ReturnType<typeof run>>) => out[0]!.map((i) => i.json as { status?: number; card?: Record<string, unknown>; error?: unknown });
 
 describe('PbcpSubmit', () => {
@@ -28,12 +26,16 @@ describe('PbcpSubmit', () => {
   });
 
   it("defaults to_person to the head's owner, describing once per execution", async () => {
-    const out = json(await run([base, { ...base, upstream: 'disk-full-2' }, { ...base, upstream: 'x', toPerson: 'morten' }]));
-    expect(out.map((o) => o.card?.to_person)).toEqual(['anna', 'anna', 'morten']);
+    const out = json(await run([base, { ...base, upstream: 'disk-full-2' }, { ...base, upstream: 'x', toPerson: 'morten' }], true));
+    expect(out.map((o) => o.card?.to_person)).toEqual(['anna', 'anna', undefined]);
+    // An explicit To Person is sent as is; this head stores cards for anna only (§10).
+    expect(stub.requests.filter((r) => r.method === 'PUT').map((r) => (r.body as { to_person: string }).to_person)).toEqual(['anna', 'anna', 'morten']);
+    expect(out[2]!.error).toMatchObject({ status: 403, code: 'wrong_person' });
     expect(stub.requests.filter((r) => r.method === 'GET')).toHaveLength(1);
   });
 
   it('builds the optional fields: actions as a list or JSON, references, source; encodes the upstream key', async () => {
+    await run([base]); // the supersede target
     const [a, b] = json(await run([
       {
         ...base,

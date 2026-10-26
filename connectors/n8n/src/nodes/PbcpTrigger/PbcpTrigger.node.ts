@@ -102,10 +102,9 @@ export class PbcpTrigger implements INodeType {
         const { changes } = await walk(head, 0, keep, 1);
         return changes.length ? [changes.map(item)] : null;
       }
+      // §7.5: the head's `seq` is its current position, so "now" starts there without reading the feed.
       if (data.after === undefined && this.getNodeParameter('startFrom', 'now') === 'now') {
-        const { next, error } = await walk(head, 0, () => false);
-        if (error) throw error;
-        data.after = next;
+        data.after = (await head.describe()).seq;
         return null;
       }
       const { changes, next, error } = await walk(head, data.after ?? 0, keep);
