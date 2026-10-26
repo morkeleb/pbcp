@@ -1,6 +1,6 @@
 {
   "name": "@pbcp/client",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "description": "PBCP client: HeadClient and the durable-cursor producer loop.",
   "license": "MIT",
   "type": "module",
@@ -9,6 +9,11 @@
       "source": "./src/index.ts",
       "types": "./dist/src/index.d.ts",
       "default": "./dist/src/index.js"
+    },
+    "./testing": {
+      "source": "./src/testing.ts",
+      "types": "./dist/src/testing.d.ts",
+      "default": "./dist/src/testing.js"
     }
   },
   "files": [
@@ -43,6 +48,10 @@
       ".": {
         "types": "./dist/src/index.d.ts",
         "default": "./dist/src/index.js"
+      },
+      "./testing": {
+        "types": "./dist/src/testing.d.ts",
+        "default": "./dist/src/testing.js"
       }
     }
   }
