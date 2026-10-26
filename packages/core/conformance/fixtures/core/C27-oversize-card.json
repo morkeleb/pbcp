@@ -1,0 +1,94 @@
+{
+  "name": "C27 a card up to 64 KiB is accepted; one over 1 MiB is 413 too_large and nothing is stored",
+  "rfc": [
+    "\u00a73.1",
+    "\u00a77.1",
+    "\u00a77.4"
+  ],
+  "steps": [
+    {
+      "op": "put",
+      "args": {
+        "token": "hermes",
+        "card": {
+          "protocol": "pbcp/1",
+          "id": "hermes:notes:big",
+          "kind": "artifact",
+          "to_person": "morten",
+          "producer": "hermes",
+          "title": "Card hermes:notes:big",
+          "body": {
+            "$repeat": [
+              "x",
+              60000
+            ]
+          },
+          "emitted_at": "2026-10-07T06:00:00Z"
+        }
+      },
+      "expect": {
+        "status": 201
+      }
+    },
+    {
+      "op": "put",
+      "args": {
+        "token": "hermes",
+        "card": {
+          "protocol": "pbcp/1",
+          "id": "hermes:notes:huge",
+          "kind": "artifact",
+          "to_person": "morten",
+          "producer": "hermes",
+          "title": "Card hermes:notes:huge",
+          "body": {
+            "$repeat": [
+              "x",
+              1100000
+            ]
+          },
+          "emitted_at": "2026-10-07T06:00:00Z"
+        }
+      },
+      "expect": {
+        "status": 413,
+        "body": {
+          "error": "too_large"
+        }
+      }
+    },
+    {
+      "op": "syncAll",
+      "args": {
+        "token": "hermes",
+        "after": 0
+      },
+      "expect": {
+        "status": 200,
+        "body": {
+          "changes": {
+            "$len": 1
+          }
+        }
+      }
+    },
+    {
+      "op": "syncAll",
+      "args": {
+        "token": "hermes",
+        "after": 0
+      },
+      "expect": {
+        "body": {
+          "changes": [
+            {
+              "card": {
+                "id": "hermes:notes:big"
+              }
+            }
+          ]
+        }
+      }
+    }
+  ]
+}

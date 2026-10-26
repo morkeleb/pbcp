@@ -1,0 +1,125 @@
+{
+  "name": "C31 GET / seq is the highest change_seq assigned; a producer starting there sees only later changes",
+  "rfc": [
+    "\u00a77.5",
+    "\u00a77.2"
+  ],
+  "steps": [
+    {
+      "op": "put",
+      "args": {
+        "token": "hermes",
+        "card": {
+          "protocol": "pbcp/1",
+          "id": "hermes:log:l1",
+          "kind": "signal",
+          "to_person": "morten",
+          "producer": "hermes",
+          "title": "Card hermes:log:l1",
+          "body": "Body.",
+          "emitted_at": "2026-10-07T06:00:00Z"
+        }
+      },
+      "expect": {
+        "status": 201
+      },
+      "save": {
+        "first": "body.change_seq"
+      }
+    },
+    {
+      "op": "describe",
+      "args": {
+        "token": "hermes"
+      },
+      "expect": {
+        "status": 200,
+        "body": {
+          "seq": {
+            "$var": "first"
+          }
+        }
+      },
+      "save": {
+        "start": "body.seq"
+      }
+    },
+    {
+      "op": "changes",
+      "args": {
+        "token": "hermes",
+        "after": {
+          "$var": "start"
+        }
+      },
+      "expect": {
+        "status": 200,
+        "body": {
+          "changes": {
+            "$len": 0
+          },
+          "next": {
+            "$var": "start"
+          }
+        }
+      }
+    },
+    {
+      "op": "put",
+      "args": {
+        "token": "hermes",
+        "card": {
+          "protocol": "pbcp/1",
+          "id": "hermes:log:l2",
+          "kind": "signal",
+          "to_person": "morten",
+          "producer": "hermes",
+          "title": "Card hermes:log:l2",
+          "body": "Body.",
+          "emitted_at": "2026-10-07T06:00:00Z"
+        }
+      },
+      "expect": {
+        "status": 201
+      },
+      "save": {
+        "second": "body.change_seq"
+      }
+    },
+    {
+      "op": "describe",
+      "args": {
+        "token": "hermes"
+      },
+      "expect": {
+        "status": 200,
+        "body": {
+          "seq": {
+            "$var": "second"
+          }
+        }
+      }
+    },
+    {
+      "op": "syncAll",
+      "args": {
+        "token": "hermes",
+        "after": {
+          "$var": "start"
+        }
+      },
+      "expect": {
+        "status": 200,
+        "body": {
+          "changes": [
+            {
+              "card": {
+                "id": "hermes:log:l2"
+              }
+            }
+          ]
+        }
+      }
+    }
+  ]
+}

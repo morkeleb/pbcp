@@ -1,0 +1,32 @@
+{
+  "name": "C25 GET / describes the head: protocol, owner, seq, extensions, render tiers",
+  "rfc": [
+    "\u00a77.5"
+  ],
+  "steps": [
+    {
+      "op": "describe",
+      "args": {
+        "token": "hermes"
+      },
+      "expect": {
+        "status": 200,
+        "body": {
+          "protocol": "pbcp/1",
+          "owner": "morten",
+          "seq": {
+            "$type": "number"
+          },
+          "extensions": {
+            "$type": "array"
+          },
+          "render": {
+            "mermaid": {
+              "$type": "array"
+            }
+          }
+        }
+      }
+    }
+  ]
+}

@@ -8,7 +8,7 @@
 import { z } from 'zod';
 import {
   BUILTIN_DECISIONS, EDIT_ACTION, actionId, effectiveActions, equal, producerPart,
-  type Card, type ProducerCard,
+  type Card, type ProducerCard, type Urgency,
 } from './card.js';
 import { PbcpError } from './errors.js';
 import { inRoot, sameNamespace } from './id.js';
@@ -58,12 +58,21 @@ export function canSupersede(target: Card | null, incoming: ProducerCard): PbcpE
   return null;
 }
 
+const RANK: Record<Urgency, number> = { log: 0, brief: 1, immediate: 2 };
+
+/** §9: the card's `urgency` (absent is `brief`), lowered to `ceiling` when above it. */
+export function clampUrgency(urgency: Urgency | undefined, ceiling?: Urgency): Urgency {
+  const u = urgency ?? 'brief';
+  return ceiling !== undefined && RANK[u] > RANK[ceiling] ? ceiling : u;
+}
+
 /**
  * §5 submission table. `stored` is the card at `incoming.id`; `target` is the card named
  * by `incoming.supersedes`, loaded by the head (pass null if absent). Refusals throw PbcpError;
  * a locked card with different content is a 409 *result*, carrying the stored card.
+ * `ceiling` is the producer's urgency ceiling (§9), absent for none; it sets `delivery` on the stored content.
  */
-export function submit(stored: Card | null, incoming: ProducerCard, now: string, target: Card | null = null): SubmitResult {
+export function submit(stored: Card | null, incoming: ProducerCard, now: string, target: Card | null = null, ceiling?: Urgency): SubmitResult {
   if (stored !== null) {
     const same = equal(producerPart(stored), incoming);
     if (stored.state !== 'open') return same ? { status: 200, card: stored, changed: [] } : { status: 409, card: stored, changed: [] };
@@ -79,13 +88,14 @@ export function submit(stored: Card | null, incoming: ProducerCard, now: string,
     predecessor = { ...target!, state: 'superseded', changed_at: now };
   }
 
+  const delivery = clampUrgency(incoming.urgency, ceiling);
   let card: Card;
   if (stored === null) {
-    card = { ...incoming, state: 'open', change_seq: 0, received_at: now, changed_at: now };
+    card = { ...incoming, state: 'open', change_seq: 0, received_at: now, changed_at: now, delivery };
   } else {
     const { seen_at, ...kept } = headPart(stored);
     const revised = !equal(producerPart(stored), { ...producerPart(stored), body: incoming.body, actions: incoming.actions });
-    card = { ...incoming, ...kept, ...(revised || seen_at === undefined ? {} : { seen_at }), received_at: now, changed_at: now };
+    card = { ...incoming, ...kept, ...(revised || seen_at === undefined ? {} : { seen_at }), received_at: now, changed_at: now, delivery };
   }
 
   const changed = predecessor ? [predecessor, card] : [card];

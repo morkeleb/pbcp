@@ -1,0 +1,64 @@
+{
+  "name": "C29 a malformed after on sync is 400 invalid_cursor",
+  "rfc": [
+    "\u00a77.2",
+    "\u00a77.4"
+  ],
+  "steps": [
+    {
+      "op": "changes",
+      "args": {
+        "token": "hermes",
+        "after": "abc"
+      },
+      "expect": {
+        "status": 400,
+        "body": {
+          "error": "invalid_cursor"
+        }
+      }
+    },
+    {
+      "op": "changes",
+      "args": {
+        "token": "hermes",
+        "after": "-1"
+      },
+      "expect": {
+        "status": 400,
+        "body": {
+          "error": "invalid_cursor"
+        }
+      }
+    },
+    {
+      "op": "changes",
+      "args": {
+        "token": "hermes",
+        "after": "1.5"
+      },
+      "expect": {
+        "status": 400,
+        "body": {
+          "error": "invalid_cursor"
+        }
+      }
+    },
+    {
+      "op": "changes",
+      "args": {
+        "token": "hermes",
+        "after": "0"
+      },
+      "expect": {
+        "status": 200,
+        "body": {
+          "changes": {
+            "$len": 0
+          },
+          "next": 0
+        }
+      }
+    }
+  ]
+}

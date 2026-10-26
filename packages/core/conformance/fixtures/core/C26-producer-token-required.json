@@ -1,0 +1,95 @@
+{
+  "name": "C26 a missing or invalid producer token is 401 unauthorized on PUT and on sync; nothing is stored",
+  "rfc": [
+    "\u00a77.1",
+    "\u00a77.2",
+    "\u00a77.4"
+  ],
+  "steps": [
+    {
+      "op": "put",
+      "args": {
+        "credential": "none",
+        "card": {
+          "protocol": "pbcp/1",
+          "id": "hermes:gmail:t1",
+          "kind": "signal",
+          "to_person": "morten",
+          "producer": "hermes",
+          "title": "Card hermes:gmail:t1",
+          "body": "Body.",
+          "emitted_at": "2026-10-07T06:00:00Z"
+        }
+      },
+      "expect": {
+        "status": 401,
+        "body": {
+          "error": "unauthorized"
+        }
+      }
+    },
+    {
+      "op": "put",
+      "args": {
+        "credential": "invalid",
+        "card": {
+          "protocol": "pbcp/1",
+          "id": "hermes:gmail:t1",
+          "kind": "signal",
+          "to_person": "morten",
+          "producer": "hermes",
+          "title": "Card hermes:gmail:t1",
+          "body": "Body.",
+          "emitted_at": "2026-10-07T06:00:00Z"
+        }
+      },
+      "expect": {
+        "status": 401,
+        "body": {
+          "error": "unauthorized"
+        }
+      }
+    },
+    {
+      "op": "changes",
+      "args": {
+        "credential": "none",
+        "after": 0
+      },
+      "expect": {
+        "status": 401,
+        "body": {
+          "error": "unauthorized"
+        }
+      }
+    },
+    {
+      "op": "changes",
+      "args": {
+        "credential": "invalid",
+        "after": 0
+      },
+      "expect": {
+        "status": 401,
+        "body": {
+          "error": "unauthorized"
+        }
+      }
+    },
+    {
+      "op": "syncAll",
+      "args": {
+        "token": "hermes",
+        "after": 0
+      },
+      "expect": {
+        "status": 200,
+        "body": {
+          "changes": {
+            "$len": 0
+          }
+        }
+      }
+    }
+  ]
+}

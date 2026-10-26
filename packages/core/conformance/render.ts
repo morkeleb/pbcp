@@ -3,7 +3,7 @@
 // syntax-checked; images and raw HTML are classified. Its "parser" is deliberately shallow
 // (a header check plus `pie` data lines). A real head brings a real renderer.
 
-import type { RenderResult, RenderUnderTest, RenderedFence, RenderedImage } from '../types.js';
+import type { RenderResult, RenderUnderTest, RenderedFence, RenderedImage } from './types.js';
 
 const CORE = ['flowchart', 'sequenceDiagram', 'stateDiagram-v2', 'gantt', 'timeline', 'pie', 'xychart-beta'];
 const EXTENDED = ['classDiagram', 'erDiagram', 'quadrantChart', 'sankey-beta', 'mindmap', 'gitGraph', 'journey'];

@@ -3,7 +3,7 @@
 import { readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import type { Decision } from '../src/index.js';
+import type { Decision, Urgency } from '../src/index.js';
 import { getPath, match, resolve, type Vars } from './match.js';
 import type { Fixture, HeadUnderTest, RenderUnderTest, Response } from './types.js';
 
@@ -24,6 +24,9 @@ export interface Adapters {
 
 const MAX_PAGES = 10_000;
 
+/** Sent where a fixture asks for a producer token the head never issued. */
+export const INVALID_TOKEN = 'pbcp-conformance-invalid-token';
+
 /** Runs one fixture from a clean head. Throws an Error describing the first failing step. */
 export async function runFixture(fixture: Fixture, adapters: Adapters): Promise<void> {
   const { head, render } = adapters;
@@ -32,11 +35,17 @@ export async function runFixture(fixture: Fixture, adapters: Adapters): Promise<
   const tokens = new Map<string, string>();
   const vars: Vars = {};
 
-  const tokenFor = async (root: unknown): Promise<string> => {
+  const tokenFor = async (root: unknown, ceiling?: unknown): Promise<string> => {
     if (!head) throw new Error('no HeadUnderTest');
-    const r = String(root);
-    if (!tokens.has(r)) tokens.set(r, await head.token(r));
-    return tokens.get(r)!;
+    const key = `${String(root)}|${String(ceiling ?? '')}`;
+    if (!tokens.has(key)) tokens.set(key, await head.token(String(root), ceiling === undefined ? undefined : { ceiling: ceiling as Urgency }));
+    return tokens.get(key)!;
+  };
+  /** `credential: "none"` sends no credential, `"invalid"` a token the head never issued; otherwise `token` (and `ceiling`) name one. */
+  const credential = async (args: Record<string, unknown>): Promise<string | null> => {
+    if (args.credential === 'none') return null;
+    if (args.credential === 'invalid') return INVALID_TOKEN;
+    return tokenFor(args.token, args.ceiling);
   };
   const needHead = (): HeadUnderTest => {
     if (!head) throw new Error('fixture needs a HeadUnderTest');
@@ -51,17 +60,23 @@ export async function runFixture(fixture: Fixture, adapters: Adapters): Promise<
     const args = (resolve(step.args ?? {}, vars) ?? {}) as Record<string, unknown>;
     let res: Response;
     switch (step.op) {
+      case 'describe':
+        res = await needHead().describe(await credential(args));
+        break;
       case 'put':
-        res = await needHead().put(await tokenFor(args.token), args.card);
+        res = await needHead().put(await credential(args), args.card);
         break;
       case 'changes':
-        res = await needHead().changes(await tokenFor(args.token), Number(args.after));
+        res = await needHead().changes(await credential(args), typeof args.after === 'string' ? args.after : Number(args.after));
         break;
       case 'syncAll':
-        res = await syncAll(needHead(), await tokenFor(args.token), Number(args.after));
+        res = await syncAll(needHead(), await credential(args), Number(args.after));
         break;
       case 'decide':
         res = await needHead().decide(String(args.id), args.decision as Decision);
+        break;
+      case 'decideWithToken':
+        res = await needHead().decideWithToken(await tokenFor(args.token), String(args.id), args.decision as Decision);
         break;
       case 'seen':
         res = await needHead().seen(String(args.id));
@@ -96,7 +111,7 @@ export async function runFixture(fixture: Fixture, adapters: Adapters): Promise<
 }
 
 /** Runner composite op: page through `changes` until `next` stops moving (§7.2). */
-async function syncAll(head: HeadUnderTest, token: string, after: number): Promise<Response> {
+async function syncAll(head: HeadUnderTest, token: string | null, after: number): Promise<Response> {
   const changes: Array<{ seq: number }> = [];
   let cursor = after;
   let pages = 0;

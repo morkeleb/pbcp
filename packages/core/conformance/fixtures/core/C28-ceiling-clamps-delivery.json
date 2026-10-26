@@ -1,0 +1,172 @@
+{
+  "name": "C28 a ceiling clamps delivery; urgency is stored and returned as sent",
+  "rfc": [
+    "\u00a74.1",
+    "\u00a74.2",
+    "\u00a79"
+  ],
+  "steps": [
+    {
+      "op": "put",
+      "args": {
+        "token": "hermes",
+        "ceiling": "brief",
+        "card": {
+          "protocol": "pbcp/1",
+          "id": "hermes:alerts:a1",
+          "kind": "signal",
+          "to_person": "morten",
+          "producer": "hermes",
+          "title": "Card hermes:alerts:a1",
+          "body": "Body.",
+          "emitted_at": "2026-10-07T06:00:00Z",
+          "urgency": "immediate"
+        }
+      },
+      "expect": {
+        "status": 201,
+        "body": {
+          "urgency": "immediate",
+          "delivery": "brief"
+        }
+      }
+    },
+    {
+      "op": "put",
+      "args": {
+        "token": "hermes",
+        "ceiling": "brief",
+        "card": {
+          "protocol": "pbcp/1",
+          "id": "hermes:alerts:a2",
+          "kind": "signal",
+          "to_person": "morten",
+          "producer": "hermes",
+          "title": "Card hermes:alerts:a2",
+          "body": "Body.",
+          "emitted_at": "2026-10-07T06:00:00Z",
+          "urgency": "log"
+        }
+      },
+      "expect": {
+        "status": 201,
+        "body": {
+          "urgency": "log",
+          "delivery": "log"
+        }
+      }
+    },
+    {
+      "op": "put",
+      "args": {
+        "token": "hermes",
+        "ceiling": "brief",
+        "card": {
+          "protocol": "pbcp/1",
+          "id": "hermes:alerts:a3",
+          "kind": "signal",
+          "to_person": "morten",
+          "producer": "hermes",
+          "title": "Card hermes:alerts:a3",
+          "body": "Body.",
+          "emitted_at": "2026-10-07T06:00:00Z"
+        }
+      },
+      "expect": {
+        "status": 201,
+        "body": {
+          "urgency": {
+            "$absent": true
+          },
+          "delivery": "brief"
+        }
+      }
+    },
+    {
+      "op": "put",
+      "args": {
+        "token": "hermes",
+        "ceiling": "brief",
+        "card": {
+          "protocol": "pbcp/1",
+          "id": "hermes:alerts:a1",
+          "kind": "signal",
+          "to_person": "morten",
+          "producer": "hermes",
+          "title": "Card hermes:alerts:a1",
+          "body": "Body.",
+          "emitted_at": "2026-10-07T06:00:00Z",
+          "urgency": "immediate"
+        }
+      },
+      "expect": {
+        "status": 200,
+        "body": {
+          "urgency": "immediate",
+          "delivery": "brief"
+        }
+      }
+    },
+    {
+      "op": "syncAll",
+      "args": {
+        "token": "hermes",
+        "ceiling": "brief",
+        "after": 0
+      },
+      "expect": {
+        "status": 200,
+        "body": {
+          "changes": {
+            "$contains": [
+              {
+                "card": {
+                  "id": "hermes:alerts:a1",
+                  "urgency": "immediate",
+                  "delivery": "brief"
+                }
+              },
+              {
+                "card": {
+                  "id": "hermes:alerts:a2",
+                  "urgency": "log",
+                  "delivery": "log"
+                }
+              },
+              {
+                "card": {
+                  "id": "hermes:alerts:a3",
+                  "delivery": "brief"
+                }
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "op": "put",
+      "args": {
+        "token": "cal",
+        "card": {
+          "protocol": "pbcp/1",
+          "id": "cal:event:e1",
+          "kind": "signal",
+          "to_person": "morten",
+          "producer": "cal",
+          "title": "Card cal:event:e1",
+          "body": "Body.",
+          "emitted_at": "2026-10-07T06:00:00Z",
+          "urgency": "immediate"
+        }
+      },
+      "expect": {
+        "status": 201,
+        "body": {
+          "urgency": "immediate",
+          "delivery": "immediate"
+        }
+      }
+    }
+  ]
+}
