@@ -1,0 +1,53 @@
+{
+  "name": "@pbcp/cli",
+  "version": "0.3.0",
+  "description": "PBCP command line: describe, submit, sync and decide against a head.",
+  "license": "MIT",
+  "type": "module",
+  "bin": {
+    "pbcp": "./dist/src/bin.js"
+  },
+  "exports": {
+    ".": {
+      "source": "./src/index.ts",
+      "types": "./dist/src/index.d.ts",
+      "default": "./dist/src/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "prepack": "tsc -p tsconfig.build.json"
+  },
+  "dependencies": {
+    "@pbcp/client": "workspace:*",
+    "@pbcp/core": "workspace:*"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/morkeleb/pbcp.git",
+    "directory": "packages/cli"
+  },
+  "homepage": "https://github.com/morkeleb/pbcp/tree/main/packages/cli",
+  "keywords": [
+    "pbcp",
+    "protocol",
+    "cards"
+  ],
+  "engines": {
+    "node": ">=22"
+  },
+  "publishConfig": {
+    "access": "public",
+    "exports": {
+      ".": {
+        "types": "./dist/src/index.d.ts",
+        "default": "./dist/src/index.js"
+      }
+    }
+  }
+}

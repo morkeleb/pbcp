@@ -1,0 +1,16 @@
+{
+  "name": "@pbcp/connector-obsidian-daily",
+  "version": "0.3.0",
+  "private": true,
+  "description": "Example producer: Obsidian daily notes to log cards.",
+  "license": "MIT",
+  "type": "module",
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "start": "node dist/src/index.js"
+  },
+  "dependencies": {
+    "@pbcp/client": "workspace:*",
+    "@pbcp/core": "workspace:*"
+  }
+}

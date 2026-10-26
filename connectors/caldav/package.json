@@ -1,0 +1,18 @@
+{
+  "name": "@pbcp/connector-caldav",
+  "version": "0.3.0",
+  "private": true,
+  "description": "Example producer: a CalDAV day agenda to a brief card.",
+  "license": "MIT",
+  "type": "module",
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "start": "node dist/src/index.js"
+  },
+  "dependencies": {
+    "@pbcp/client": "workspace:*",
+    "@pbcp/core": "workspace:*",
+    "ical.js": "^2.2.1",
+    "tsdav": "^2.5.0"
+  }
+}
