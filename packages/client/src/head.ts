@@ -1,6 +1,6 @@
 // RFC §7: a producer's submit and sync, and describe, over HTTP. Decide is the owner's (owner.ts). Orders are out of scope.
 
-import { ERROR_CODES, HeadDescriptionSchema, PbcpError, type Card, type ErrorCode, type HeadDescription, type ProducerCard } from '@pbcp/core';
+import { ERROR_CODES, HeadDescriptionSchema, PbcpError, type Card, type ErrorCode, type HeadDescription, type OrderCard, type ProducerCard } from '@pbcp/core';
 
 export interface SubmitResponse {
   status: 200 | 201 | 409;
@@ -15,6 +15,24 @@ export interface Change {
 export interface SyncResponse {
   changes: Change[];
   next: number;
+}
+
+/**
+ * A claim or renewal the head refused (A.2, A.5). The body is the order as it stands. 409 `lease_held`: another
+ * executor holds a live lease; stand down. 410 `order_terminal`: the order is done, failed or cancelled; never retry.
+ */
+export class ClaimRefused extends Error {
+  override readonly name = 'ClaimRefused';
+  readonly status: 409 | 410;
+  readonly code: 'lease_held' | 'order_terminal';
+  readonly order: OrderCard;
+
+  constructor(status: 409 | 410, order: OrderCard) {
+    super(status === 409 ? `${order.id} is held by another executor` : `${order.id} is ${order.exec_state}`);
+    this.status = status;
+    this.code = status === 409 ? 'lease_held' : 'order_terminal';
+    this.order = order;
+  }
 }
 
 /** A failure without a protocol error body (5xx, unknown codes, unexpected bodies). Protocol refusals are PbcpErrors (§7.4). */
@@ -122,6 +140,18 @@ export class HeadClient {
     const { status, body } = await this.request('PUT', `/cards/${encodeURIComponent(card.id)}`, card, [409]);
     if (status !== 200 && status !== 201 && status !== 409) throw new HeadHttpError(status, body, `unexpected status ${status} on submit`);
     return { status, card: expectCard(status, body) };
+  }
+
+  /**
+   * Orders extension (A.2): claim an order, or renew a lease this producer holds. Resolves with the order as the head
+   * now holds it (`exec_state`, `claim_seq`, `claim_expires_at`); a 409 or 410 throws ClaimRefused.
+   */
+  async claim(id: string, leaseSeconds: number): Promise<OrderCard> {
+    const { status, body } = await this.request('POST', `/cards/${encodeURIComponent(id)}/claim`, { lease_seconds: leaseSeconds }, [409, 410]);
+    const order = expectCard(status, body) as unknown as OrderCard;
+    if (status === 409 || status === 410) throw new ClaimRefused(status, order);
+    if (status !== 200) throw new HeadHttpError(status, body, `unexpected status ${status} on claim`);
+    return order;
   }
 
   /** §7.2. One page; the caller loops until `next` stops moving. */

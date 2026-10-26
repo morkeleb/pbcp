@@ -1,6 +1,6 @@
 # @pbcp/client
 
-A PBCP client: `HeadClient` speaks a producer's side of a head (RFC §7), `runProducer` is the durable-cursor loop a connector runs on (§7.2), and `OwnerClient` speaks the owner's side for tools and tests. No executor, no orders.
+A PBCP client: `HeadClient` speaks a producer's side of a head (RFC §7), `runProducer` is the durable-cursor loop a connector runs on (§7.2), `runExecutor` carries out orders (Appendix A), and `OwnerClient` speaks the owner's side for tools and tests.
 
 ## HeadClient
 
@@ -16,6 +16,21 @@ A 409 that returns a card is a result, not an error: the card was already decide
 Paths are relative to `baseUrl`, so a head mounted under a prefix is `baseUrl: 'https://example.org/pbcp'` (§7). To start a cursor from now rather than from the beginning, pass `(await head.describe()).seq` as the first `after`.
 
 **Transport.** Requests go through the global `fetch` by default, or through `fetch: myFetch`. A host with its own request layer (proxies, logging, as in n8n) passes `transport` instead: `(req: { method, url, headers, body? }) => Promise<{ status, headers, body }>`, with lower-case header names and every status returned as a response rather than thrown. `fetchTransport(f)` adapts a fetch function.
+
+## runExecutor (orders extension)
+
+```ts
+const run = runExecutor({ head, store: fileStore('exec.json'), producer: 'todoist', concurrency: 50,
+  run: async (order, ctx) => {
+    await ctx.progress('Created the task');      // PUT todoist:order:<ulid>:progress-1 (signal, log)
+    await ctx.checkpoint();                       // renews; throws Cancelled if the person cancelled (410)
+    return { kind: 'signal', title: 'Done', body: '…' };
+  } });
+```
+
+Each pass syncs and claims the orders addressed to `producer` or `*` that are `open`, up to `concurrency` at once, with a lease (default 60 s) renewed every half lease. A started run continues in the background; the cursor advances once every open order on a page has been claimed or refused. When `run` returns, the executor PUTs `<producer>:order:<ulid>:outcome` with `thread` and `references` naming the order and `orders.claim_seq` from the latest renewal (A.3). A `failed` outcome, a thrown error, or a `Cancelled` (410 on renewal, or the lease lost to another executor, 409) becomes an outcome with `orders.result: "failed"` that lists the progress notes as what was done (A.5). `stop()` aborts runs without an outcome, so their leases lapse and the orders are claimed again. `executor(opts)` gives the same loop without its timer (`pass()`, `idle()`).
+
+`HeadClient.claim(id, leaseSeconds)` claims or renews and returns the order; a `409` or `410` throws `ClaimRefused` with `code` `lease_held` or `order_terminal` and the order. The test stub mints orders with `stub.order({ to_producer, title, body })`; `stubHead({ executors })` lists the roots that receive `*` orders.
 
 ## OwnerClient
 
