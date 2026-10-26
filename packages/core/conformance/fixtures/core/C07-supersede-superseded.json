@@ -1,5 +1,5 @@
 {
-  "name": "C07 superseding an already-superseded card returns 409 and stores nothing",
+  "name": "C07 superseding an already-superseded card returns 409 and stores nothing; a missing target or the card itself is 400",
   "rfc": [
     "§8"
   ],
@@ -158,6 +158,46 @@
           "state": "open",
           "supersedes": "goalpath:item:4421:revised"
         }
+      }
+    },
+    {
+      "op": "put",
+      "args": {
+        "token": "goalpath",
+        "card": {
+          "protocol": "pbcp/1",
+          "kind": "decision",
+          "to_person": "morten",
+          "title": "Test card",
+          "body": "Evidence.\n\n## Proposal\n\nDo it.",
+          "emitted_at": "2026-10-07T09:00:00Z",
+          "id": "goalpath:item:4500",
+          "producer": "goalpath",
+          "supersedes": "goalpath:item:4499"
+        }
+      },
+      "expect": {
+        "status": 400
+      }
+    },
+    {
+      "op": "put",
+      "args": {
+        "token": "goalpath",
+        "card": {
+          "protocol": "pbcp/1",
+          "kind": "decision",
+          "to_person": "morten",
+          "title": "Test card",
+          "body": "Evidence.\n\n## Proposal\n\nDo it.",
+          "emitted_at": "2026-10-07T09:00:00Z",
+          "id": "goalpath:item:4501",
+          "producer": "goalpath",
+          "supersedes": "goalpath:item:4501"
+        }
+      },
+      "expect": {
+        "status": 400
       }
     }
   ]

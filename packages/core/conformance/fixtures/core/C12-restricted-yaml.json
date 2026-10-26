@@ -1,7 +1,8 @@
 {
   "name": "C12 front-matter PUT using YAML outside the restricted subset returns 400",
   "rfc": [
-    "§3"
+    "§3",
+    "§4.4"
   ],
   "steps": [
     {
@@ -135,6 +136,40 @@
             "$len": 2
           }
         }
+      }
+    },
+    {
+      "op": "put",
+      "args": {
+        "token": "hermes",
+        "card": "---\nprotocol: pbcp/1\nid: hermes:gmail:yaml-choices\nkind: decision\nto_person: morten\nproducer: hermes\ntitle: Pick a date\nactions:\n  - id: ship-friday\n    label: Ship Friday\n    default: \"true\"\n  - id: hold\n  - edit\nemitted_at: \"2026-10-07T09:00:00Z\"\n---\n\nEvidence.\n"
+      },
+      "expect": {
+        "status": 201,
+        "body": {
+          "id": "hermes:gmail:yaml-choices",
+          "actions": [
+            {
+              "id": "ship-friday",
+              "label": "Ship Friday",
+              "default": true
+            },
+            {
+              "id": "hold"
+            },
+            "edit"
+          ]
+        }
+      }
+    },
+    {
+      "op": "put",
+      "args": {
+        "token": "hermes",
+        "card": "---\nprotocol: pbcp/1\nid: hermes:gmail:yaml-choices-deep\nkind: decision\nto_person: morten\nproducer: hermes\ntitle: Pick a date\nactions:\n  - id: ship-friday\n    label: Ship Friday\n    meta:\n      x: y\n  - id: hold\n  - edit\nemitted_at: \"2026-10-07T09:00:00Z\"\n---\n\nEvidence.\n"
+      },
+      "expect": {
+        "status": 400
       }
     }
   ]

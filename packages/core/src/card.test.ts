@@ -111,6 +111,8 @@ describe('parseCard', () => {
   it('rejects bad values', () => {
     refused(minimal({ kind: 'memo' }), 'unsupported_kind');
     refused(minimal({ kind: 'order' }), 'unsupported_kind');
+    refused(minimal({ kind: 'artifact', actions: ['archive', 'keep'] }), 'invalid_card');
+    refused(minimal({ kind: 'signal', actions: [] }), 'invalid_card');
     refused(minimal({ urgency: 'now' }), 'invalid_card');
     refused(minimal({ emitted_at: '2026-10-07 06:05' }), 'invalid_card');
     refused(minimal({ emitted_at: '2026-10-07T06:05:00+02:00' }), 'invalid_card');

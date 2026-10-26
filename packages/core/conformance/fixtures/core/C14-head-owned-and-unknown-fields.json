@@ -1,8 +1,9 @@
 {
-  "name": "C14 head-owned field on PUT returns 400; unknown x- field is preserved",
+  "name": "C14 head-owned fields on PUT are rejected with 400; unknown fields are accepted",
   "rfc": [
+    "§3.1",
     "§4.2",
-    "§3.1"
+    "A.1"
   ],
   "steps": [
     {
@@ -364,47 +365,69 @@
             "reject",
             "edit"
           ],
-          "x-hermes-mailbox": "INBOX",
-          "x-hermes-meta": {
-            "folder": "inbox",
-            "score": 3
-          }
+          "to_producer": "hermes"
         }
       },
       "expect": {
-        "status": 201,
-        "body": {
-          "id": "hermes:gmail:19a4f2e7c3b1",
-          "x-hermes-mailbox": "INBOX",
-          "x-hermes-meta": {
-            "folder": "inbox",
-            "score": 3
-          }
-        }
+        "status": 400
       }
     },
     {
-      "op": "syncAll",
+      "op": "put",
       "args": {
         "token": "hermes",
-        "after": 0
+        "card": {
+          "protocol": "pbcp/1",
+          "id": "hermes:gmail:19a4f2e7c3b1",
+          "kind": "decision",
+          "to_person": "morten",
+          "producer": "hermes",
+          "title": "Reply to Anna re invoice timing",
+          "body": "Anna (Nordic Supply) asks whether the September invoice can be paid on the 20th instead of the 15th.\n\n## Proposed reply\n\n> Hi Anna, the 20th is fine for September.",
+          "emitted_at": "2026-10-07T13:02:11Z",
+          "thread": "gmail:19a4f2e7c3b1",
+          "urgency": "brief",
+          "actions": [
+            "approve",
+            "reject",
+            "edit"
+          ],
+          "exec_state": "open"
+        }
       },
       "expect": {
-        "status": 200,
-        "body": {
-          "changes": [
-            {
-              "card": {
-                "id": "hermes:gmail:19a4f2e7c3b1",
-                "x-hermes-mailbox": "INBOX",
-                "x-hermes-meta": {
-                  "folder": "inbox",
-                  "score": 3
-                }
-              }
-            }
-          ]
+        "status": 400
+      }
+    },
+    {
+      "op": "put",
+      "args": {
+        "token": "hermes",
+        "card": {
+          "protocol": "pbcp/1",
+          "id": "hermes:gmail:19a4f2e7c3b1",
+          "kind": "decision",
+          "to_person": "morten",
+          "producer": "hermes",
+          "title": "Reply to Anna re invoice timing",
+          "body": "Anna (Nordic Supply) asks whether the September invoice can be paid on the 20th instead of the 15th.\n\n## Proposed reply\n\n> Hi Anna, the 20th is fine for September.",
+          "emitted_at": "2026-10-07T13:02:11Z",
+          "thread": "gmail:19a4f2e7c3b1",
+          "urgency": "brief",
+          "actions": [
+            "approve",
+            "reject",
+            "edit"
+          ],
+          "x-hermes-mailbox": "INBOX",
+          "x-hermes-meta": {
+            "folder": "inbox",
+            "score": 3
+          }
         }
+      },
+      "expect": {
+        "status": 201
       }
     }
   ]

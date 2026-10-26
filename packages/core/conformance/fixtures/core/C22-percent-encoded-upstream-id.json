@@ -1,0 +1,172 @@
+{
+  "name": "C22 a percent-encoded upstream-id round-trips unchanged and is not normalised",
+  "rfc": [
+    "§5"
+  ],
+  "steps": [
+    {
+      "op": "put",
+      "args": {
+        "token": "mail",
+        "card": {
+          "protocol": "pbcp/1",
+          "kind": "artifact",
+          "to_person": "morten",
+          "title": "Invoice question",
+          "body": "- **From:** Anna\n\n> Can we pay on the 20th?",
+          "emitted_at": "2026-10-07T09:00:00Z",
+          "id": "mail:acme:%3Ca%2Bb%40host%3E",
+          "producer": "mail"
+        }
+      },
+      "expect": {
+        "status": 201,
+        "body": {
+          "id": "mail:acme:%3Ca%2Bb%40host%3E",
+          "state": "open"
+        }
+      },
+      "save": {
+        "seq": "body.change_seq"
+      }
+    },
+    {
+      "op": "put",
+      "args": {
+        "token": "mail",
+        "card": {
+          "protocol": "pbcp/1",
+          "kind": "artifact",
+          "to_person": "morten",
+          "title": "Invoice question",
+          "body": "- **From:** Anna\n\n> Can we pay on the 20th?",
+          "emitted_at": "2026-10-07T10:00:00Z",
+          "id": "mail:acme:%3Ca%2Bb%40host%3E",
+          "producer": "mail"
+        }
+      },
+      "expect": {
+        "status": 200,
+        "body": {
+          "id": "mail:acme:%3Ca%2Bb%40host%3E",
+          "change_seq": {
+            "$var": "seq"
+          }
+        }
+      }
+    },
+    {
+      "op": "syncAll",
+      "args": {
+        "token": "mail",
+        "after": 0
+      },
+      "expect": {
+        "status": 200,
+        "body": {
+          "changes": [
+            {
+              "card": {
+                "id": "mail:acme:%3Ca%2Bb%40host%3E"
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "op": "put",
+      "args": {
+        "token": "mail",
+        "card": {
+          "protocol": "pbcp/1",
+          "kind": "artifact",
+          "to_person": "morten",
+          "title": "Invoice question",
+          "body": "- **From:** Anna\n\n> Can we pay on the 20th?",
+          "emitted_at": "2026-10-07T09:00:00Z",
+          "id": "mail:acme:%3ca%2bb%40host%3e",
+          "producer": "mail"
+        }
+      },
+      "expect": {
+        "status": 201,
+        "body": {
+          "id": "mail:acme:%3ca%2bb%40host%3e"
+        }
+      }
+    },
+    {
+      "op": "put",
+      "args": {
+        "token": "mail",
+        "card": {
+          "protocol": "pbcp/1",
+          "kind": "artifact",
+          "to_person": "morten",
+          "title": "Invoice question",
+          "body": "- **From:** Anna\n\n> Can we pay on the 20th?",
+          "emitted_at": "2026-10-07T09:00:00Z",
+          "id": "mail:acme:%G1",
+          "producer": "mail"
+        }
+      },
+      "expect": {
+        "status": 400
+      }
+    },
+    {
+      "op": "put",
+      "args": {
+        "token": "mail",
+        "card": {
+          "protocol": "pbcp/1",
+          "kind": "artifact",
+          "to_person": "morten",
+          "title": "Invoice question",
+          "body": "- **From:** Anna\n\n> Can we pay on the 20th?",
+          "emitted_at": "2026-10-07T09:00:00Z",
+          "id": "mail:acme:50%",
+          "producer": "mail"
+        }
+      },
+      "expect": {
+        "status": 400
+      }
+    },
+    {
+      "op": "put",
+      "args": {
+        "token": "mail",
+        "card": {
+          "protocol": "pbcp/1",
+          "kind": "artifact",
+          "to_person": "morten",
+          "title": "Invoice question",
+          "body": "- **From:** Anna\n\n> Can we pay on the 20th?",
+          "emitted_at": "2026-10-07T09:00:00Z",
+          "id": "mail:ac%41me:x",
+          "producer": "mail"
+        }
+      },
+      "expect": {
+        "status": 400
+      }
+    },
+    {
+      "op": "syncAll",
+      "args": {
+        "token": "mail",
+        "after": 0
+      },
+      "expect": {
+        "status": 200,
+        "body": {
+          "changes": {
+            "$len": 2
+          }
+        }
+      }
+    }
+  ]
+}

@@ -62,5 +62,7 @@ export interface Step {
 export interface Fixture {
   name: string;
   rfc?: string[];
+  /** Absent means MUST. A SHOULD fixture checks a recommendation; a head may fail it and still conform. */
+  level?: 'MUST' | 'SHOULD';
   steps: Step[];
 }

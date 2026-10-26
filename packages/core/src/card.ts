@@ -135,6 +135,9 @@ export function parseCardOrThrow(input: unknown): ProducerCard {
   if (parseId(card.id)!.producer !== card.producer) {
     throw new PbcpError('producer_mismatch', `producer ${JSON.stringify(card.producer)} does not match the id's root`);
   }
+  if (card.actions !== undefined && card.kind !== 'decision') {
+    throw new PbcpError('invalid_card', `actions are only for kind: decision; ${card.kind} cards never carry them`);
+  }
   checkActions(card.actions);
   return card;
 }

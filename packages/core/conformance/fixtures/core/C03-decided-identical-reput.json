@@ -2,7 +2,9 @@
   "name": "C03 identical re-PUT of a decided card returns 200 with the decision in the body",
   "rfc": [
     "§5",
-    "§7.1"
+    "§7.1",
+    "§7.3",
+    "§7.4"
   ],
   "steps": [
     {
@@ -136,6 +138,18 @@
             "$var": "seqDecided"
           }
         }
+      }
+    },
+    {
+      "op": "decide",
+      "args": {
+        "id": "hermes:gmail:no-such-card",
+        "decision": {
+          "decision": "approve"
+        }
+      },
+      "expect": {
+        "status": 404
       }
     }
   ]
