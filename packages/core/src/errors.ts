@@ -27,9 +27,7 @@ export const ERROR_CODES = {
   wrong_person: 403,
   // 404 — no card with this id (decide and other owner-side calls)
   not_found: 404,
-  // 409 — locked
-  locked: 409,
-  already_decided: 409,
+  // 409 — a supersede target that is already superseded. A locked card is a 409 that carries the card, not an error body.
   already_superseded: 409,
   // 413, 429
   too_large: 413,
