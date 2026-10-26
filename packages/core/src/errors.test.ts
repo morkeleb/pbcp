@@ -11,6 +11,11 @@ describe('PbcpError', () => {
   });
 
   it('only uses the §7.4 refusal codes', () => {
-    expect(new Set(Object.values(ERROR_CODES))).toEqual(new Set([400, 401, 403, 409, 413, 429]));
+    expect(new Set(Object.values(ERROR_CODES))).toEqual(new Set([400, 401, 403, 404, 409, 413, 429]));
+  });
+
+  it('carries Retry-After seconds when given', () => {
+    expect(new PbcpError('rate_limited', 'slow down', { retryAfter: 30 }).retryAfter).toBe(30);
+    expect(new PbcpError('rate_limited').retryAfter).toBeUndefined();
   });
 });

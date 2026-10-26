@@ -211,5 +211,7 @@ describe('checkSubmission (§5, §10, §12)', () => {
     expect(() => checkSubmission(card(), { root: 'goalpath', owner: 'morten' })).not.toThrow();
     throws(() => checkSubmission(card(), { root: 'hermes', owner: 'morten' }), 'outside_root', 403);
     throws(() => checkSubmission(card({ to_person: 'anna' }), { root: 'goalpath', owner: 'morten' }), 'wrong_person', 403);
+    throws(() => checkSubmission(card(), { root: 'goalpath', owner: 'morten', pathId: 'goalpath:item:1' }), 'id_mismatch', 400);
+    expect(() => checkSubmission(card(), { root: 'goalpath', owner: 'morten', pathId: 'goalpath:item:4421' })).not.toThrow();
   });
 });

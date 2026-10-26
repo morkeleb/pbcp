@@ -99,7 +99,7 @@ function readScalar(s: string, pos: number, flow: boolean, no: number): [string,
   if (c === '|' || c === '>') fail(no, 'block scalars are not allowed');
   if (c === '{') fail(no, 'flow mappings are not allowed');
   if (c === '[') fail(no, flow ? 'nested sequences are not allowed' : 'unexpected [');
-  if (c === '%' || c === '@' || c === '`') fail(no, `a plain scalar cannot start with ${c}`);
+  if (c === '%' || c === '@' || c === '`' || c === '}' || (!flow && (c === ',' || c === ']'))) fail(no, `a plain scalar cannot start with ${c}`);
   if ((c === '-' || c === '?' || c === ':') && (s[pos + 1] === undefined || s[pos + 1] === ' ')) fail(no, `unexpected ${c}`);
   if (flow && (c === ',' || c === ']')) fail(no, 'empty flow sequence entry');
   // Plain scalar: ends at " #", end of line, or (in flow) "," / "]".

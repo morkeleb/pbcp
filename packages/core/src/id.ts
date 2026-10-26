@@ -1,4 +1,5 @@
 // RFC §5: id = producer ":" namespace ":" upstream-id [ ":" intent ]
+// upstream-id also admits percent-encoded octets (%XX), so any upstream key can be carried.
 
 export interface ParsedId {
   producer: string;
@@ -8,7 +9,7 @@ export interface ParsedId {
 }
 
 const SEGMENT = /^[A-Za-z0-9-]+$/;
-const UPSTREAM = /^[A-Za-z0-9_.-]+$/;
+const UPSTREAM = /^(?:[A-Za-z0-9_.-]|%[0-9A-Fa-f]{2})+$/;
 
 export function parseId(id: string): ParsedId | null {
   const parts = id.split(':');
@@ -38,4 +39,21 @@ export function inRoot(id: string, root: string): boolean {
 /** Intent and choice-list ids share one grammar (§4.4). */
 export function isIntent(s: string): boolean {
   return SEGMENT.test(s);
+}
+
+const UNRESERVED = /[A-Za-z0-9_.-]/;
+
+/** Percent-encodes every UTF-8 octet outside the unreserved set, with uppercase hex (§5). */
+export function encodeUpstream(key: string): string {
+  let out = '';
+  for (const byte of new TextEncoder().encode(key)) {
+    const ch = String.fromCharCode(byte);
+    out += byte < 0x80 && UNRESERVED.test(ch) ? ch : `%${byte.toString(16).toUpperCase().padStart(2, '0')}`;
+  }
+  return out;
+}
+
+/** Inverse of encodeUpstream. Throws URIError on a malformed escape or invalid UTF-8. */
+export function decodeUpstream(upstream: string): string {
+  return decodeURIComponent(upstream);
 }

@@ -1,12 +1,12 @@
 import { mkdtemp, readFile, readdir, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import type { Card, ProducerCard } from '@pbcp/core';
+import { PbcpError, type Card, type ProducerCard } from '@pbcp/core';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { stubHead } from '../test/stub.js';
 import { card } from './card.js';
-import { HeadClient } from './head.js';
-import { fileCursor, memoryCursor, producerPass, runProducer } from './producer.js';
+import { HeadClient, type Change } from './head.js';
+import { fileCursor, fileState, memoryCursor, producerPass, runProducer } from './producer.js';
 
 const mk = (upstream: string, title = 'T'): ProducerCard =>
   card({ producer: 'mail', namespace: 'acct', upstream, kind: 'decision', to_person: 'morten', title, body: 'b' });
@@ -91,6 +91,135 @@ describe('producerPass', () => {
   });
 });
 
+describe('parking (§7.2)', () => {
+  const failOn = (t: ReturnType<typeof setup>, id: string, times = Infinity) => {
+    let failures = 0;
+    return vi.fn(async (c: Card) => {
+      if (c.id === id && failures < times) {
+        failures++;
+        throw new Error(`cannot process ${id}`);
+      }
+      await t.onDecision(c);
+    });
+  };
+
+  it('C23 a parked change: the cursor advances and onParked fires', async () => {
+    const t = setup();
+    const cursor = memoryCursor();
+    for (const u of ['a', 'b', 'c']) await t.head.submit(mk(u));
+    const parked: [Change, unknown][] = [];
+    const attempts = new Map<string, number>();
+    const opts = { ...t, cursor, onDecision: failOn(t, 'mail:acct:a'), maxAttempts: 3, onParked: (c: Change, e: unknown) => void parked.push([c, e]) };
+
+    for (let pass = 1; pass < 3; pass++) {
+      await producerPass(opts, undefined, attempts);
+      expect(await cursor.get()).toBe(0);
+      expect(t.seen).toEqual([]);
+      expect(parked).toEqual([]);
+    }
+    await producerPass(opts, undefined, attempts);
+    expect(parked).toHaveLength(1);
+    expect(parked[0]![0]).toMatchObject({ seq: 1, card: { id: 'mail:acct:a' } });
+    expect(parked[0]![1]).toEqual(new Error('cannot process mail:acct:a'));
+    expect(t.seen.map((c) => c.id)).toEqual(['mail:acct:b', 'mail:acct:c']);
+    expect(await cursor.get()).toBe(3);
+    expect(t.errors).toHaveLength(2);
+    expect(attempts.size).toBe(0);
+  });
+
+  it('does not advance when onParked throws', async () => {
+    const t = setup();
+    const cursor = memoryCursor();
+    await t.head.submit(mk('a'));
+    const attempts = new Map<string, number>();
+    const onParked = vi.fn(() => {
+      throw new Error('cannot report');
+    });
+    const opts = { ...t, cursor, onDecision: failOn(t, 'mail:acct:a'), maxAttempts: 2, onParked };
+    for (let pass = 0; pass < 3; pass++) await producerPass(opts, undefined, attempts);
+    expect(onParked).toHaveBeenCalledTimes(2);
+    expect(t.errors.at(-1)).toEqual(new Error('cannot report'));
+    expect(await cursor.get()).toBe(0);
+  });
+
+  it('does not park a change that fails twice and then succeeds', async () => {
+    const t = setup();
+    const cursor = memoryCursor();
+    await t.head.submit(mk('a'));
+    const attempts = new Map<string, number>();
+    const onParked = vi.fn();
+    const opts = { ...t, cursor, onDecision: failOn(t, 'mail:acct:a', 2), maxAttempts: 3, onParked };
+    for (let pass = 0; pass < 3; pass++) await producerPass(opts, undefined, attempts);
+    expect(onParked).not.toHaveBeenCalled();
+    expect(t.seen.map((c) => c.id)).toEqual(['mail:acct:a']);
+    expect(await cursor.get()).toBe(1);
+    expect(attempts.size).toBe(0);
+  });
+
+  it('never counts failures on the submit path', async () => {
+    const t = setup();
+    await t.head.submit(mk('a'));
+    t.stub.decideHere('mail:acct:a', { decision: 'approve' });
+    const attempts = new Map<string, number>();
+    const onParked = vi.fn();
+    const opts = { ...t, cursor: memoryCursor(100), produce: () => [mk('a')], onDecision: failOn(t, 'mail:acct:a'), maxAttempts: 1, onParked };
+    await producerPass(opts, undefined, attempts);
+    expect(t.errors).toHaveLength(1);
+    expect(onParked).not.toHaveBeenCalled();
+    expect(attempts.size).toBe(0);
+  });
+});
+
+describe('Retry-After and next < after', () => {
+  it('stops the pass on a 429 from submit and returns the wait', async () => {
+    const t = setup();
+    t.stub.script(429, { error: 'rate_limited' }, { 'retry-after': '7' });
+    const res = await producerPass({ ...t, cursor: memoryCursor(), produce: () => [mk('a'), mk('b')] });
+    expect(res).toEqual({ retryAfterMs: 7000 });
+    expect(t.stub.requests).toHaveLength(1);
+    expect(t.errors[0]).toBeInstanceOf(PbcpError);
+  });
+
+  it('returns the wait on a 429 from sync without moving the cursor', async () => {
+    const t = setup();
+    const cursor = memoryCursor(4);
+    t.stub.script(429, { error: 'rate_limited' }, { 'retry-after': '3' });
+    expect(await producerPass({ ...t, cursor })).toEqual({ retryAfterMs: 3000 });
+    expect(await cursor.get()).toBe(4);
+  });
+
+  it('reports next < after as an error and leaves the cursor', async () => {
+    const t = setup();
+    const cursor = memoryCursor(9);
+    t.stub.script(200, { changes: [], next: 2 });
+    expect(await producerPass({ ...t, cursor })).toEqual({});
+    expect(t.errors).toHaveLength(1);
+    expect(String(t.errors[0])).toMatch(/after 9 returned next 2/);
+    expect(await cursor.get()).toBe(9);
+  });
+});
+
+describe('fileState', () => {
+  let dir: string | undefined;
+  afterEach(async () => {
+    if (dir) await rm(dir, { recursive: true, force: true });
+  });
+
+  it('is empty when missing, round-trips, deletes, and leaves no temp file', async () => {
+    dir = await mkdtemp(join(tmpdir(), 'pbcp-state-'));
+    const path = join(dir, 'nested', 'state.json');
+    const s = fileState<{ uid: number }>(path);
+    expect(await s.get('a')).toBeUndefined();
+    await s.delete('a');
+    await s.set('a', { uid: 1 });
+    await s.set('b', { uid: 2 });
+    expect(await fileState(path).get('a')).toEqual({ uid: 1 });
+    await s.delete('a');
+    expect(JSON.parse(await readFile(path, 'utf8'))).toEqual({ b: { uid: 2 } });
+    expect(await readdir(join(dir, 'nested'))).toEqual(['state.json']);
+  });
+});
+
 describe('fileCursor', () => {
   let dir: string | undefined;
   afterEach(async () => {
@@ -157,5 +286,15 @@ describe('runProducer', () => {
     const after = passes;
     await new Promise((r) => setTimeout(r, 10));
     expect(passes).toBe(after);
+  });
+
+  it('waits for Retry-After instead of the interval', async () => {
+    const t = setup();
+    t.stub.script(429, { error: 'rate_limited' }, { 'retry-after': '1' });
+    const run = runProducer({ ...t, cursor: memoryCursor(), intervalMs: 1 });
+    await vi.waitFor(() => expect(t.stub.requests).toHaveLength(1));
+    await new Promise((r) => setTimeout(r, 100));
+    expect(t.stub.requests).toHaveLength(1);
+    await run.stop();
   });
 });

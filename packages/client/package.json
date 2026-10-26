@@ -1,13 +1,49 @@
 {
   "name": "@pbcp/client",
-  "version": "0.0.0",
+  "version": "0.3.0",
   "description": "PBCP client: HeadClient and the durable-cursor producer loop.",
   "license": "MIT",
   "type": "module",
   "exports": {
-    ".": { "source": "./src/index.ts", "types": "./dist/src/index.d.ts", "default": "./dist/src/index.js" }
+    ".": {
+      "source": "./src/index.ts",
+      "types": "./dist/src/index.d.ts",
+      "default": "./dist/src/index.js"
+    }
   },
-  "files": ["dist"],
-  "scripts": { "build": "tsc -p tsconfig.build.json" },
-  "dependencies": { "@pbcp/core": "workspace:*" }
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "prepack": "tsc -p tsconfig.build.json"
+  },
+  "dependencies": {
+    "@pbcp/core": "workspace:*"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/morkeleb/pbcp.git",
+    "directory": "packages/client"
+  },
+  "homepage": "https://github.com/morkeleb/pbcp/tree/main/packages/client",
+  "keywords": [
+    "pbcp",
+    "protocol",
+    "cards"
+  ],
+  "engines": {
+    "node": ">=22"
+  },
+  "publishConfig": {
+    "access": "public",
+    "exports": {
+      ".": {
+        "types": "./dist/src/index.d.ts",
+        "default": "./dist/src/index.js"
+      }
+    }
+  }
 }

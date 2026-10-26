@@ -1,7 +1,8 @@
 {
-  "name": "C21 a choice list with two defaults or a duplicate id is rejected with 400",
+  "name": "C21 choice lists: two defaults or a duplicate id or a protocol decision as an id are 400; edit is never a decision value, edited always is",
   "rfc": [
-    "§4.4"
+    "\u00a74.4",
+    "\u00a77.3"
   ],
   "steps": [
     {
@@ -145,6 +146,128 @@
           "state": "decided",
           "decision": "ship-friday"
         }
+      }
+    },
+    {
+      "op": "put",
+      "args": {
+        "token": "goalpath",
+        "card": {
+          "protocol": "pbcp/1",
+          "kind": "decision",
+          "to_person": "morten",
+          "title": "Test card",
+          "body": "Evidence.\n\n## Proposal\n\nDo it.",
+          "emitted_at": "2026-10-07T09:00:00Z",
+          "id": "goalpath:item:4422",
+          "producer": "goalpath",
+          "actions": [
+            "hold",
+            {
+              "id": "hold",
+              "label": "Hold"
+            }
+          ]
+        }
+      },
+      "expect": {
+        "status": 400
+      }
+    },
+    {
+      "op": "put",
+      "args": {
+        "token": "goalpath",
+        "card": {
+          "protocol": "pbcp/1",
+          "kind": "decision",
+          "to_person": "morten",
+          "title": "Test card",
+          "body": "Evidence.\n\n## Proposal\n\nDo it.",
+          "emitted_at": "2026-10-07T09:00:00Z",
+          "id": "goalpath:item:4423",
+          "producer": "goalpath",
+          "actions": [
+            {
+              "id": "ship-friday"
+            },
+            {
+              "id": "hold"
+            }
+          ]
+        }
+      },
+      "expect": {
+        "status": 201
+      }
+    },
+    {
+      "op": "decide",
+      "args": {
+        "id": "goalpath:item:4423",
+        "decision": {
+          "decision": "edit",
+          "edited_proposal": "Ship Monday"
+        }
+      },
+      "expect": {
+        "status": 400
+      }
+    },
+    {
+      "op": "decide",
+      "args": {
+        "id": "goalpath:item:4423",
+        "decision": {
+          "decision": "edited"
+        }
+      },
+      "expect": {
+        "status": 400
+      }
+    },
+    {
+      "op": "decide",
+      "args": {
+        "id": "goalpath:item:4423",
+        "decision": {
+          "decision": "edited",
+          "edited_proposal": "Ship Monday"
+        }
+      },
+      "expect": {
+        "status": 200,
+        "body": {
+          "state": "decided",
+          "decision": "edited",
+          "edited_proposal": "Ship Monday"
+        }
+      }
+    },
+    {
+      "op": "put",
+      "args": {
+        "token": "goalpath",
+        "card": {
+          "protocol": "pbcp/1",
+          "kind": "decision",
+          "to_person": "morten",
+          "title": "Test card",
+          "body": "Evidence.\n\n## Proposal\n\nDo it.",
+          "emitted_at": "2026-10-07T09:00:00Z",
+          "id": "goalpath:item:4424",
+          "producer": "goalpath",
+          "actions": [
+            "approve",
+            {
+              "id": "edited",
+              "label": "Edited"
+            }
+          ]
+        }
+      },
+      "expect": {
+        "status": 400
       }
     }
   ]

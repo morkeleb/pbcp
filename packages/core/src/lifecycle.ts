@@ -35,8 +35,12 @@ export interface UpdateResult {
   changed: Card[];
 }
 
-/** §5, §10, §12: the token's root owns the id, and the card is addressed to this head's owner. */
-export function checkSubmission(incoming: ProducerCard, ctx: { root: string; owner: string }): void {
+/**
+ * §5, §7.1, §10, §12: the URL's id is the card's id, the token's root owns it, and the card
+ * is addressed to this head's owner. `pathId` is the decoded `{id}` from `PUT /cards/{id}`.
+ */
+export function checkSubmission(incoming: ProducerCard, ctx: { root: string; owner: string; pathId?: string }): void {
+  if (ctx.pathId !== undefined && ctx.pathId !== incoming.id) throw new PbcpError('id_mismatch', `URL names ${ctx.pathId}, card is ${incoming.id}`);
   if (!inRoot(incoming.id, ctx.root)) throw new PbcpError('outside_root', `${incoming.id} is outside root ${ctx.root}`);
   if (incoming.to_person !== ctx.owner) throw new PbcpError('wrong_person', `this head stores cards for ${ctx.owner} only`);
 }

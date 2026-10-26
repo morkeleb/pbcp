@@ -18,15 +18,16 @@ export const ERROR_CODES = {
   not_acknowledgeable: 400,
   supersede_self: 400,
   supersede_target_missing: 400,
+  id_mismatch: 400,
   // 401
   unauthorized: 401,
   // 403 — outside the producer's namespace, or not this head's owner
   outside_root: 403,
   cross_namespace_supersede: 403,
   wrong_person: 403,
-  // 409 — locked
-  locked: 409,
-  already_decided: 409,
+  // 404 — no card with this id (decide and other owner-side calls)
+  not_found: 404,
+  // 409 — a supersede target that is already superseded. A locked card is a 409 that carries the card, not an error body.
   already_superseded: 409,
   // 413, 429
   too_large: 413,
@@ -40,11 +41,14 @@ export class PbcpError extends Error {
   override readonly name = 'PbcpError';
   readonly status: PbcpStatus;
   readonly code: ErrorCode;
+  /** Seconds from a `Retry-After` header, for `rate_limited` (§7.4). */
+  readonly retryAfter?: number;
 
-  constructor(code: ErrorCode, message?: string) {
+  constructor(code: ErrorCode, message?: string, opts: { retryAfter?: number } = {}) {
     super(message ?? code);
     this.code = code;
     this.status = ERROR_CODES[code];
+    if (opts.retryAfter !== undefined) this.retryAfter = opts.retryAfter;
   }
 
   toJSON(): { error: ErrorCode; message: string } {

@@ -1,8 +1,9 @@
 {
-  "name": "C11 acknowledging an artifact sets acknowledged_at and the card stays open",
+  "name": "C11 acknowledging an artifact sets acknowledged_at and the card stays open; artifacts carry no actions and decision cards are never acknowledged",
   "rfc": [
     "§4.2",
-    "§6"
+    "§6",
+    "§4.1"
   ],
   "steps": [
     {
@@ -150,6 +151,84 @@
         "status": 200,
         "body": {
           "state": "open"
+        }
+      }
+    },
+    {
+      "op": "put",
+      "args": {
+        "token": "hermes",
+        "card": {
+          "protocol": "pbcp/1",
+          "kind": "artifact",
+          "to_person": "morten",
+          "title": "Test card",
+          "body": "Evidence.\n\n## Proposal\n\nDo it.",
+          "emitted_at": "2026-10-07T09:00:00Z",
+          "id": "hermes:gmail:artifact-actions",
+          "producer": "hermes",
+          "actions": [
+            "archive",
+            "keep"
+          ]
+        }
+      },
+      "expect": {
+        "status": 400
+      }
+    },
+    {
+      "op": "put",
+      "args": {
+        "token": "hermes",
+        "card": {
+          "protocol": "pbcp/1",
+          "kind": "decision",
+          "to_person": "morten",
+          "title": "Test card",
+          "body": "Evidence.\n\n## Proposal\n\nDo it.",
+          "emitted_at": "2026-10-07T09:00:00Z",
+          "id": "hermes:gmail:decision-ack",
+          "producer": "hermes"
+        }
+      },
+      "expect": {
+        "status": 201
+      }
+    },
+    {
+      "op": "acknowledge",
+      "args": {
+        "id": "hermes:gmail:decision-ack"
+      }
+    },
+    {
+      "op": "syncAll",
+      "args": {
+        "token": "hermes",
+        "after": 0
+      },
+      "expect": {
+        "status": 200,
+        "body": {
+          "changes": {
+            "$contains": [
+              {
+                "card": {
+                  "id": "hermes:gmail:decision-ack",
+                  "state": "open",
+                  "acknowledged_at": {
+                    "$absent": true
+                  }
+                }
+              }
+            ],
+            "$none": {
+              "card": {
+                "id": "hermes:gmail:artifact-actions"
+              }
+            }
+          }
         }
       }
     }
