@@ -30,6 +30,7 @@ pbcp/
 │   │       ├── producer.ts    durable-cursor loop, cursor store interface
 │   │       ├── executor.ts    order loop: claim → run → renew → outcome, A.5 built in
 │   │       └── index.ts
+│   ├── cli/                   @pbcp/cli — `pbcp` command over HeadClient: describe, submit, sync, decide
 │   └── mcp/                   @pbcp/mcp — MCP server adapter over HeadClient
 └── connectors/                examples, each < 100 lines on @pbcp/client
     ├── imap/                  mailbox → decision cards
