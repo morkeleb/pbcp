@@ -116,6 +116,10 @@ describe('parseCard', () => {
     refused(minimal({ urgency: 'now' }), 'invalid_card');
     refused(minimal({ emitted_at: '2026-10-07 06:05' }), 'invalid_card');
     refused(minimal({ emitted_at: '2026-10-07T06:05:00+02:00' }), 'invalid_card');
+    refused(minimal({ emitted_at: '2026-13-45T99:99:99Z' }), 'invalid_card');
+    refused(minimal({ emitted_at: '2026-02-30T00:00:00Z' }), 'invalid_card');
+    expect(parseCard(minimal({ emitted_at: '2024-02-29T23:59:60Z' })).ok).toBe(true);
+    expect(parseCard(minimal({ emitted_at: '2026-10-07T06:05:00.123-00:00' })).ok).toBe(true);
     refused(minimal({ title: 'two\nlines' }), 'invalid_card');
     refused(minimal({ source: { label: 'no url' } }), 'invalid_card');
     refused(minimal({ actions: ['ship friday'] }), 'invalid_card');
@@ -127,6 +131,8 @@ describe('parseCard', () => {
     refused(minimal({ actions: [{ id: 'a', default: true }, { id: 'b', default: true }] }), 'multiple_defaults');
     refused(minimal({ actions: ['a', { id: 'a', label: 'A' }] }), 'duplicate_action');
     refused(minimal({ actions: ['a', 'a'] }), 'duplicate_action');
+    for (const reserved of ['dismissed', 'edited', 'delegated']) refused(minimal({ actions: ['a', reserved] }), 'invalid_card');
+    refused(minimal({ actions: [{ id: 'edited' }] }), 'invalid_card');
     expect(parseCard(minimal({ actions: [{ id: 'a', default: true }, { id: 'b', default: false }] })).ok).toBe(true);
   });
 

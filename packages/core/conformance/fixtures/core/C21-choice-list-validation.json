@@ -1,8 +1,8 @@
 {
-  "name": "C21 choice lists: two defaults or a duplicate id are 400; edit is never a decision value, edited always is",
+  "name": "C21 choice lists: two defaults or a duplicate id or a protocol decision as an id are 400; edit is never a decision value, edited always is",
   "rfc": [
-    "§4.4",
-    "§7.3"
+    "\u00a74.4",
+    "\u00a77.3"
   ],
   "steps": [
     {
@@ -242,6 +242,32 @@
           "decision": "edited",
           "edited_proposal": "Ship Monday"
         }
+      }
+    },
+    {
+      "op": "put",
+      "args": {
+        "token": "goalpath",
+        "card": {
+          "protocol": "pbcp/1",
+          "kind": "decision",
+          "to_person": "morten",
+          "title": "Test card",
+          "body": "Evidence.\n\n## Proposal\n\nDo it.",
+          "emitted_at": "2026-10-07T09:00:00Z",
+          "id": "goalpath:item:4424",
+          "producer": "goalpath",
+          "actions": [
+            "approve",
+            {
+              "id": "edited",
+              "label": "Edited"
+            }
+          ]
+        }
+      },
+      "expect": {
+        "status": 400
       }
     }
   ]

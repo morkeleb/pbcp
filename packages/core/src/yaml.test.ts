@@ -133,6 +133,11 @@ describe('parseYaml', () => {
       ['text after quoted value', 'a: "x" y\n', /unexpected text/],
       ['unexpected indentation', '  a: x\n', /indentation/],
       ['not a mapping', 'just text\n', /key: value/],
+      ['plain scalar starting with ]', 'a: ]x\n', /cannot start/],
+      ['plain scalar starting with }', 'a: }x\n', /cannot start/],
+      ['plain scalar starting with ,', 'a: ,x\n', /cannot start/],
+      ['tab after the colon', 'a:\tb\n', /key: value/],
+      ['key starting with -', '-x: a\n', /top-level sequence|invalid key|key: value/],
     ])('%s', (_name, src, pattern) => rejects(src, pattern));
   });
 });

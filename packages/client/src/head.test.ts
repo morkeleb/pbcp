@@ -86,6 +86,12 @@ describe('HeadClient.describe', () => {
     expect(stub.requests[0]).toMatchObject({ method: 'GET', url: 'https://head.test/', headers: { authorization: 'Bearer tok' } });
   });
 
+  it('accepts tiers and members it does not know', async () => {
+    const { head, stub } = setup();
+    stub.script(200, { protocol: 'pbcp/1', owner: 'morten', extensions: ['orders'], render: { mermaid: ['core', 'other', 'future'] }, motd: 'hi' });
+    expect((await head.describe()).render.mermaid).toEqual(['core', 'other', 'future']);
+  });
+
   it('rejects a body that is not a head description', async () => {
     const { head, stub } = setup();
     stub.script(200, { protocol: 'pbcp/1', extensions: [] });

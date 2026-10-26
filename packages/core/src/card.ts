@@ -21,8 +21,18 @@ export type Kind = (typeof KINDS)[number];
 export type Urgency = (typeof URGENCIES)[number];
 export type State = (typeof STATES)[number];
 
-const RFC3339_UTC = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?(?:Z|[+-]00:00)$/;
-const Timestamp = z.string().regex(RFC3339_UTC, 'must be an RFC 3339 UTC timestamp');
+const RFC3339_UTC = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2}):(\d{2})(?:\.\d+)?(?:Z|[+-]00:00)$/;
+
+/** RFC 3339 in UTC (§2): the shape, and a date and time that exist (a leap second is allowed). */
+function isUtcTimestamp(s: string): boolean {
+  const m = RFC3339_UTC.exec(s);
+  if (!m) return false;
+  const [y, mo, d, h, mi, sec] = m.slice(1).map(Number) as [number, number, number, number, number, number];
+  const days = new Date(Date.UTC(y, mo, 0)).getUTCDate();
+  return mo >= 1 && mo <= 12 && d >= 1 && d <= days && h <= 23 && mi <= 59 && sec <= 60;
+}
+
+const Timestamp = z.string().refine(isUtcTimestamp, 'must be an RFC 3339 UTC timestamp');
 const Id = z.string().refine(isId, 'must match the id grammar (§5)');
 const NonEmpty = z.string().min(1);
 
@@ -146,6 +156,8 @@ export function parseCardOrThrow(input: unknown): ProducerCard {
 function checkActions(actions: Action[] | undefined): void {
   if (!actions) return;
   const ids = actions.map(actionId);
+  const reserved = ids.find((id) => (BUILTIN_DECISIONS as readonly string[]).includes(id));
+  if (reserved !== undefined) throw new PbcpError('invalid_card', `${reserved} is a protocol decision and cannot be an action id`);
   const dup = ids.find((id, i) => ids.indexOf(id) !== i);
   if (dup !== undefined) throw new PbcpError('duplicate_action', `duplicate action id ${dup}`);
   if (actions.filter((a) => typeof a === 'object' && a.default === true).length > 1) {
