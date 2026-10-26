@@ -1,0 +1,14 @@
+{
+  "3c9b7f10-2a6e-4e0f-8d3e-000000000012": {
+    "confirmed": [{ "type": "pull_request", "number": 87, "title": "CSV export for invoices", "url": "https://git.example/acme/billing/pull/87", "checks": [{ "runId": "gh-run-118801", "name": "ci / test", "conclusion": "success" }] }],
+    "suggested": []
+  },
+  "3c9b7f10-2a6e-4e0f-8d3e-000000000014": {
+    "confirmed": [{ "type": "pull_request", "number": 91, "title": "Retry declined payments with backoff", "url": "https://git.example/acme/billing/pull/91", "checks": [{ "runId": "gh-run-118842", "name": "ci / test", "conclusion": "failure", "url": "https://git.example/acme/billing/actions/runs/118842" }] }],
+    "suggested": [{ "type": "commit", "sha": "9f2c4e1aa0b3", "message": "wip retries", "checks": [{ "runId": "gh-run-118839", "name": "ci / test", "conclusion": "failure" }] }]
+  },
+  "3c9b7f10-2a6e-4e0f-8d3e-000000000016": {
+    "confirmed": [{ "type": "commit", "sha": "1b7d0c99e2f4", "message": "Opt-in screen", "checkRuns": [{ "id": "gh-run-118850", "name": "ci / build", "status": "SUCCESS" }] }],
+    "suggested": [{ "type": "pull_request", "number": 93, "title": "Unrelated", "checks": [{ "runId": "gh-run-118851", "name": "ci / test", "conclusion": "failure" }] }]
+  }
+}

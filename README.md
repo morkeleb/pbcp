@@ -12,6 +12,8 @@ The Personal Brief Card Protocol: the RFC (`rfc/`), the packages that implement 
 | `connectors/obsidian-daily` | — | Example producer: daily notes to log artifacts. |
 | `connectors/caldav` | — | Example producer: the day's agenda, and signals for meetings moved to start soon. |
 | `connectors/hermes` | — | Hermes Agent plugin: `@pbcp/mcp` plus two skills. |
+| `connectors/n8n` | `n8n-nodes-pbcp` | n8n community nodes: a polling trigger on sync, and a submit action. |
+| `connectors/goalpath` | — | Example producer: milestone risk, approvals, red builds and a nightly digest from GoalPath. |
 
 ```sh
 corepack pnpm install

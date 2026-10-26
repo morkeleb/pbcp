@@ -1,0 +1,8 @@
+{
+  "milestones": [
+    { "id": "7a1e0c2e-4d4b-4c51-9b1a-000000000003", "name": "Onboarding", "status": "Done", "startDate": "2026-08-03", "deadline": "2026-09-25" },
+    { "id": "7a1e0c2e-4d4b-4c51-9b1a-000000000004", "name": "Billing revamp", "status": "InProgress", "startDate": "2026-09-28", "deadline": "2026-11-13T00:00:00.000Z", "url": "https://goalpath.example/m/4" },
+    { "id": "7a1e0c2e-4d4b-4c51-9b1a-000000000005", "name": "Mobile beta", "status": "InProgress", "startDate": "2026-10-12", "deadline": "2026-12-11" },
+    { "id": "7a1e0c2e-4d4b-4c51-9b1a-000000000006", "name": "Rollout", "status": "Planned", "startDate": null, "deadline": "2027-01-15" }
+  ]
+}

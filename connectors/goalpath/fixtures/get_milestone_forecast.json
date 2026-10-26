@@ -1,0 +1,5 @@
+{
+  "7a1e0c2e-4d4b-4c51-9b1a-000000000004": { "milestoneId": "7a1e0c2e-4d4b-4c51-9b1a-000000000004", "deadline": "2026-11-13", "projectedCompletionDate": "2026-11-24T00:00:00.000Z", "confidence": "low", "remainingPoints": 54, "velocity": 18, "reasons": ["Scope grew by 6 items since 12 Oct", "Velocity 18 points/week, down from 24"] },
+  "7a1e0c2e-4d4b-4c51-9b1a-000000000005": { "milestoneId": "7a1e0c2e-4d4b-4c51-9b1a-000000000005", "deadline": "2026-12-11", "projectedCompletionDate": "2026-12-04", "confidence": "medium", "reasons": [] },
+  "7a1e0c2e-4d4b-4c51-9b1a-000000000006": { "forecast": { "projectedDate": "2027-01-22", "startDate": "2026-12-01", "confidence": "low" } }
+}
