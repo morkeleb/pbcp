@@ -117,7 +117,8 @@ export class HeadClient {
   submit(card: ProducerCard): Promise<{ status: 200|201|409; card: Card }>;   // 409 is returned, never thrown
   sync(after: number): Promise<{ changes: { seq: number; card: Card }[]; next: number }>;
   claim(id: string, leaseSeconds: number): Promise<{ claim_seq: number; exec_state: ExecState }>; // throws 409/410
-  decide(id: string, d: Decision): Promise<Card>;             // head-side interfaces only
+  decide(id: string, d: Decision): Promise<{ status: 200|409; card: Card }>;  // head-side interfaces only
+  describe(): Promise<HeadDescription>;                       // GET /, RFC §7.5
 }
 
 // producer.ts — durable consumer loop, §7.2
@@ -130,6 +131,8 @@ export function runProducer(opts: {
   produce?: () => AsyncIterable<ProducerCard>;                  // emit new cards (may be empty for pure listeners)
   onDecision: (card: Card) => Promise<void>;                    // called once per changed card; must be idempotent
   intervalMs?: number;
+  maxAttempts?: number;                                         // default 5; then the change is parked (RFC §7.2)
+  onParked?: (change: { seq: number; card: Card }, err: unknown) => void | Promise<void>;  // MUST report; default logs
 }): { stop(): void };
 // Loop: produce → submit each (409 → onDecision with the returned card) → sync(after) → onDecision each → cursor.set(next)
 
@@ -236,6 +239,8 @@ export interface HeadUnderTest {
   put(token: string, card: unknown): Promise<{ status: number; body: unknown }>;
   changes(token: string, after: number): Promise<{ status: number; body: unknown }>;
   decide(cardId: string, d: Decision): Promise<{ status: number; body: unknown }>;   // as the owner
+  seen(cardId: string): Promise<{ status: number; body: unknown }>;                  // owner: present the card (seen_at)
+  acknowledge(cardId: string): Promise<{ status: number; body: unknown }>;           // owner: acknowledge an artifact/signal
   claim(token: string, cardId: string, lease: number): Promise<{ status: number; body: unknown }>;
   clock: { set(iso: string): void };     // leases and expiry are tested against a controlled clock
 }
@@ -255,7 +260,7 @@ Each fixture is `{ name, steps: [{ op, args, expect }] }`. The first release car
 | C08 | Cross-namespace supersede (`goalpath:item` → `goalpath:milestone`) → 403 | §6 |
 | C09 | Sync returns only the caller's namespace; `next` is the global max | §7.2 |
 | C10 | Sync pagination: `next` advances across pages, nothing skipped | §7.2 |
-| C11 | Artifact acknowledgement sets `acknowledged_at`, state stays `open` | §4.3 |
+| C11 | Artifact acknowledgement sets `acknowledged_at`, state stays `open` | §4.2 |
 | C12 | Front-matter PUT with YAML outside the subset → 400 | §3 |
 | C13 | Id outside token root → 403; `producer` ≠ id root → 400 | §5, §12 |
 | C14 | Head-owned field on PUT → 400; unknown `x-` field preserved | §4 |
@@ -265,6 +270,10 @@ Each fixture is `{ name, steps: [{ op, args, expect }] }`. The first release car
 | C18 | Order: outcome with stale `orders.claim_seq` stored, `exec_state` unchanged | A.3 |
 | C19 | Order: `dismissed` → `exec_state` cancelled; renewal → 410; claim → 410 | A.1, A.5 |
 | C20 | Wildcard order minted before an executor is eligible is never returned to it | A.1 |
+| C21 | Choice list with two defaults or a duplicate id → 400; `edit` is never a decision, `edited` always is | §4.4, §7.3 |
+| C22 | Percent-encoded `upstream-id` round-trips unchanged, not normalised | §5 |
+| C23 | A parked change: the cursor advances and `onParked` fires (client test, not a head fixture) | §7.2 |
+| C24 | Unknown producer fields preserved through PUT and sync (SHOULD) | §3.1 |
 
 Rendering is tested from fixture bodies rather than over HTTP (RFC §3.1): the runner takes a `render(body) → classified fences + text` adapter and checks classification, not pixels.
 
