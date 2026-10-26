@@ -48,22 +48,48 @@ describe('HeadClient.submit', () => {
     expect(err).toMatchObject({ status: 400, code: 'head_owned_field', message: 'state is head-owned' });
   });
 
-  it('falls back to a status-appropriate code for unknown or mismatched codes', async () => {
+  it('throws a PbcpError for a 409 error body rather than treating it as a card', async () => {
     const { head, stub } = setup();
-    stub.script(403, { error: 'nope' });
-    await expect(head.submit(sample())).rejects.toMatchObject({ status: 403, code: 'outside_root' });
-    stub.script(401, { error: 'too_large' });
-    await expect(head.submit(sample())).rejects.toMatchObject({ status: 401, code: 'unauthorized' });
-    stub.script(429, 'slow down');
-    await expect(head.submit(sample())).rejects.toMatchObject({ status: 429, code: 'rate_limited' });
+    stub.script(409, { error: 'already_superseded', message: 'gone' });
+    const err = await head.submit(sample()).catch((e: unknown) => e);
+    expect(err).toBeInstanceOf(PbcpError);
+    expect(err).toMatchObject({ status: 409, code: 'already_superseded', message: 'gone' });
   });
 
-  it('throws HeadHttpError for statuses outside the protocol', async () => {
+  it('throws HeadHttpError when the body has no known code bound to the status', async () => {
     const { head, stub } = setup();
+    stub.script(403, { error: 'nope' });
+    await expect(head.submit(sample())).rejects.toMatchObject({ name: 'HeadHttpError', status: 403, body: { error: 'nope' } });
+    stub.script(401, { error: 'too_large' });
+    await expect(head.submit(sample())).rejects.toMatchObject({ name: 'HeadHttpError', status: 401 });
+    stub.script(429, 'slow down');
+    await expect(head.submit(sample())).rejects.toMatchObject({ name: 'HeadHttpError', status: 429, body: 'slow down' });
     stub.script(500, { error: 'boom' });
+    await expect(head.submit(sample())).rejects.toMatchObject({ name: 'HeadHttpError', status: 500, body: { error: 'boom' } });
+  });
+
+  it('carries Retry-After seconds on a 429, and ignores an HTTP-date', async () => {
+    const { head, stub } = setup();
+    stub.script(429, { error: 'rate_limited', message: 'slow' }, { 'retry-after': '7' });
     const err = await head.submit(sample()).catch((e: unknown) => e);
-    expect(err).toBeInstanceOf(HeadHttpError);
-    expect(err).toMatchObject({ status: 500, body: { error: 'boom' } });
+    expect(err).toBeInstanceOf(PbcpError);
+    expect(err).toMatchObject({ status: 429, code: 'rate_limited', retryAfter: 7 });
+    stub.script(429, { error: 'rate_limited' }, { 'retry-after': 'Wed, 21 Oct 2026 07:28:00 GMT' });
+    expect(await head.submit(sample()).catch((e: PbcpError) => e.retryAfter)).toBeUndefined();
+  });
+});
+
+describe('HeadClient.describe', () => {
+  it('returns the head description from GET /', async () => {
+    const { head, stub } = setup();
+    expect(await head.describe()).toEqual({ protocol: 'pbcp/1', owner: 'morten', extensions: [], render: { mermaid: ['core'] } });
+    expect(stub.requests[0]).toMatchObject({ method: 'GET', url: 'https://head.test/', headers: { authorization: 'Bearer tok' } });
+  });
+
+  it('rejects a body that is not a head description', async () => {
+    const { head, stub } = setup();
+    stub.script(200, { protocol: 'pbcp/1', extensions: [] });
+    await expect(head.describe()).rejects.toMatchObject({ name: 'HeadHttpError', status: 200 });
   });
 });
 
@@ -83,19 +109,21 @@ describe('HeadClient.sync and decide', () => {
     await expect(head.sync(0)).rejects.toBeInstanceOf(HeadHttpError);
   });
 
-  it('decides via POST and returns the stored card; 404 is a HeadHttpError', async () => {
+  it('decides via POST and returns the stored card; 404 is not_found', async () => {
     const { head, stub } = setup();
     await head.submit(sample());
     const decided = await head.decide('mail:acct:m1', { decision: 'reject', comment: 'no' });
-    expect(decided).toMatchObject({ state: 'decided', decision: 'reject', comment: 'no' });
+    expect(decided).toMatchObject({ status: 200, card: { state: 'decided', decision: 'reject', comment: 'no' } });
     expect(stub.requests.at(-1)!).toMatchObject({ method: 'POST', url: 'https://head.test/cards/mail%3Aacct%3Am1/decision' });
-    await expect(head.decide('mail:acct:nope', { decision: 'approve' })).rejects.toMatchObject({ name: 'HeadHttpError', status: 404 });
+    await expect(head.decide('mail:acct:nope', { decision: 'approve' })).rejects.toMatchObject({ name: 'PbcpError', status: 404, code: 'not_found' });
   });
 
-  it('turns a 409 on decide into already_decided', async () => {
-    const { head, stub } = setup();
-    stub.script(409, { error: 'already_decided', message: 'x' });
-    await expect(head.decide('mail:acct:m1', { decision: 'approve' })).rejects.toMatchObject({ code: 'already_decided' });
+  it('returns a 409 on decide with the stored card (§7.3)', async () => {
+    const { head } = setup();
+    await head.submit(sample());
+    await head.decide('mail:acct:m1', { decision: 'reject' });
+    const again = await head.decide('mail:acct:m1', { decision: 'approve' });
+    expect(again).toMatchObject({ status: 409, card: { state: 'decided', decision: 'reject' } });
   });
 });
 

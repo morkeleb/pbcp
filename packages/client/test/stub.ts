@@ -14,19 +14,20 @@ export interface Stub {
   cards: Map<string, Card>;
   requests: Recorded[];
   /** Answer the next request with this instead of the routes. */
-  script(status: number, body: unknown): void;
+  script(status: number, body: unknown, headers?: Record<string, string>): void;
   decideHere(id: string, d: Decision): void;
 }
 
 const NOW = '2026-10-26T12:00:00Z';
 
-export function stubHead(opts: { pageSize?: number } = {}): Stub {
+export function stubHead(opts: { pageSize?: number; owner?: string } = {}): Stub {
   const cards = new Map<string, Card>();
   const requests: Recorded[] = [];
-  const scripted: { status: number; body: unknown }[] = [];
+  const scripted: { status: number; body: unknown; headers?: Record<string, string> }[] = [];
   let seq = 0;
 
-  const json = (status: number, body: unknown) => new Response(JSON.stringify(body), { status, headers: { 'content-type': 'application/json' } });
+  const json = (status: number, body: unknown, headers: Record<string, string> = {}) =>
+    new Response(JSON.stringify(body), { status, headers: { 'content-type': 'application/json', ...headers } });
 
   const decideHere = (id: string, d: Decision) => {
     const c = cards.get(id);
@@ -41,7 +42,11 @@ export function stubHead(opts: { pageSize?: number } = {}): Stub {
     requests.push({ method, url: String(input), headers: { ...(init?.headers as Record<string, string>) }, body });
 
     const next = scripted.shift();
-    if (next) return json(next.status, next.body);
+    if (next) return json(next.status, next.body, next.headers);
+
+    if (method === 'GET' && url.pathname === '/') {
+      return json(200, { protocol: 'pbcp/1', owner: opts.owner ?? 'morten', extensions: [], render: { mermaid: ['core'] } });
+    }
 
     const put = method === 'PUT' && /^\/cards\/([^/]+)$/.exec(url.pathname);
     if (put) {
@@ -73,6 +78,7 @@ export function stubHead(opts: { pageSize?: number } = {}): Stub {
     if (decision) {
       const id = decodeURIComponent(decision[1]!);
       if (!cards.has(id)) return json(404, { error: 'not_found', message: id });
+      if (cards.get(id)!.state !== 'open') return json(409, cards.get(id));
       decideHere(id, body as Decision);
       return json(200, cards.get(id));
     }
@@ -80,5 +86,5 @@ export function stubHead(opts: { pageSize?: number } = {}): Stub {
     return json(404, { error: 'not_found', message: url.pathname });
   };
 
-  return { fetch: fetchImpl, cards, requests, script: (status, body) => scripted.push({ status, body }), decideHere };
+  return { fetch: fetchImpl, cards, requests, script: (status, body, headers) => scripted.push({ status, body, headers }), decideHere };
 }
