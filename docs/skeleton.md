@@ -157,7 +157,7 @@ export type Outcome =
 export const card: (p: { producer: string; namespace: string; upstream: string; intent?: string } & Omit<ProducerCard,'id'|'protocol'|'producer'|'emitted_at'>) => ProducerCard;
 ```
 
-An IMAP connector on this is: a `produce()` that lists unseen messages and yields `card({ producer:'mail', namespace:'gmail', upstream: messageId, kind:'decision', thread: threadId, title: subject, body: context + proposed reply, actions:['approve','reject','edit'] })`, and an `onDecision` that sends on `approve`/`edited` and marks the message. Nothing else.
+An IMAP connector on this is: a `produce()` that lists unseen messages and yields `card({ producer:'mail', namespace: account, upstream: messageId, kind: inInbox ? 'decision' : 'artifact', thread: threadId, title: subject, body: from + date + first lines, actions: inInbox ? ['archive','keep'] : undefined })`, and an `onDecision` that sets IMAP flags. Nothing else: a reader has no model and no SMTP, so it never drafts or sends. Drafting a reply is a second producer (an agent) that `references` the mail card; the head folds the two by thread.
 
 ### Connectors
 

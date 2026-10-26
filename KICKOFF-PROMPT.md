@@ -15,6 +15,6 @@ Then set up milestone 1 of the `pbcp` repo:
 
 4. In `packages/client`, implement `HeadClient` and `runProducer` with the durable-cursor loop from RFC §7.2 — advance the cursor only after processing succeeds. Test it against a tiny in-memory HTTP stub, not against a real head.
 
-5. In `connectors/imap`, write the producer described in `docs/skeleton.md`: unseen messages → `kind: decision` cards with `thread` = mail thread id, `actions: [approve, reject, edit]`, and an `onDecision` that sends on `approve`/`edited`. Keep it under 100 lines; the point is to prove the client is enough.
+5. In `connectors/imap`, write the producer described in `docs/skeleton.md`: each unseen message → one card, id `mail:<account>:<message-id>`, `thread` = the mail thread id, `kind: artifact` by default; messages in INBOX additionally get `kind: decision` with `actions: [archive, keep]`, and `onDecision` sets the IMAP flags (archive = move to Archive; keep = mark seen). No reply drafting and no sending — a reader has no model and no SMTP; drafting replies is a separate producer that `references` the mail card. Keep it under 100 lines; the point is to prove the client is enough.
 
 Stop after step 5. Do not implement orders, claims, the executor loop, `@pbcp/mcp`, or any head. Report what passes, what you had to interpret, and any place the RFC was ambiguous — those go in `rfc/OPEN.md`, not into guesses in code.

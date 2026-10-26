@@ -407,7 +407,7 @@ The bar is deliberately low. The checklists below are the whole of what each rol
 - [ ] Acts on decisions idempotently on its own side
 - [ ] Never includes head-owned fields on submission
 
-A mail reader is the canonical minimal producer: IMAP message id → `id`, thread id → `thread`, subject → `title`, body → context, `kind: decision` with a proposed reply when a reply is wanted, `kind: artifact` otherwise.
+A mail reader is the canonical minimal producer: IMAP message id → `id`, thread id → `thread`, subject → `title`, headers and first lines → body, `kind: artifact`, with `actions: [archive, keep]` for inbox messages. It drafts nothing; a producer that proposes a reply is a separate agent that `references` the mail card.
 
 ### 11.2 An executor (orders extension)
 
