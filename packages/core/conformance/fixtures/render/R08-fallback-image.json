@@ -1,0 +1,61 @@
+{
+  "name": "R08 a fallback image is hidden after a rendered fence and replaces the fallback block after an unrenderable one",
+  "rfc": [
+    "§3.1"
+  ],
+  "steps": [
+    {
+      "op": "render",
+      "args": {
+        "body": "Rendered case text.\n\n```mermaid\npie title Split\n  \"A\" : 1\n  \"B\" : 2\n```\n![fallback](data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR4nGPQqr/yHwAE0QJ9PWShagAAAABJRU5ErkJggg==)\n\nText after rendered case."
+      },
+      "expect": {
+        "status": 200,
+        "body": {
+          "fences": [
+            {
+              "type": "pie",
+              "class": "render"
+            }
+          ],
+          "images": [
+            {
+              "alt": "fallback",
+              "class": "hidden"
+            }
+          ],
+          "text": {
+            "$includes": "Text after rendered case."
+          }
+        }
+      }
+    },
+    {
+      "op": "render",
+      "args": {
+        "body": "Fallback case text.\n\n```mermaid\nfuturechart-beta\n  a --> b\n```\n![fallback](data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR4nGPQqr/yHwAE0QJ9PWShagAAAABJRU5ErkJggg==)\n\nText after fallback case."
+      },
+      "expect": {
+        "status": 200,
+        "body": {
+          "fences": [
+            {
+              "type": "futurechart-beta",
+              "class": "fallback",
+              "fallbackImage": true
+            }
+          ],
+          "images": [
+            {
+              "alt": "fallback",
+              "class": "image"
+            }
+          ],
+          "text": {
+            "$includes": "Text after fallback case."
+          }
+        }
+      }
+    }
+  ]
+}

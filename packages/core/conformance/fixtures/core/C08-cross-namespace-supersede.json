@@ -1,0 +1,130 @@
+{
+  "name": "C08 cross-namespace supersede returns 403 and leaves the target untouched",
+  "rfc": [
+    "§6",
+    "§12",
+    "§7.1"
+  ],
+  "steps": [
+    {
+      "op": "put",
+      "args": {
+        "token": "goalpath",
+        "card": {
+          "protocol": "pbcp/1",
+          "id": "goalpath:item:4421",
+          "kind": "decision",
+          "to_person": "morten",
+          "producer": "goalpath",
+          "title": "Approve shipping item 4421 Friday",
+          "body": "Tests are green.\n\n## Proposal\n\nShip on Friday.",
+          "emitted_at": "2026-10-07T06:05:00Z",
+          "thread": "item:4421"
+        }
+      },
+      "expect": {
+        "status": 201
+      },
+      "save": {
+        "seq": "body.change_seq"
+      }
+    },
+    {
+      "op": "put",
+      "args": {
+        "token": "goalpath",
+        "card": {
+          "protocol": "pbcp/1",
+          "id": "goalpath:milestone:88",
+          "kind": "signal",
+          "to_person": "morten",
+          "producer": "goalpath",
+          "title": "Milestone 88 at risk",
+          "body": "Two items slipped overnight.",
+          "emitted_at": "2026-10-07T06:05:00Z",
+          "supersedes": "goalpath:item:4421"
+        }
+      },
+      "expect": {
+        "status": 403
+      }
+    },
+    {
+      "op": "put",
+      "args": {
+        "token": "hermes",
+        "card": {
+          "protocol": "pbcp/1",
+          "id": "hermes:gmail:19a4f2e7c3b1",
+          "kind": "signal",
+          "to_person": "morten",
+          "producer": "hermes",
+          "title": "Withdrawn",
+          "body": "Withdrawn.",
+          "emitted_at": "2026-10-07T13:02:11Z",
+          "supersedes": "goalpath:item:4421"
+        }
+      },
+      "expect": {
+        "status": 403
+      }
+    },
+    {
+      "op": "syncAll",
+      "args": {
+        "token": "goalpath",
+        "after": 0
+      },
+      "expect": {
+        "status": 200,
+        "body": {
+          "changes": [
+            {
+              "seq": {
+                "$var": "seq"
+              },
+              "card": {
+                "id": "goalpath:item:4421",
+                "state": "open"
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "op": "syncAll",
+      "args": {
+        "token": "hermes",
+        "after": 0
+      },
+      "expect": {
+        "status": 200,
+        "body": {
+          "changes": {
+            "$len": 0
+          }
+        }
+      }
+    },
+    {
+      "op": "put",
+      "args": {
+        "token": "goalpath",
+        "card": {
+          "protocol": "pbcp/1",
+          "id": "goalpath:milestone:88",
+          "kind": "signal",
+          "to_person": "morten",
+          "producer": "goalpath",
+          "title": "Milestone 88 at risk",
+          "body": "Two items slipped overnight.",
+          "emitted_at": "2026-10-07T06:05:00Z"
+        }
+      },
+      "expect": {
+        "status": 201
+      }
+    }
+  ]
+}

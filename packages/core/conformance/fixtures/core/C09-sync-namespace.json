@@ -1,0 +1,198 @@
+{
+  "name": "C09 sync returns only the caller's namespace and next is the global maximum",
+  "rfc": [
+    "§7.2",
+    "§12"
+  ],
+  "steps": [
+    {
+      "op": "put",
+      "args": {
+        "token": "goalpath",
+        "card": {
+          "protocol": "pbcp/1",
+          "id": "goalpath:item:4421",
+          "kind": "decision",
+          "to_person": "morten",
+          "producer": "goalpath",
+          "title": "Approve shipping item 4421 Friday",
+          "body": "Tests are green.\n\n## Proposal\n\nShip on Friday.",
+          "emitted_at": "2026-10-07T06:05:00Z",
+          "thread": "item:4421"
+        }
+      },
+      "expect": {
+        "status": 201
+      },
+      "save": {
+        "seqItem": "body.change_seq"
+      }
+    },
+    {
+      "op": "put",
+      "args": {
+        "token": "goalpath",
+        "card": {
+          "protocol": "pbcp/1",
+          "id": "goalpath:milestone:88",
+          "kind": "signal",
+          "to_person": "morten",
+          "producer": "goalpath",
+          "title": "Milestone 88 at risk",
+          "body": "Two items slipped overnight.",
+          "emitted_at": "2026-10-07T06:05:00Z",
+          "urgency": "brief"
+        }
+      },
+      "expect": {
+        "status": 201
+      },
+      "save": {
+        "seqMs": "body.change_seq"
+      }
+    },
+    {
+      "op": "put",
+      "args": {
+        "token": "hermes",
+        "card": {
+          "protocol": "pbcp/1",
+          "id": "hermes:gmail:19a4f2e7c3b1",
+          "kind": "decision",
+          "to_person": "morten",
+          "producer": "hermes",
+          "title": "Reply to Anna re invoice timing",
+          "body": "Anna (Nordic Supply) asks whether the September invoice can be paid on the 20th instead of the 15th.\n\n## Proposed reply\n\n> Hi Anna, the 20th is fine for September.",
+          "emitted_at": "2026-10-07T13:02:11Z",
+          "thread": "gmail:19a4f2e7c3b1",
+          "urgency": "brief",
+          "actions": [
+            "approve",
+            "reject",
+            "edit"
+          ]
+        }
+      },
+      "expect": {
+        "status": 201
+      },
+      "save": {
+        "seqAnna": "body.change_seq"
+      }
+    },
+    {
+      "op": "decide",
+      "args": {
+        "id": "hermes:gmail:19a4f2e7c3b1",
+        "decision": {
+          "decision": "approve"
+        }
+      },
+      "expect": {
+        "status": 200
+      }
+    },
+    {
+      "op": "syncAll",
+      "args": {
+        "token": "hermes",
+        "after": 0
+      },
+      "expect": {
+        "status": 200,
+        "body": {
+          "changes": [
+            {
+              "card": {
+                "id": "hermes:gmail:19a4f2e7c3b1",
+                "decision": "approve"
+              }
+            }
+          ]
+        }
+      },
+      "save": {
+        "seqMax": "body.next"
+      }
+    },
+    {
+      "op": "syncAll",
+      "args": {
+        "token": "goalpath",
+        "after": 0
+      },
+      "expect": {
+        "status": 200,
+        "body": {
+          "ascending": true,
+          "next": {
+            "$var": "seqMax"
+          },
+          "changes": [
+            {
+              "seq": {
+                "$var": "seqItem"
+              },
+              "card": {
+                "id": "goalpath:item:4421",
+                "producer": "goalpath"
+              }
+            },
+            {
+              "seq": {
+                "$var": "seqMs"
+              },
+              "card": {
+                "id": "goalpath:milestone:88",
+                "producer": "goalpath"
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "op": "syncAll",
+      "args": {
+        "token": "goalpath",
+        "after": {
+          "$var": "seqMax"
+        }
+      },
+      "expect": {
+        "status": 200,
+        "body": {
+          "changes": {
+            "$len": 0
+          },
+          "next": {
+            "$var": "seqMax"
+          }
+        }
+      }
+    },
+    {
+      "op": "syncAll",
+      "args": {
+        "token": "hermes",
+        "after": 0
+      },
+      "expect": {
+        "status": 200,
+        "body": {
+          "changes": {
+            "$len": 1,
+            "$every": {
+              "card": {
+                "producer": "hermes"
+              }
+            }
+          },
+          "next": {
+            "$var": "seqMax"
+          }
+        }
+      }
+    }
+  ]
+}

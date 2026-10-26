@@ -1,0 +1,290 @@
+{
+  "name": "C02 changed re-PUT of an open card replaces it, clears seen_at, bumps change_seq and received_at",
+  "rfc": [
+    "§5",
+    "§6",
+    "§7.2"
+  ],
+  "steps": [
+    {
+      "op": "clock",
+      "args": {
+        "set": "2026-10-07T13:05:00Z"
+      }
+    },
+    {
+      "op": "put",
+      "args": {
+        "token": "hermes",
+        "card": {
+          "protocol": "pbcp/1",
+          "id": "hermes:gmail:19a4f2e7c3b1",
+          "kind": "decision",
+          "to_person": "morten",
+          "producer": "hermes",
+          "title": "Reply to Anna re invoice timing",
+          "body": "Anna (Nordic Supply) asks whether the September invoice can be paid on the 20th instead of the 15th.\n\n## Proposed reply\n\n> Hi Anna, the 20th is fine for September.",
+          "emitted_at": "2026-10-07T13:02:11Z",
+          "thread": "gmail:19a4f2e7c3b1",
+          "urgency": "brief",
+          "actions": [
+            "approve",
+            "reject",
+            "edit"
+          ]
+        }
+      },
+      "expect": {
+        "status": 201,
+        "body": {
+          "state": "open",
+          "seen_at": {
+            "$absent": true
+          },
+          "received_at": {
+            "$includes": "2026-10-07T13:05:00"
+          }
+        }
+      }
+    },
+    {
+      "op": "seen",
+      "args": {
+        "id": "hermes:gmail:19a4f2e7c3b1"
+      },
+      "expect": {
+        "status": 200,
+        "body": {
+          "id": "hermes:gmail:19a4f2e7c3b1",
+          "seen_at": {
+            "$present": true
+          }
+        }
+      }
+    },
+    {
+      "op": "syncAll",
+      "args": {
+        "token": "hermes",
+        "after": 0
+      },
+      "expect": {
+        "status": 200,
+        "body": {
+          "changes": [
+            {
+              "card": {
+                "id": "hermes:gmail:19a4f2e7c3b1",
+                "seen_at": {
+                  "$present": true
+                }
+              }
+            }
+          ]
+        }
+      },
+      "save": {
+        "seqSeen": "body.changes.0.seq"
+      }
+    },
+    {
+      "op": "put",
+      "args": {
+        "token": "hermes",
+        "card": {
+          "protocol": "pbcp/1",
+          "id": "hermes:gmail:19a4f2e7c3b1",
+          "kind": "decision",
+          "to_person": "morten",
+          "producer": "hermes",
+          "title": "Reply to Anna re invoice timing",
+          "body": "Anna (Nordic Supply) asks whether the September invoice can be paid on the 20th instead of the 15th.\n\n## Proposed reply\n\n> Hi Anna, the 20th is fine for September.",
+          "emitted_at": "2026-10-07T13:06:00Z",
+          "thread": "gmail:19a4f2e7c3b1",
+          "urgency": "brief",
+          "actions": [
+            "approve",
+            "reject",
+            "edit"
+          ]
+        }
+      },
+      "expect": {
+        "status": 200,
+        "body": {
+          "state": "open",
+          "seen_at": {
+            "$present": true
+          },
+          "change_seq": {
+            "$var": "seqSeen"
+          }
+        }
+      }
+    },
+    {
+      "op": "clock",
+      "args": {
+        "set": "2026-10-07T13:10:00Z"
+      }
+    },
+    {
+      "op": "put",
+      "args": {
+        "token": "hermes",
+        "card": {
+          "protocol": "pbcp/1",
+          "id": "hermes:gmail:19a4f2e7c3b1",
+          "kind": "decision",
+          "to_person": "morten",
+          "producer": "hermes",
+          "title": "Reply to Anna re invoice timing",
+          "body": "Anna (Nordic Supply) asks whether the September invoice can be paid on the 20th instead of the 15th.\n\n## Proposed reply\n\n> Hi Anna, the 20th is fine for September; from October we keep the 15th.",
+          "emitted_at": "2026-10-07T13:09:00Z",
+          "thread": "gmail:19a4f2e7c3b1",
+          "urgency": "brief",
+          "actions": [
+            "approve",
+            "reject",
+            "edit"
+          ]
+        }
+      },
+      "expect": {
+        "status": 200,
+        "body": {
+          "id": "hermes:gmail:19a4f2e7c3b1",
+          "state": "open",
+          "body": "Anna (Nordic Supply) asks whether the September invoice can be paid on the 20th instead of the 15th.\n\n## Proposed reply\n\n> Hi Anna, the 20th is fine for September; from October we keep the 15th.",
+          "seen_at": {
+            "$absent": true
+          },
+          "change_seq": {
+            "$gt": {
+              "$var": "seqSeen"
+            }
+          },
+          "received_at": {
+            "$includes": "2026-10-07T13:10:00"
+          }
+        }
+      },
+      "save": {
+        "seqChanged": "body.change_seq"
+      }
+    },
+    {
+      "op": "syncAll",
+      "args": {
+        "token": "hermes",
+        "after": {
+          "$var": "seqSeen"
+        }
+      },
+      "expect": {
+        "status": 200,
+        "body": {
+          "changes": [
+            {
+              "seq": {
+                "$var": "seqChanged"
+              },
+              "card": {
+                "id": "hermes:gmail:19a4f2e7c3b1",
+                "body": "Anna (Nordic Supply) asks whether the September invoice can be paid on the 20th instead of the 15th.\n\n## Proposed reply\n\n> Hi Anna, the 20th is fine for September; from October we keep the 15th.",
+                "seen_at": {
+                  "$absent": true
+                },
+                "state": "open"
+              }
+            }
+          ],
+          "next": {
+            "$var": "seqChanged"
+          }
+        }
+      }
+    },
+    {
+      "op": "seen",
+      "args": {
+        "id": "hermes:gmail:19a4f2e7c3b1"
+      },
+      "expect": {
+        "status": 200,
+        "body": {
+          "seen_at": {
+            "$present": true
+          }
+        }
+      }
+    },
+    {
+      "op": "syncAll",
+      "args": {
+        "token": "hermes",
+        "after": {
+          "$var": "seqChanged"
+        }
+      },
+      "expect": {
+        "status": 200,
+        "body": {
+          "changes": [
+            {
+              "card": {
+                "id": "hermes:gmail:19a4f2e7c3b1",
+                "seen_at": {
+                  "$present": true
+                }
+              }
+            }
+          ]
+        }
+      },
+      "save": {
+        "seqSeen2": "body.changes.0.seq"
+      }
+    },
+    {
+      "op": "put",
+      "args": {
+        "token": "hermes",
+        "card": {
+          "protocol": "pbcp/1",
+          "id": "hermes:gmail:19a4f2e7c3b1",
+          "kind": "decision",
+          "to_person": "morten",
+          "producer": "hermes",
+          "title": "Reply to Anna re invoice timing",
+          "body": "Anna (Nordic Supply) asks whether the September invoice can be paid on the 20th instead of the 15th.\n\n## Proposed reply\n\n> Hi Anna, the 20th is fine for September; from October we keep the 15th.",
+          "emitted_at": "2026-10-07T13:11:00Z",
+          "thread": "gmail:19a4f2e7c3b1",
+          "urgency": "brief",
+          "actions": [
+            "approve",
+            "reject"
+          ]
+        }
+      },
+      "expect": {
+        "status": 200,
+        "body": {
+          "state": "open",
+          "actions": [
+            "approve",
+            "reject"
+          ],
+          "seen_at": {
+            "$absent": true
+          },
+          "change_seq": {
+            "$gt": {
+              "$var": "seqSeen2"
+            }
+          }
+        }
+      }
+    }
+  ]
+}

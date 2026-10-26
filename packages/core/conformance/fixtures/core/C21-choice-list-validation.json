@@ -1,0 +1,151 @@
+{
+  "name": "C21 a choice list with two defaults or a duplicate id is rejected with 400",
+  "rfc": [
+    "§4.4"
+  ],
+  "steps": [
+    {
+      "op": "put",
+      "args": {
+        "token": "goalpath",
+        "card": {
+          "protocol": "pbcp/1",
+          "id": "goalpath:item:4421:ship-approval",
+          "kind": "decision",
+          "to_person": "morten",
+          "producer": "goalpath",
+          "title": "When do we ship item 4421?",
+          "body": "All tests green; Anna has not signed off yet.",
+          "emitted_at": "2026-10-07T06:05:00Z",
+          "actions": [
+            {
+              "id": "ship-friday",
+              "label": "Ship Friday",
+              "default": true
+            },
+            {
+              "id": "ship-next",
+              "label": "Ship next sprint",
+              "default": true
+            },
+            "edit"
+          ]
+        }
+      },
+      "expect": {
+        "status": 400
+      }
+    },
+    {
+      "op": "put",
+      "args": {
+        "token": "goalpath",
+        "card": {
+          "protocol": "pbcp/1",
+          "id": "goalpath:item:4421:ship-approval",
+          "kind": "decision",
+          "to_person": "morten",
+          "producer": "goalpath",
+          "title": "When do we ship item 4421?",
+          "body": "All tests green; Anna has not signed off yet.",
+          "emitted_at": "2026-10-07T06:05:00Z",
+          "actions": [
+            {
+              "id": "ship-friday",
+              "label": "Ship Friday"
+            },
+            {
+              "id": "ship-friday",
+              "label": "Ship Friday, again"
+            },
+            "edit"
+          ]
+        }
+      },
+      "expect": {
+        "status": 400
+      }
+    },
+    {
+      "op": "syncAll",
+      "args": {
+        "token": "goalpath",
+        "after": 0
+      },
+      "expect": {
+        "status": 200,
+        "body": {
+          "changes": {
+            "$len": 0
+          }
+        }
+      }
+    },
+    {
+      "op": "put",
+      "args": {
+        "token": "goalpath",
+        "card": {
+          "protocol": "pbcp/1",
+          "id": "goalpath:item:4421:ship-approval",
+          "kind": "decision",
+          "to_person": "morten",
+          "producer": "goalpath",
+          "title": "When do we ship item 4421?",
+          "body": "All tests green; Anna has not signed off yet.",
+          "emitted_at": "2026-10-07T06:05:00Z",
+          "actions": [
+            {
+              "id": "ship-friday",
+              "label": "Ship Friday",
+              "body": "Needs Anna's sign-off by Thursday.",
+              "default": true
+            },
+            {
+              "id": "ship-next",
+              "label": "Ship next sprint",
+              "body": "Slips M4 by one week."
+            },
+            {
+              "id": "hold",
+              "label": "Hold"
+            },
+            "edit"
+          ]
+        }
+      },
+      "expect": {
+        "status": 201,
+        "body": {
+          "id": "goalpath:item:4421:ship-approval",
+          "actions": {
+            "$len": 4,
+            "$contains": [
+              {
+                "id": "ship-friday",
+                "default": true
+              },
+              "edit"
+            ]
+          }
+        }
+      }
+    },
+    {
+      "op": "decide",
+      "args": {
+        "id": "goalpath:item:4421:ship-approval",
+        "decision": {
+          "decision": "ship-friday"
+        }
+      },
+      "expect": {
+        "status": 200,
+        "body": {
+          "state": "decided",
+          "decision": "ship-friday"
+        }
+      }
+    }
+  ]
+}

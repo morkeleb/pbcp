@@ -1,0 +1,4361 @@
+{
+  "name": "C10 sync across pages: next advances, every changed card returned once, nothing skipped",
+  "rfc": [
+    "§7.2"
+  ],
+  "steps": [
+    {
+      "op": "put",
+      "args": {
+        "token": "goalpath",
+        "card": {
+          "protocol": "pbcp/1",
+          "id": "goalpath:item:4401",
+          "kind": "signal",
+          "to_person": "morten",
+          "producer": "goalpath",
+          "title": "Item 4401 in review",
+          "body": "Item 4401 moved to review.",
+          "emitted_at": "2026-10-07T06:00:00Z",
+          "urgency": "log",
+          "thread": "item:4401"
+        }
+      },
+      "expect": {
+        "status": 201
+      },
+      "save": {
+        "g1": "body.change_seq"
+      }
+    },
+    {
+      "op": "put",
+      "args": {
+        "token": "goalpath",
+        "card": {
+          "protocol": "pbcp/1",
+          "id": "goalpath:item:4402",
+          "kind": "signal",
+          "to_person": "morten",
+          "producer": "goalpath",
+          "title": "Item 4402 in review",
+          "body": "Item 4402 moved to review.",
+          "emitted_at": "2026-10-07T06:00:00Z",
+          "urgency": "log",
+          "thread": "item:4402"
+        }
+      },
+      "expect": {
+        "status": 201
+      },
+      "save": {
+        "g2": "body.change_seq"
+      }
+    },
+    {
+      "op": "put",
+      "args": {
+        "token": "goalpath",
+        "card": {
+          "protocol": "pbcp/1",
+          "id": "goalpath:item:4403",
+          "kind": "signal",
+          "to_person": "morten",
+          "producer": "goalpath",
+          "title": "Item 4403 in review",
+          "body": "Item 4403 moved to review.",
+          "emitted_at": "2026-10-07T06:00:00Z",
+          "urgency": "log",
+          "thread": "item:4403"
+        }
+      },
+      "expect": {
+        "status": 201
+      },
+      "save": {
+        "g3": "body.change_seq"
+      }
+    },
+    {
+      "op": "put",
+      "args": {
+        "token": "goalpath",
+        "card": {
+          "protocol": "pbcp/1",
+          "id": "goalpath:item:4404",
+          "kind": "signal",
+          "to_person": "morten",
+          "producer": "goalpath",
+          "title": "Item 4404 in review",
+          "body": "Item 4404 moved to review.",
+          "emitted_at": "2026-10-07T06:00:00Z",
+          "urgency": "log",
+          "thread": "item:4404"
+        }
+      },
+      "expect": {
+        "status": 201
+      },
+      "save": {
+        "g4": "body.change_seq"
+      }
+    },
+    {
+      "op": "put",
+      "args": {
+        "token": "goalpath",
+        "card": {
+          "protocol": "pbcp/1",
+          "id": "goalpath:item:4405",
+          "kind": "signal",
+          "to_person": "morten",
+          "producer": "goalpath",
+          "title": "Item 4405 in review",
+          "body": "Item 4405 moved to review.",
+          "emitted_at": "2026-10-07T06:00:00Z",
+          "urgency": "log",
+          "thread": "item:4405"
+        }
+      },
+      "expect": {
+        "status": 201
+      },
+      "save": {
+        "g5": "body.change_seq"
+      }
+    },
+    {
+      "op": "put",
+      "args": {
+        "token": "goalpath",
+        "card": {
+          "protocol": "pbcp/1",
+          "id": "goalpath:item:4406",
+          "kind": "signal",
+          "to_person": "morten",
+          "producer": "goalpath",
+          "title": "Item 4406 in review",
+          "body": "Item 4406 moved to review.",
+          "emitted_at": "2026-10-07T06:00:00Z",
+          "urgency": "log",
+          "thread": "item:4406"
+        }
+      },
+      "expect": {
+        "status": 201
+      },
+      "save": {
+        "g6": "body.change_seq"
+      }
+    },
+    {
+      "op": "put",
+      "args": {
+        "token": "goalpath",
+        "card": {
+          "protocol": "pbcp/1",
+          "id": "goalpath:item:4407",
+          "kind": "signal",
+          "to_person": "morten",
+          "producer": "goalpath",
+          "title": "Item 4407 in review",
+          "body": "Item 4407 moved to review.",
+          "emitted_at": "2026-10-07T06:00:00Z",
+          "urgency": "log",
+          "thread": "item:4407"
+        }
+      },
+      "expect": {
+        "status": 201
+      },
+      "save": {
+        "g7": "body.change_seq"
+      }
+    },
+    {
+      "op": "put",
+      "args": {
+        "token": "goalpath",
+        "card": {
+          "protocol": "pbcp/1",
+          "id": "goalpath:item:4408",
+          "kind": "signal",
+          "to_person": "morten",
+          "producer": "goalpath",
+          "title": "Item 4408 in review",
+          "body": "Item 4408 moved to review.",
+          "emitted_at": "2026-10-07T06:00:00Z",
+          "urgency": "log",
+          "thread": "item:4408"
+        }
+      },
+      "expect": {
+        "status": 201
+      },
+      "save": {
+        "g8": "body.change_seq"
+      }
+    },
+    {
+      "op": "put",
+      "args": {
+        "token": "goalpath",
+        "card": {
+          "protocol": "pbcp/1",
+          "id": "goalpath:item:4409",
+          "kind": "signal",
+          "to_person": "morten",
+          "producer": "goalpath",
+          "title": "Item 4409 in review",
+          "body": "Item 4409 moved to review.",
+          "emitted_at": "2026-10-07T06:00:00Z",
+          "urgency": "log",
+          "thread": "item:4409"
+        }
+      },
+      "expect": {
+        "status": 201
+      },
+      "save": {
+        "g9": "body.change_seq"
+      }
+    },
+    {
+      "op": "put",
+      "args": {
+        "token": "goalpath",
+        "card": {
+          "protocol": "pbcp/1",
+          "id": "goalpath:item:4410",
+          "kind": "signal",
+          "to_person": "morten",
+          "producer": "goalpath",
+          "title": "Item 4410 in review",
+          "body": "Item 4410 moved to review.",
+          "emitted_at": "2026-10-07T06:00:00Z",
+          "urgency": "log",
+          "thread": "item:4410"
+        }
+      },
+      "expect": {
+        "status": 201
+      },
+      "save": {
+        "g10": "body.change_seq"
+      }
+    },
+    {
+      "op": "put",
+      "args": {
+        "token": "hermes",
+        "card": {
+          "protocol": "pbcp/1",
+          "id": "hermes:gmail:batch-10",
+          "kind": "artifact",
+          "to_person": "morten",
+          "producer": "hermes",
+          "title": "Mail batch 10",
+          "body": "Ten new messages.",
+          "emitted_at": "2026-10-07T06:00:00Z"
+        }
+      },
+      "expect": {
+        "status": 201
+      },
+      "save": {
+        "last": "body.change_seq"
+      }
+    },
+    {
+      "op": "put",
+      "args": {
+        "token": "goalpath",
+        "card": {
+          "protocol": "pbcp/1",
+          "id": "goalpath:item:4411",
+          "kind": "signal",
+          "to_person": "morten",
+          "producer": "goalpath",
+          "title": "Item 4411 in review",
+          "body": "Item 4411 moved to review.",
+          "emitted_at": "2026-10-07T06:00:00Z",
+          "urgency": "log",
+          "thread": "item:4411"
+        }
+      },
+      "expect": {
+        "status": 201
+      },
+      "save": {
+        "g11": "body.change_seq"
+      }
+    },
+    {
+      "op": "put",
+      "args": {
+        "token": "goalpath",
+        "card": {
+          "protocol": "pbcp/1",
+          "id": "goalpath:item:4412",
+          "kind": "signal",
+          "to_person": "morten",
+          "producer": "goalpath",
+          "title": "Item 4412 in review",
+          "body": "Item 4412 moved to review.",
+          "emitted_at": "2026-10-07T06:00:00Z",
+          "urgency": "log",
+          "thread": "item:4412"
+        }
+      },
+      "expect": {
+        "status": 201
+      },
+      "save": {
+        "g12": "body.change_seq"
+      }
+    },
+    {
+      "op": "put",
+      "args": {
+        "token": "goalpath",
+        "card": {
+          "protocol": "pbcp/1",
+          "id": "goalpath:item:4413",
+          "kind": "signal",
+          "to_person": "morten",
+          "producer": "goalpath",
+          "title": "Item 4413 in review",
+          "body": "Item 4413 moved to review.",
+          "emitted_at": "2026-10-07T06:00:00Z",
+          "urgency": "log",
+          "thread": "item:4413"
+        }
+      },
+      "expect": {
+        "status": 201
+      },
+      "save": {
+        "g13": "body.change_seq"
+      }
+    },
+    {
+      "op": "put",
+      "args": {
+        "token": "goalpath",
+        "card": {
+          "protocol": "pbcp/1",
+          "id": "goalpath:item:4414",
+          "kind": "signal",
+          "to_person": "morten",
+          "producer": "goalpath",
+          "title": "Item 4414 in review",
+          "body": "Item 4414 moved to review.",
+          "emitted_at": "2026-10-07T06:00:00Z",
+          "urgency": "log",
+          "thread": "item:4414"
+        }
+      },
+      "expect": {
+        "status": 201
+      },
+      "save": {
+        "g14": "body.change_seq"
+      }
+    },
+    {
+      "op": "put",
+      "args": {
+        "token": "goalpath",
+        "card": {
+          "protocol": "pbcp/1",
+          "id": "goalpath:item:4415",
+          "kind": "signal",
+          "to_person": "morten",
+          "producer": "goalpath",
+          "title": "Item 4415 in review",
+          "body": "Item 4415 moved to review.",
+          "emitted_at": "2026-10-07T06:00:00Z",
+          "urgency": "log",
+          "thread": "item:4415"
+        }
+      },
+      "expect": {
+        "status": 201
+      },
+      "save": {
+        "g15": "body.change_seq"
+      }
+    },
+    {
+      "op": "put",
+      "args": {
+        "token": "goalpath",
+        "card": {
+          "protocol": "pbcp/1",
+          "id": "goalpath:item:4416",
+          "kind": "signal",
+          "to_person": "morten",
+          "producer": "goalpath",
+          "title": "Item 4416 in review",
+          "body": "Item 4416 moved to review.",
+          "emitted_at": "2026-10-07T06:00:00Z",
+          "urgency": "log",
+          "thread": "item:4416"
+        }
+      },
+      "expect": {
+        "status": 201
+      },
+      "save": {
+        "g16": "body.change_seq"
+      }
+    },
+    {
+      "op": "put",
+      "args": {
+        "token": "goalpath",
+        "card": {
+          "protocol": "pbcp/1",
+          "id": "goalpath:item:4417",
+          "kind": "signal",
+          "to_person": "morten",
+          "producer": "goalpath",
+          "title": "Item 4417 in review",
+          "body": "Item 4417 moved to review.",
+          "emitted_at": "2026-10-07T06:00:00Z",
+          "urgency": "log",
+          "thread": "item:4417"
+        }
+      },
+      "expect": {
+        "status": 201
+      },
+      "save": {
+        "g17": "body.change_seq"
+      }
+    },
+    {
+      "op": "put",
+      "args": {
+        "token": "goalpath",
+        "card": {
+          "protocol": "pbcp/1",
+          "id": "goalpath:item:4418",
+          "kind": "signal",
+          "to_person": "morten",
+          "producer": "goalpath",
+          "title": "Item 4418 in review",
+          "body": "Item 4418 moved to review.",
+          "emitted_at": "2026-10-07T06:00:00Z",
+          "urgency": "log",
+          "thread": "item:4418"
+        }
+      },
+      "expect": {
+        "status": 201
+      },
+      "save": {
+        "g18": "body.change_seq"
+      }
+    },
+    {
+      "op": "put",
+      "args": {
+        "token": "goalpath",
+        "card": {
+          "protocol": "pbcp/1",
+          "id": "goalpath:item:4419",
+          "kind": "signal",
+          "to_person": "morten",
+          "producer": "goalpath",
+          "title": "Item 4419 in review",
+          "body": "Item 4419 moved to review.",
+          "emitted_at": "2026-10-07T06:00:00Z",
+          "urgency": "log",
+          "thread": "item:4419"
+        }
+      },
+      "expect": {
+        "status": 201
+      },
+      "save": {
+        "g19": "body.change_seq"
+      }
+    },
+    {
+      "op": "put",
+      "args": {
+        "token": "goalpath",
+        "card": {
+          "protocol": "pbcp/1",
+          "id": "goalpath:item:4420",
+          "kind": "signal",
+          "to_person": "morten",
+          "producer": "goalpath",
+          "title": "Item 4420 in review",
+          "body": "Item 4420 moved to review.",
+          "emitted_at": "2026-10-07T06:00:00Z",
+          "urgency": "log",
+          "thread": "item:4420"
+        }
+      },
+      "expect": {
+        "status": 201
+      },
+      "save": {
+        "g20": "body.change_seq"
+      }
+    },
+    {
+      "op": "put",
+      "args": {
+        "token": "hermes",
+        "card": {
+          "protocol": "pbcp/1",
+          "id": "hermes:gmail:batch-20",
+          "kind": "artifact",
+          "to_person": "morten",
+          "producer": "hermes",
+          "title": "Mail batch 20",
+          "body": "Ten new messages.",
+          "emitted_at": "2026-10-07T06:00:00Z"
+        }
+      },
+      "expect": {
+        "status": 201
+      },
+      "save": {
+        "last": "body.change_seq"
+      }
+    },
+    {
+      "op": "put",
+      "args": {
+        "token": "goalpath",
+        "card": {
+          "protocol": "pbcp/1",
+          "id": "goalpath:item:4421",
+          "kind": "signal",
+          "to_person": "morten",
+          "producer": "goalpath",
+          "title": "Item 4421 in review",
+          "body": "Item 4421 moved to review.",
+          "emitted_at": "2026-10-07T06:00:00Z",
+          "urgency": "log",
+          "thread": "item:4421"
+        }
+      },
+      "expect": {
+        "status": 201
+      },
+      "save": {
+        "g21": "body.change_seq"
+      }
+    },
+    {
+      "op": "put",
+      "args": {
+        "token": "goalpath",
+        "card": {
+          "protocol": "pbcp/1",
+          "id": "goalpath:item:4422",
+          "kind": "signal",
+          "to_person": "morten",
+          "producer": "goalpath",
+          "title": "Item 4422 in review",
+          "body": "Item 4422 moved to review.",
+          "emitted_at": "2026-10-07T06:00:00Z",
+          "urgency": "log",
+          "thread": "item:4422"
+        }
+      },
+      "expect": {
+        "status": 201
+      },
+      "save": {
+        "g22": "body.change_seq"
+      }
+    },
+    {
+      "op": "put",
+      "args": {
+        "token": "goalpath",
+        "card": {
+          "protocol": "pbcp/1",
+          "id": "goalpath:item:4423",
+          "kind": "signal",
+          "to_person": "morten",
+          "producer": "goalpath",
+          "title": "Item 4423 in review",
+          "body": "Item 4423 moved to review.",
+          "emitted_at": "2026-10-07T06:00:00Z",
+          "urgency": "log",
+          "thread": "item:4423"
+        }
+      },
+      "expect": {
+        "status": 201
+      },
+      "save": {
+        "g23": "body.change_seq"
+      }
+    },
+    {
+      "op": "put",
+      "args": {
+        "token": "goalpath",
+        "card": {
+          "protocol": "pbcp/1",
+          "id": "goalpath:item:4424",
+          "kind": "signal",
+          "to_person": "morten",
+          "producer": "goalpath",
+          "title": "Item 4424 in review",
+          "body": "Item 4424 moved to review.",
+          "emitted_at": "2026-10-07T06:00:00Z",
+          "urgency": "log",
+          "thread": "item:4424"
+        }
+      },
+      "expect": {
+        "status": 201
+      },
+      "save": {
+        "g24": "body.change_seq"
+      }
+    },
+    {
+      "op": "put",
+      "args": {
+        "token": "goalpath",
+        "card": {
+          "protocol": "pbcp/1",
+          "id": "goalpath:item:4425",
+          "kind": "signal",
+          "to_person": "morten",
+          "producer": "goalpath",
+          "title": "Item 4425 in review",
+          "body": "Item 4425 moved to review.",
+          "emitted_at": "2026-10-07T06:00:00Z",
+          "urgency": "log",
+          "thread": "item:4425"
+        }
+      },
+      "expect": {
+        "status": 201
+      },
+      "save": {
+        "g25": "body.change_seq"
+      }
+    },
+    {
+      "op": "put",
+      "args": {
+        "token": "goalpath",
+        "card": {
+          "protocol": "pbcp/1",
+          "id": "goalpath:item:4426",
+          "kind": "signal",
+          "to_person": "morten",
+          "producer": "goalpath",
+          "title": "Item 4426 in review",
+          "body": "Item 4426 moved to review.",
+          "emitted_at": "2026-10-07T06:00:00Z",
+          "urgency": "log",
+          "thread": "item:4426"
+        }
+      },
+      "expect": {
+        "status": 201
+      },
+      "save": {
+        "g26": "body.change_seq"
+      }
+    },
+    {
+      "op": "put",
+      "args": {
+        "token": "goalpath",
+        "card": {
+          "protocol": "pbcp/1",
+          "id": "goalpath:item:4427",
+          "kind": "signal",
+          "to_person": "morten",
+          "producer": "goalpath",
+          "title": "Item 4427 in review",
+          "body": "Item 4427 moved to review.",
+          "emitted_at": "2026-10-07T06:00:00Z",
+          "urgency": "log",
+          "thread": "item:4427"
+        }
+      },
+      "expect": {
+        "status": 201
+      },
+      "save": {
+        "g27": "body.change_seq"
+      }
+    },
+    {
+      "op": "put",
+      "args": {
+        "token": "goalpath",
+        "card": {
+          "protocol": "pbcp/1",
+          "id": "goalpath:item:4428",
+          "kind": "signal",
+          "to_person": "morten",
+          "producer": "goalpath",
+          "title": "Item 4428 in review",
+          "body": "Item 4428 moved to review.",
+          "emitted_at": "2026-10-07T06:00:00Z",
+          "urgency": "log",
+          "thread": "item:4428"
+        }
+      },
+      "expect": {
+        "status": 201
+      },
+      "save": {
+        "g28": "body.change_seq"
+      }
+    },
+    {
+      "op": "put",
+      "args": {
+        "token": "goalpath",
+        "card": {
+          "protocol": "pbcp/1",
+          "id": "goalpath:item:4429",
+          "kind": "signal",
+          "to_person": "morten",
+          "producer": "goalpath",
+          "title": "Item 4429 in review",
+          "body": "Item 4429 moved to review.",
+          "emitted_at": "2026-10-07T06:00:00Z",
+          "urgency": "log",
+          "thread": "item:4429"
+        }
+      },
+      "expect": {
+        "status": 201
+      },
+      "save": {
+        "g29": "body.change_seq"
+      }
+    },
+    {
+      "op": "put",
+      "args": {
+        "token": "goalpath",
+        "card": {
+          "protocol": "pbcp/1",
+          "id": "goalpath:item:4430",
+          "kind": "signal",
+          "to_person": "morten",
+          "producer": "goalpath",
+          "title": "Item 4430 in review",
+          "body": "Item 4430 moved to review.",
+          "emitted_at": "2026-10-07T06:00:00Z",
+          "urgency": "log",
+          "thread": "item:4430"
+        }
+      },
+      "expect": {
+        "status": 201
+      },
+      "save": {
+        "g30": "body.change_seq"
+      }
+    },
+    {
+      "op": "put",
+      "args": {
+        "token": "hermes",
+        "card": {
+          "protocol": "pbcp/1",
+          "id": "hermes:gmail:batch-30",
+          "kind": "artifact",
+          "to_person": "morten",
+          "producer": "hermes",
+          "title": "Mail batch 30",
+          "body": "Ten new messages.",
+          "emitted_at": "2026-10-07T06:00:00Z"
+        }
+      },
+      "expect": {
+        "status": 201
+      },
+      "save": {
+        "last": "body.change_seq"
+      }
+    },
+    {
+      "op": "put",
+      "args": {
+        "token": "goalpath",
+        "card": {
+          "protocol": "pbcp/1",
+          "id": "goalpath:item:4431",
+          "kind": "signal",
+          "to_person": "morten",
+          "producer": "goalpath",
+          "title": "Item 4431 in review",
+          "body": "Item 4431 moved to review.",
+          "emitted_at": "2026-10-07T06:00:00Z",
+          "urgency": "log",
+          "thread": "item:4431"
+        }
+      },
+      "expect": {
+        "status": 201
+      },
+      "save": {
+        "g31": "body.change_seq"
+      }
+    },
+    {
+      "op": "put",
+      "args": {
+        "token": "goalpath",
+        "card": {
+          "protocol": "pbcp/1",
+          "id": "goalpath:item:4432",
+          "kind": "signal",
+          "to_person": "morten",
+          "producer": "goalpath",
+          "title": "Item 4432 in review",
+          "body": "Item 4432 moved to review.",
+          "emitted_at": "2026-10-07T06:00:00Z",
+          "urgency": "log",
+          "thread": "item:4432"
+        }
+      },
+      "expect": {
+        "status": 201
+      },
+      "save": {
+        "g32": "body.change_seq"
+      }
+    },
+    {
+      "op": "put",
+      "args": {
+        "token": "goalpath",
+        "card": {
+          "protocol": "pbcp/1",
+          "id": "goalpath:item:4433",
+          "kind": "signal",
+          "to_person": "morten",
+          "producer": "goalpath",
+          "title": "Item 4433 in review",
+          "body": "Item 4433 moved to review.",
+          "emitted_at": "2026-10-07T06:00:00Z",
+          "urgency": "log",
+          "thread": "item:4433"
+        }
+      },
+      "expect": {
+        "status": 201
+      },
+      "save": {
+        "g33": "body.change_seq"
+      }
+    },
+    {
+      "op": "put",
+      "args": {
+        "token": "goalpath",
+        "card": {
+          "protocol": "pbcp/1",
+          "id": "goalpath:item:4434",
+          "kind": "signal",
+          "to_person": "morten",
+          "producer": "goalpath",
+          "title": "Item 4434 in review",
+          "body": "Item 4434 moved to review.",
+          "emitted_at": "2026-10-07T06:00:00Z",
+          "urgency": "log",
+          "thread": "item:4434"
+        }
+      },
+      "expect": {
+        "status": 201
+      },
+      "save": {
+        "g34": "body.change_seq"
+      }
+    },
+    {
+      "op": "put",
+      "args": {
+        "token": "goalpath",
+        "card": {
+          "protocol": "pbcp/1",
+          "id": "goalpath:item:4435",
+          "kind": "signal",
+          "to_person": "morten",
+          "producer": "goalpath",
+          "title": "Item 4435 in review",
+          "body": "Item 4435 moved to review.",
+          "emitted_at": "2026-10-07T06:00:00Z",
+          "urgency": "log",
+          "thread": "item:4435"
+        }
+      },
+      "expect": {
+        "status": 201
+      },
+      "save": {
+        "g35": "body.change_seq"
+      }
+    },
+    {
+      "op": "put",
+      "args": {
+        "token": "goalpath",
+        "card": {
+          "protocol": "pbcp/1",
+          "id": "goalpath:item:4436",
+          "kind": "signal",
+          "to_person": "morten",
+          "producer": "goalpath",
+          "title": "Item 4436 in review",
+          "body": "Item 4436 moved to review.",
+          "emitted_at": "2026-10-07T06:00:00Z",
+          "urgency": "log",
+          "thread": "item:4436"
+        }
+      },
+      "expect": {
+        "status": 201
+      },
+      "save": {
+        "g36": "body.change_seq"
+      }
+    },
+    {
+      "op": "put",
+      "args": {
+        "token": "goalpath",
+        "card": {
+          "protocol": "pbcp/1",
+          "id": "goalpath:item:4437",
+          "kind": "signal",
+          "to_person": "morten",
+          "producer": "goalpath",
+          "title": "Item 4437 in review",
+          "body": "Item 4437 moved to review.",
+          "emitted_at": "2026-10-07T06:00:00Z",
+          "urgency": "log",
+          "thread": "item:4437"
+        }
+      },
+      "expect": {
+        "status": 201
+      },
+      "save": {
+        "g37": "body.change_seq"
+      }
+    },
+    {
+      "op": "put",
+      "args": {
+        "token": "goalpath",
+        "card": {
+          "protocol": "pbcp/1",
+          "id": "goalpath:item:4438",
+          "kind": "signal",
+          "to_person": "morten",
+          "producer": "goalpath",
+          "title": "Item 4438 in review",
+          "body": "Item 4438 moved to review.",
+          "emitted_at": "2026-10-07T06:00:00Z",
+          "urgency": "log",
+          "thread": "item:4438"
+        }
+      },
+      "expect": {
+        "status": 201
+      },
+      "save": {
+        "g38": "body.change_seq"
+      }
+    },
+    {
+      "op": "put",
+      "args": {
+        "token": "goalpath",
+        "card": {
+          "protocol": "pbcp/1",
+          "id": "goalpath:item:4439",
+          "kind": "signal",
+          "to_person": "morten",
+          "producer": "goalpath",
+          "title": "Item 4439 in review",
+          "body": "Item 4439 moved to review.",
+          "emitted_at": "2026-10-07T06:00:00Z",
+          "urgency": "log",
+          "thread": "item:4439"
+        }
+      },
+      "expect": {
+        "status": 201
+      },
+      "save": {
+        "g39": "body.change_seq"
+      }
+    },
+    {
+      "op": "put",
+      "args": {
+        "token": "goalpath",
+        "card": {
+          "protocol": "pbcp/1",
+          "id": "goalpath:item:4440",
+          "kind": "signal",
+          "to_person": "morten",
+          "producer": "goalpath",
+          "title": "Item 4440 in review",
+          "body": "Item 4440 moved to review.",
+          "emitted_at": "2026-10-07T06:00:00Z",
+          "urgency": "log",
+          "thread": "item:4440"
+        }
+      },
+      "expect": {
+        "status": 201
+      },
+      "save": {
+        "g40": "body.change_seq"
+      }
+    },
+    {
+      "op": "put",
+      "args": {
+        "token": "hermes",
+        "card": {
+          "protocol": "pbcp/1",
+          "id": "hermes:gmail:batch-40",
+          "kind": "artifact",
+          "to_person": "morten",
+          "producer": "hermes",
+          "title": "Mail batch 40",
+          "body": "Ten new messages.",
+          "emitted_at": "2026-10-07T06:00:00Z"
+        }
+      },
+      "expect": {
+        "status": 201
+      },
+      "save": {
+        "last": "body.change_seq"
+      }
+    },
+    {
+      "op": "put",
+      "args": {
+        "token": "goalpath",
+        "card": {
+          "protocol": "pbcp/1",
+          "id": "goalpath:item:4441",
+          "kind": "signal",
+          "to_person": "morten",
+          "producer": "goalpath",
+          "title": "Item 4441 in review",
+          "body": "Item 4441 moved to review.",
+          "emitted_at": "2026-10-07T06:00:00Z",
+          "urgency": "log",
+          "thread": "item:4441"
+        }
+      },
+      "expect": {
+        "status": 201
+      },
+      "save": {
+        "g41": "body.change_seq"
+      }
+    },
+    {
+      "op": "put",
+      "args": {
+        "token": "goalpath",
+        "card": {
+          "protocol": "pbcp/1",
+          "id": "goalpath:item:4442",
+          "kind": "signal",
+          "to_person": "morten",
+          "producer": "goalpath",
+          "title": "Item 4442 in review",
+          "body": "Item 4442 moved to review.",
+          "emitted_at": "2026-10-07T06:00:00Z",
+          "urgency": "log",
+          "thread": "item:4442"
+        }
+      },
+      "expect": {
+        "status": 201
+      },
+      "save": {
+        "g42": "body.change_seq"
+      }
+    },
+    {
+      "op": "put",
+      "args": {
+        "token": "goalpath",
+        "card": {
+          "protocol": "pbcp/1",
+          "id": "goalpath:item:4443",
+          "kind": "signal",
+          "to_person": "morten",
+          "producer": "goalpath",
+          "title": "Item 4443 in review",
+          "body": "Item 4443 moved to review.",
+          "emitted_at": "2026-10-07T06:00:00Z",
+          "urgency": "log",
+          "thread": "item:4443"
+        }
+      },
+      "expect": {
+        "status": 201
+      },
+      "save": {
+        "g43": "body.change_seq"
+      }
+    },
+    {
+      "op": "put",
+      "args": {
+        "token": "goalpath",
+        "card": {
+          "protocol": "pbcp/1",
+          "id": "goalpath:item:4444",
+          "kind": "signal",
+          "to_person": "morten",
+          "producer": "goalpath",
+          "title": "Item 4444 in review",
+          "body": "Item 4444 moved to review.",
+          "emitted_at": "2026-10-07T06:00:00Z",
+          "urgency": "log",
+          "thread": "item:4444"
+        }
+      },
+      "expect": {
+        "status": 201
+      },
+      "save": {
+        "g44": "body.change_seq"
+      }
+    },
+    {
+      "op": "put",
+      "args": {
+        "token": "goalpath",
+        "card": {
+          "protocol": "pbcp/1",
+          "id": "goalpath:item:4445",
+          "kind": "signal",
+          "to_person": "morten",
+          "producer": "goalpath",
+          "title": "Item 4445 in review",
+          "body": "Item 4445 moved to review.",
+          "emitted_at": "2026-10-07T06:00:00Z",
+          "urgency": "log",
+          "thread": "item:4445"
+        }
+      },
+      "expect": {
+        "status": 201
+      },
+      "save": {
+        "g45": "body.change_seq"
+      }
+    },
+    {
+      "op": "put",
+      "args": {
+        "token": "goalpath",
+        "card": {
+          "protocol": "pbcp/1",
+          "id": "goalpath:item:4446",
+          "kind": "signal",
+          "to_person": "morten",
+          "producer": "goalpath",
+          "title": "Item 4446 in review",
+          "body": "Item 4446 moved to review.",
+          "emitted_at": "2026-10-07T06:00:00Z",
+          "urgency": "log",
+          "thread": "item:4446"
+        }
+      },
+      "expect": {
+        "status": 201
+      },
+      "save": {
+        "g46": "body.change_seq"
+      }
+    },
+    {
+      "op": "put",
+      "args": {
+        "token": "goalpath",
+        "card": {
+          "protocol": "pbcp/1",
+          "id": "goalpath:item:4447",
+          "kind": "signal",
+          "to_person": "morten",
+          "producer": "goalpath",
+          "title": "Item 4447 in review",
+          "body": "Item 4447 moved to review.",
+          "emitted_at": "2026-10-07T06:00:00Z",
+          "urgency": "log",
+          "thread": "item:4447"
+        }
+      },
+      "expect": {
+        "status": 201
+      },
+      "save": {
+        "g47": "body.change_seq"
+      }
+    },
+    {
+      "op": "put",
+      "args": {
+        "token": "goalpath",
+        "card": {
+          "protocol": "pbcp/1",
+          "id": "goalpath:item:4448",
+          "kind": "signal",
+          "to_person": "morten",
+          "producer": "goalpath",
+          "title": "Item 4448 in review",
+          "body": "Item 4448 moved to review.",
+          "emitted_at": "2026-10-07T06:00:00Z",
+          "urgency": "log",
+          "thread": "item:4448"
+        }
+      },
+      "expect": {
+        "status": 201
+      },
+      "save": {
+        "g48": "body.change_seq"
+      }
+    },
+    {
+      "op": "put",
+      "args": {
+        "token": "goalpath",
+        "card": {
+          "protocol": "pbcp/1",
+          "id": "goalpath:item:4449",
+          "kind": "signal",
+          "to_person": "morten",
+          "producer": "goalpath",
+          "title": "Item 4449 in review",
+          "body": "Item 4449 moved to review.",
+          "emitted_at": "2026-10-07T06:00:00Z",
+          "urgency": "log",
+          "thread": "item:4449"
+        }
+      },
+      "expect": {
+        "status": 201
+      },
+      "save": {
+        "g49": "body.change_seq"
+      }
+    },
+    {
+      "op": "put",
+      "args": {
+        "token": "goalpath",
+        "card": {
+          "protocol": "pbcp/1",
+          "id": "goalpath:item:4450",
+          "kind": "signal",
+          "to_person": "morten",
+          "producer": "goalpath",
+          "title": "Item 4450 in review",
+          "body": "Item 4450 moved to review.",
+          "emitted_at": "2026-10-07T06:00:00Z",
+          "urgency": "log",
+          "thread": "item:4450"
+        }
+      },
+      "expect": {
+        "status": 201
+      },
+      "save": {
+        "g50": "body.change_seq"
+      }
+    },
+    {
+      "op": "put",
+      "args": {
+        "token": "hermes",
+        "card": {
+          "protocol": "pbcp/1",
+          "id": "hermes:gmail:batch-50",
+          "kind": "artifact",
+          "to_person": "morten",
+          "producer": "hermes",
+          "title": "Mail batch 50",
+          "body": "Ten new messages.",
+          "emitted_at": "2026-10-07T06:00:00Z"
+        }
+      },
+      "expect": {
+        "status": 201
+      },
+      "save": {
+        "last": "body.change_seq"
+      }
+    },
+    {
+      "op": "put",
+      "args": {
+        "token": "goalpath",
+        "card": {
+          "protocol": "pbcp/1",
+          "id": "goalpath:item:4451",
+          "kind": "signal",
+          "to_person": "morten",
+          "producer": "goalpath",
+          "title": "Item 4451 in review",
+          "body": "Item 4451 moved to review.",
+          "emitted_at": "2026-10-07T06:00:00Z",
+          "urgency": "log",
+          "thread": "item:4451"
+        }
+      },
+      "expect": {
+        "status": 201
+      },
+      "save": {
+        "g51": "body.change_seq"
+      }
+    },
+    {
+      "op": "put",
+      "args": {
+        "token": "goalpath",
+        "card": {
+          "protocol": "pbcp/1",
+          "id": "goalpath:item:4452",
+          "kind": "signal",
+          "to_person": "morten",
+          "producer": "goalpath",
+          "title": "Item 4452 in review",
+          "body": "Item 4452 moved to review.",
+          "emitted_at": "2026-10-07T06:00:00Z",
+          "urgency": "log",
+          "thread": "item:4452"
+        }
+      },
+      "expect": {
+        "status": 201
+      },
+      "save": {
+        "g52": "body.change_seq"
+      }
+    },
+    {
+      "op": "put",
+      "args": {
+        "token": "goalpath",
+        "card": {
+          "protocol": "pbcp/1",
+          "id": "goalpath:item:4453",
+          "kind": "signal",
+          "to_person": "morten",
+          "producer": "goalpath",
+          "title": "Item 4453 in review",
+          "body": "Item 4453 moved to review.",
+          "emitted_at": "2026-10-07T06:00:00Z",
+          "urgency": "log",
+          "thread": "item:4453"
+        }
+      },
+      "expect": {
+        "status": 201
+      },
+      "save": {
+        "g53": "body.change_seq"
+      }
+    },
+    {
+      "op": "put",
+      "args": {
+        "token": "goalpath",
+        "card": {
+          "protocol": "pbcp/1",
+          "id": "goalpath:item:4454",
+          "kind": "signal",
+          "to_person": "morten",
+          "producer": "goalpath",
+          "title": "Item 4454 in review",
+          "body": "Item 4454 moved to review.",
+          "emitted_at": "2026-10-07T06:00:00Z",
+          "urgency": "log",
+          "thread": "item:4454"
+        }
+      },
+      "expect": {
+        "status": 201
+      },
+      "save": {
+        "g54": "body.change_seq"
+      }
+    },
+    {
+      "op": "put",
+      "args": {
+        "token": "goalpath",
+        "card": {
+          "protocol": "pbcp/1",
+          "id": "goalpath:item:4455",
+          "kind": "signal",
+          "to_person": "morten",
+          "producer": "goalpath",
+          "title": "Item 4455 in review",
+          "body": "Item 4455 moved to review.",
+          "emitted_at": "2026-10-07T06:00:00Z",
+          "urgency": "log",
+          "thread": "item:4455"
+        }
+      },
+      "expect": {
+        "status": 201
+      },
+      "save": {
+        "g55": "body.change_seq"
+      }
+    },
+    {
+      "op": "put",
+      "args": {
+        "token": "goalpath",
+        "card": {
+          "protocol": "pbcp/1",
+          "id": "goalpath:item:4456",
+          "kind": "signal",
+          "to_person": "morten",
+          "producer": "goalpath",
+          "title": "Item 4456 in review",
+          "body": "Item 4456 moved to review.",
+          "emitted_at": "2026-10-07T06:00:00Z",
+          "urgency": "log",
+          "thread": "item:4456"
+        }
+      },
+      "expect": {
+        "status": 201
+      },
+      "save": {
+        "g56": "body.change_seq"
+      }
+    },
+    {
+      "op": "put",
+      "args": {
+        "token": "goalpath",
+        "card": {
+          "protocol": "pbcp/1",
+          "id": "goalpath:item:4457",
+          "kind": "signal",
+          "to_person": "morten",
+          "producer": "goalpath",
+          "title": "Item 4457 in review",
+          "body": "Item 4457 moved to review.",
+          "emitted_at": "2026-10-07T06:00:00Z",
+          "urgency": "log",
+          "thread": "item:4457"
+        }
+      },
+      "expect": {
+        "status": 201
+      },
+      "save": {
+        "g57": "body.change_seq"
+      }
+    },
+    {
+      "op": "put",
+      "args": {
+        "token": "goalpath",
+        "card": {
+          "protocol": "pbcp/1",
+          "id": "goalpath:item:4458",
+          "kind": "signal",
+          "to_person": "morten",
+          "producer": "goalpath",
+          "title": "Item 4458 in review",
+          "body": "Item 4458 moved to review.",
+          "emitted_at": "2026-10-07T06:00:00Z",
+          "urgency": "log",
+          "thread": "item:4458"
+        }
+      },
+      "expect": {
+        "status": 201
+      },
+      "save": {
+        "g58": "body.change_seq"
+      }
+    },
+    {
+      "op": "put",
+      "args": {
+        "token": "goalpath",
+        "card": {
+          "protocol": "pbcp/1",
+          "id": "goalpath:item:4459",
+          "kind": "signal",
+          "to_person": "morten",
+          "producer": "goalpath",
+          "title": "Item 4459 in review",
+          "body": "Item 4459 moved to review.",
+          "emitted_at": "2026-10-07T06:00:00Z",
+          "urgency": "log",
+          "thread": "item:4459"
+        }
+      },
+      "expect": {
+        "status": 201
+      },
+      "save": {
+        "g59": "body.change_seq"
+      }
+    },
+    {
+      "op": "put",
+      "args": {
+        "token": "goalpath",
+        "card": {
+          "protocol": "pbcp/1",
+          "id": "goalpath:item:4460",
+          "kind": "signal",
+          "to_person": "morten",
+          "producer": "goalpath",
+          "title": "Item 4460 in review",
+          "body": "Item 4460 moved to review.",
+          "emitted_at": "2026-10-07T06:00:00Z",
+          "urgency": "log",
+          "thread": "item:4460"
+        }
+      },
+      "expect": {
+        "status": 201
+      },
+      "save": {
+        "g60": "body.change_seq"
+      }
+    },
+    {
+      "op": "put",
+      "args": {
+        "token": "hermes",
+        "card": {
+          "protocol": "pbcp/1",
+          "id": "hermes:gmail:batch-60",
+          "kind": "artifact",
+          "to_person": "morten",
+          "producer": "hermes",
+          "title": "Mail batch 60",
+          "body": "Ten new messages.",
+          "emitted_at": "2026-10-07T06:00:00Z"
+        }
+      },
+      "expect": {
+        "status": 201
+      },
+      "save": {
+        "last": "body.change_seq"
+      }
+    },
+    {
+      "op": "put",
+      "args": {
+        "token": "goalpath",
+        "card": {
+          "protocol": "pbcp/1",
+          "id": "goalpath:item:4461",
+          "kind": "signal",
+          "to_person": "morten",
+          "producer": "goalpath",
+          "title": "Item 4461 in review",
+          "body": "Item 4461 moved to review.",
+          "emitted_at": "2026-10-07T06:00:00Z",
+          "urgency": "log",
+          "thread": "item:4461"
+        }
+      },
+      "expect": {
+        "status": 201
+      },
+      "save": {
+        "g61": "body.change_seq"
+      }
+    },
+    {
+      "op": "put",
+      "args": {
+        "token": "goalpath",
+        "card": {
+          "protocol": "pbcp/1",
+          "id": "goalpath:item:4462",
+          "kind": "signal",
+          "to_person": "morten",
+          "producer": "goalpath",
+          "title": "Item 4462 in review",
+          "body": "Item 4462 moved to review.",
+          "emitted_at": "2026-10-07T06:00:00Z",
+          "urgency": "log",
+          "thread": "item:4462"
+        }
+      },
+      "expect": {
+        "status": 201
+      },
+      "save": {
+        "g62": "body.change_seq"
+      }
+    },
+    {
+      "op": "put",
+      "args": {
+        "token": "goalpath",
+        "card": {
+          "protocol": "pbcp/1",
+          "id": "goalpath:item:4463",
+          "kind": "signal",
+          "to_person": "morten",
+          "producer": "goalpath",
+          "title": "Item 4463 in review",
+          "body": "Item 4463 moved to review.",
+          "emitted_at": "2026-10-07T06:00:00Z",
+          "urgency": "log",
+          "thread": "item:4463"
+        }
+      },
+      "expect": {
+        "status": 201
+      },
+      "save": {
+        "g63": "body.change_seq"
+      }
+    },
+    {
+      "op": "put",
+      "args": {
+        "token": "goalpath",
+        "card": {
+          "protocol": "pbcp/1",
+          "id": "goalpath:item:4464",
+          "kind": "signal",
+          "to_person": "morten",
+          "producer": "goalpath",
+          "title": "Item 4464 in review",
+          "body": "Item 4464 moved to review.",
+          "emitted_at": "2026-10-07T06:00:00Z",
+          "urgency": "log",
+          "thread": "item:4464"
+        }
+      },
+      "expect": {
+        "status": 201
+      },
+      "save": {
+        "g64": "body.change_seq"
+      }
+    },
+    {
+      "op": "put",
+      "args": {
+        "token": "goalpath",
+        "card": {
+          "protocol": "pbcp/1",
+          "id": "goalpath:item:4465",
+          "kind": "signal",
+          "to_person": "morten",
+          "producer": "goalpath",
+          "title": "Item 4465 in review",
+          "body": "Item 4465 moved to review.",
+          "emitted_at": "2026-10-07T06:00:00Z",
+          "urgency": "log",
+          "thread": "item:4465"
+        }
+      },
+      "expect": {
+        "status": 201
+      },
+      "save": {
+        "g65": "body.change_seq"
+      }
+    },
+    {
+      "op": "put",
+      "args": {
+        "token": "goalpath",
+        "card": {
+          "protocol": "pbcp/1",
+          "id": "goalpath:item:4466",
+          "kind": "signal",
+          "to_person": "morten",
+          "producer": "goalpath",
+          "title": "Item 4466 in review",
+          "body": "Item 4466 moved to review.",
+          "emitted_at": "2026-10-07T06:00:00Z",
+          "urgency": "log",
+          "thread": "item:4466"
+        }
+      },
+      "expect": {
+        "status": 201
+      },
+      "save": {
+        "g66": "body.change_seq"
+      }
+    },
+    {
+      "op": "put",
+      "args": {
+        "token": "goalpath",
+        "card": {
+          "protocol": "pbcp/1",
+          "id": "goalpath:item:4467",
+          "kind": "signal",
+          "to_person": "morten",
+          "producer": "goalpath",
+          "title": "Item 4467 in review",
+          "body": "Item 4467 moved to review.",
+          "emitted_at": "2026-10-07T06:00:00Z",
+          "urgency": "log",
+          "thread": "item:4467"
+        }
+      },
+      "expect": {
+        "status": 201
+      },
+      "save": {
+        "g67": "body.change_seq"
+      }
+    },
+    {
+      "op": "put",
+      "args": {
+        "token": "goalpath",
+        "card": {
+          "protocol": "pbcp/1",
+          "id": "goalpath:item:4468",
+          "kind": "signal",
+          "to_person": "morten",
+          "producer": "goalpath",
+          "title": "Item 4468 in review",
+          "body": "Item 4468 moved to review.",
+          "emitted_at": "2026-10-07T06:00:00Z",
+          "urgency": "log",
+          "thread": "item:4468"
+        }
+      },
+      "expect": {
+        "status": 201
+      },
+      "save": {
+        "g68": "body.change_seq"
+      }
+    },
+    {
+      "op": "put",
+      "args": {
+        "token": "goalpath",
+        "card": {
+          "protocol": "pbcp/1",
+          "id": "goalpath:item:4469",
+          "kind": "signal",
+          "to_person": "morten",
+          "producer": "goalpath",
+          "title": "Item 4469 in review",
+          "body": "Item 4469 moved to review.",
+          "emitted_at": "2026-10-07T06:00:00Z",
+          "urgency": "log",
+          "thread": "item:4469"
+        }
+      },
+      "expect": {
+        "status": 201
+      },
+      "save": {
+        "g69": "body.change_seq"
+      }
+    },
+    {
+      "op": "put",
+      "args": {
+        "token": "goalpath",
+        "card": {
+          "protocol": "pbcp/1",
+          "id": "goalpath:item:4470",
+          "kind": "signal",
+          "to_person": "morten",
+          "producer": "goalpath",
+          "title": "Item 4470 in review",
+          "body": "Item 4470 moved to review.",
+          "emitted_at": "2026-10-07T06:00:00Z",
+          "urgency": "log",
+          "thread": "item:4470"
+        }
+      },
+      "expect": {
+        "status": 201
+      },
+      "save": {
+        "g70": "body.change_seq"
+      }
+    },
+    {
+      "op": "put",
+      "args": {
+        "token": "hermes",
+        "card": {
+          "protocol": "pbcp/1",
+          "id": "hermes:gmail:batch-70",
+          "kind": "artifact",
+          "to_person": "morten",
+          "producer": "hermes",
+          "title": "Mail batch 70",
+          "body": "Ten new messages.",
+          "emitted_at": "2026-10-07T06:00:00Z"
+        }
+      },
+      "expect": {
+        "status": 201
+      },
+      "save": {
+        "last": "body.change_seq"
+      }
+    },
+    {
+      "op": "put",
+      "args": {
+        "token": "goalpath",
+        "card": {
+          "protocol": "pbcp/1",
+          "id": "goalpath:item:4471",
+          "kind": "signal",
+          "to_person": "morten",
+          "producer": "goalpath",
+          "title": "Item 4471 in review",
+          "body": "Item 4471 moved to review.",
+          "emitted_at": "2026-10-07T06:00:00Z",
+          "urgency": "log",
+          "thread": "item:4471"
+        }
+      },
+      "expect": {
+        "status": 201
+      },
+      "save": {
+        "g71": "body.change_seq"
+      }
+    },
+    {
+      "op": "put",
+      "args": {
+        "token": "goalpath",
+        "card": {
+          "protocol": "pbcp/1",
+          "id": "goalpath:item:4472",
+          "kind": "signal",
+          "to_person": "morten",
+          "producer": "goalpath",
+          "title": "Item 4472 in review",
+          "body": "Item 4472 moved to review.",
+          "emitted_at": "2026-10-07T06:00:00Z",
+          "urgency": "log",
+          "thread": "item:4472"
+        }
+      },
+      "expect": {
+        "status": 201
+      },
+      "save": {
+        "g72": "body.change_seq"
+      }
+    },
+    {
+      "op": "put",
+      "args": {
+        "token": "goalpath",
+        "card": {
+          "protocol": "pbcp/1",
+          "id": "goalpath:item:4473",
+          "kind": "signal",
+          "to_person": "morten",
+          "producer": "goalpath",
+          "title": "Item 4473 in review",
+          "body": "Item 4473 moved to review.",
+          "emitted_at": "2026-10-07T06:00:00Z",
+          "urgency": "log",
+          "thread": "item:4473"
+        }
+      },
+      "expect": {
+        "status": 201
+      },
+      "save": {
+        "g73": "body.change_seq"
+      }
+    },
+    {
+      "op": "put",
+      "args": {
+        "token": "goalpath",
+        "card": {
+          "protocol": "pbcp/1",
+          "id": "goalpath:item:4474",
+          "kind": "signal",
+          "to_person": "morten",
+          "producer": "goalpath",
+          "title": "Item 4474 in review",
+          "body": "Item 4474 moved to review.",
+          "emitted_at": "2026-10-07T06:00:00Z",
+          "urgency": "log",
+          "thread": "item:4474"
+        }
+      },
+      "expect": {
+        "status": 201
+      },
+      "save": {
+        "g74": "body.change_seq"
+      }
+    },
+    {
+      "op": "put",
+      "args": {
+        "token": "goalpath",
+        "card": {
+          "protocol": "pbcp/1",
+          "id": "goalpath:item:4475",
+          "kind": "signal",
+          "to_person": "morten",
+          "producer": "goalpath",
+          "title": "Item 4475 in review",
+          "body": "Item 4475 moved to review.",
+          "emitted_at": "2026-10-07T06:00:00Z",
+          "urgency": "log",
+          "thread": "item:4475"
+        }
+      },
+      "expect": {
+        "status": 201
+      },
+      "save": {
+        "g75": "body.change_seq"
+      }
+    },
+    {
+      "op": "put",
+      "args": {
+        "token": "goalpath",
+        "card": {
+          "protocol": "pbcp/1",
+          "id": "goalpath:item:4476",
+          "kind": "signal",
+          "to_person": "morten",
+          "producer": "goalpath",
+          "title": "Item 4476 in review",
+          "body": "Item 4476 moved to review.",
+          "emitted_at": "2026-10-07T06:00:00Z",
+          "urgency": "log",
+          "thread": "item:4476"
+        }
+      },
+      "expect": {
+        "status": 201
+      },
+      "save": {
+        "g76": "body.change_seq"
+      }
+    },
+    {
+      "op": "put",
+      "args": {
+        "token": "goalpath",
+        "card": {
+          "protocol": "pbcp/1",
+          "id": "goalpath:item:4477",
+          "kind": "signal",
+          "to_person": "morten",
+          "producer": "goalpath",
+          "title": "Item 4477 in review",
+          "body": "Item 4477 moved to review.",
+          "emitted_at": "2026-10-07T06:00:00Z",
+          "urgency": "log",
+          "thread": "item:4477"
+        }
+      },
+      "expect": {
+        "status": 201
+      },
+      "save": {
+        "g77": "body.change_seq"
+      }
+    },
+    {
+      "op": "put",
+      "args": {
+        "token": "goalpath",
+        "card": {
+          "protocol": "pbcp/1",
+          "id": "goalpath:item:4478",
+          "kind": "signal",
+          "to_person": "morten",
+          "producer": "goalpath",
+          "title": "Item 4478 in review",
+          "body": "Item 4478 moved to review.",
+          "emitted_at": "2026-10-07T06:00:00Z",
+          "urgency": "log",
+          "thread": "item:4478"
+        }
+      },
+      "expect": {
+        "status": 201
+      },
+      "save": {
+        "g78": "body.change_seq"
+      }
+    },
+    {
+      "op": "put",
+      "args": {
+        "token": "goalpath",
+        "card": {
+          "protocol": "pbcp/1",
+          "id": "goalpath:item:4479",
+          "kind": "signal",
+          "to_person": "morten",
+          "producer": "goalpath",
+          "title": "Item 4479 in review",
+          "body": "Item 4479 moved to review.",
+          "emitted_at": "2026-10-07T06:00:00Z",
+          "urgency": "log",
+          "thread": "item:4479"
+        }
+      },
+      "expect": {
+        "status": 201
+      },
+      "save": {
+        "g79": "body.change_seq"
+      }
+    },
+    {
+      "op": "put",
+      "args": {
+        "token": "goalpath",
+        "card": {
+          "protocol": "pbcp/1",
+          "id": "goalpath:item:4480",
+          "kind": "signal",
+          "to_person": "morten",
+          "producer": "goalpath",
+          "title": "Item 4480 in review",
+          "body": "Item 4480 moved to review.",
+          "emitted_at": "2026-10-07T06:00:00Z",
+          "urgency": "log",
+          "thread": "item:4480"
+        }
+      },
+      "expect": {
+        "status": 201
+      },
+      "save": {
+        "g80": "body.change_seq"
+      }
+    },
+    {
+      "op": "put",
+      "args": {
+        "token": "hermes",
+        "card": {
+          "protocol": "pbcp/1",
+          "id": "hermes:gmail:batch-80",
+          "kind": "artifact",
+          "to_person": "morten",
+          "producer": "hermes",
+          "title": "Mail batch 80",
+          "body": "Ten new messages.",
+          "emitted_at": "2026-10-07T06:00:00Z"
+        }
+      },
+      "expect": {
+        "status": 201
+      },
+      "save": {
+        "last": "body.change_seq"
+      }
+    },
+    {
+      "op": "put",
+      "args": {
+        "token": "goalpath",
+        "card": {
+          "protocol": "pbcp/1",
+          "id": "goalpath:item:4481",
+          "kind": "signal",
+          "to_person": "morten",
+          "producer": "goalpath",
+          "title": "Item 4481 in review",
+          "body": "Item 4481 moved to review.",
+          "emitted_at": "2026-10-07T06:00:00Z",
+          "urgency": "log",
+          "thread": "item:4481"
+        }
+      },
+      "expect": {
+        "status": 201
+      },
+      "save": {
+        "g81": "body.change_seq"
+      }
+    },
+    {
+      "op": "put",
+      "args": {
+        "token": "goalpath",
+        "card": {
+          "protocol": "pbcp/1",
+          "id": "goalpath:item:4482",
+          "kind": "signal",
+          "to_person": "morten",
+          "producer": "goalpath",
+          "title": "Item 4482 in review",
+          "body": "Item 4482 moved to review.",
+          "emitted_at": "2026-10-07T06:00:00Z",
+          "urgency": "log",
+          "thread": "item:4482"
+        }
+      },
+      "expect": {
+        "status": 201
+      },
+      "save": {
+        "g82": "body.change_seq"
+      }
+    },
+    {
+      "op": "put",
+      "args": {
+        "token": "goalpath",
+        "card": {
+          "protocol": "pbcp/1",
+          "id": "goalpath:item:4483",
+          "kind": "signal",
+          "to_person": "morten",
+          "producer": "goalpath",
+          "title": "Item 4483 in review",
+          "body": "Item 4483 moved to review.",
+          "emitted_at": "2026-10-07T06:00:00Z",
+          "urgency": "log",
+          "thread": "item:4483"
+        }
+      },
+      "expect": {
+        "status": 201
+      },
+      "save": {
+        "g83": "body.change_seq"
+      }
+    },
+    {
+      "op": "put",
+      "args": {
+        "token": "goalpath",
+        "card": {
+          "protocol": "pbcp/1",
+          "id": "goalpath:item:4484",
+          "kind": "signal",
+          "to_person": "morten",
+          "producer": "goalpath",
+          "title": "Item 4484 in review",
+          "body": "Item 4484 moved to review.",
+          "emitted_at": "2026-10-07T06:00:00Z",
+          "urgency": "log",
+          "thread": "item:4484"
+        }
+      },
+      "expect": {
+        "status": 201
+      },
+      "save": {
+        "g84": "body.change_seq"
+      }
+    },
+    {
+      "op": "put",
+      "args": {
+        "token": "goalpath",
+        "card": {
+          "protocol": "pbcp/1",
+          "id": "goalpath:item:4485",
+          "kind": "signal",
+          "to_person": "morten",
+          "producer": "goalpath",
+          "title": "Item 4485 in review",
+          "body": "Item 4485 moved to review.",
+          "emitted_at": "2026-10-07T06:00:00Z",
+          "urgency": "log",
+          "thread": "item:4485"
+        }
+      },
+      "expect": {
+        "status": 201
+      },
+      "save": {
+        "g85": "body.change_seq"
+      }
+    },
+    {
+      "op": "put",
+      "args": {
+        "token": "goalpath",
+        "card": {
+          "protocol": "pbcp/1",
+          "id": "goalpath:item:4486",
+          "kind": "signal",
+          "to_person": "morten",
+          "producer": "goalpath",
+          "title": "Item 4486 in review",
+          "body": "Item 4486 moved to review.",
+          "emitted_at": "2026-10-07T06:00:00Z",
+          "urgency": "log",
+          "thread": "item:4486"
+        }
+      },
+      "expect": {
+        "status": 201
+      },
+      "save": {
+        "g86": "body.change_seq"
+      }
+    },
+    {
+      "op": "put",
+      "args": {
+        "token": "goalpath",
+        "card": {
+          "protocol": "pbcp/1",
+          "id": "goalpath:item:4487",
+          "kind": "signal",
+          "to_person": "morten",
+          "producer": "goalpath",
+          "title": "Item 4487 in review",
+          "body": "Item 4487 moved to review.",
+          "emitted_at": "2026-10-07T06:00:00Z",
+          "urgency": "log",
+          "thread": "item:4487"
+        }
+      },
+      "expect": {
+        "status": 201
+      },
+      "save": {
+        "g87": "body.change_seq"
+      }
+    },
+    {
+      "op": "put",
+      "args": {
+        "token": "goalpath",
+        "card": {
+          "protocol": "pbcp/1",
+          "id": "goalpath:item:4488",
+          "kind": "signal",
+          "to_person": "morten",
+          "producer": "goalpath",
+          "title": "Item 4488 in review",
+          "body": "Item 4488 moved to review.",
+          "emitted_at": "2026-10-07T06:00:00Z",
+          "urgency": "log",
+          "thread": "item:4488"
+        }
+      },
+      "expect": {
+        "status": 201
+      },
+      "save": {
+        "g88": "body.change_seq"
+      }
+    },
+    {
+      "op": "put",
+      "args": {
+        "token": "goalpath",
+        "card": {
+          "protocol": "pbcp/1",
+          "id": "goalpath:item:4489",
+          "kind": "signal",
+          "to_person": "morten",
+          "producer": "goalpath",
+          "title": "Item 4489 in review",
+          "body": "Item 4489 moved to review.",
+          "emitted_at": "2026-10-07T06:00:00Z",
+          "urgency": "log",
+          "thread": "item:4489"
+        }
+      },
+      "expect": {
+        "status": 201
+      },
+      "save": {
+        "g89": "body.change_seq"
+      }
+    },
+    {
+      "op": "put",
+      "args": {
+        "token": "goalpath",
+        "card": {
+          "protocol": "pbcp/1",
+          "id": "goalpath:item:4490",
+          "kind": "signal",
+          "to_person": "morten",
+          "producer": "goalpath",
+          "title": "Item 4490 in review",
+          "body": "Item 4490 moved to review.",
+          "emitted_at": "2026-10-07T06:00:00Z",
+          "urgency": "log",
+          "thread": "item:4490"
+        }
+      },
+      "expect": {
+        "status": 201
+      },
+      "save": {
+        "g90": "body.change_seq"
+      }
+    },
+    {
+      "op": "put",
+      "args": {
+        "token": "hermes",
+        "card": {
+          "protocol": "pbcp/1",
+          "id": "hermes:gmail:batch-90",
+          "kind": "artifact",
+          "to_person": "morten",
+          "producer": "hermes",
+          "title": "Mail batch 90",
+          "body": "Ten new messages.",
+          "emitted_at": "2026-10-07T06:00:00Z"
+        }
+      },
+      "expect": {
+        "status": 201
+      },
+      "save": {
+        "last": "body.change_seq"
+      }
+    },
+    {
+      "op": "put",
+      "args": {
+        "token": "goalpath",
+        "card": {
+          "protocol": "pbcp/1",
+          "id": "goalpath:item:4491",
+          "kind": "signal",
+          "to_person": "morten",
+          "producer": "goalpath",
+          "title": "Item 4491 in review",
+          "body": "Item 4491 moved to review.",
+          "emitted_at": "2026-10-07T06:00:00Z",
+          "urgency": "log",
+          "thread": "item:4491"
+        }
+      },
+      "expect": {
+        "status": 201
+      },
+      "save": {
+        "g91": "body.change_seq"
+      }
+    },
+    {
+      "op": "put",
+      "args": {
+        "token": "goalpath",
+        "card": {
+          "protocol": "pbcp/1",
+          "id": "goalpath:item:4492",
+          "kind": "signal",
+          "to_person": "morten",
+          "producer": "goalpath",
+          "title": "Item 4492 in review",
+          "body": "Item 4492 moved to review.",
+          "emitted_at": "2026-10-07T06:00:00Z",
+          "urgency": "log",
+          "thread": "item:4492"
+        }
+      },
+      "expect": {
+        "status": 201
+      },
+      "save": {
+        "g92": "body.change_seq"
+      }
+    },
+    {
+      "op": "put",
+      "args": {
+        "token": "goalpath",
+        "card": {
+          "protocol": "pbcp/1",
+          "id": "goalpath:item:4493",
+          "kind": "signal",
+          "to_person": "morten",
+          "producer": "goalpath",
+          "title": "Item 4493 in review",
+          "body": "Item 4493 moved to review.",
+          "emitted_at": "2026-10-07T06:00:00Z",
+          "urgency": "log",
+          "thread": "item:4493"
+        }
+      },
+      "expect": {
+        "status": 201
+      },
+      "save": {
+        "g93": "body.change_seq"
+      }
+    },
+    {
+      "op": "put",
+      "args": {
+        "token": "goalpath",
+        "card": {
+          "protocol": "pbcp/1",
+          "id": "goalpath:item:4494",
+          "kind": "signal",
+          "to_person": "morten",
+          "producer": "goalpath",
+          "title": "Item 4494 in review",
+          "body": "Item 4494 moved to review.",
+          "emitted_at": "2026-10-07T06:00:00Z",
+          "urgency": "log",
+          "thread": "item:4494"
+        }
+      },
+      "expect": {
+        "status": 201
+      },
+      "save": {
+        "g94": "body.change_seq"
+      }
+    },
+    {
+      "op": "put",
+      "args": {
+        "token": "goalpath",
+        "card": {
+          "protocol": "pbcp/1",
+          "id": "goalpath:item:4495",
+          "kind": "signal",
+          "to_person": "morten",
+          "producer": "goalpath",
+          "title": "Item 4495 in review",
+          "body": "Item 4495 moved to review.",
+          "emitted_at": "2026-10-07T06:00:00Z",
+          "urgency": "log",
+          "thread": "item:4495"
+        }
+      },
+      "expect": {
+        "status": 201
+      },
+      "save": {
+        "g95": "body.change_seq"
+      }
+    },
+    {
+      "op": "put",
+      "args": {
+        "token": "goalpath",
+        "card": {
+          "protocol": "pbcp/1",
+          "id": "goalpath:item:4496",
+          "kind": "signal",
+          "to_person": "morten",
+          "producer": "goalpath",
+          "title": "Item 4496 in review",
+          "body": "Item 4496 moved to review.",
+          "emitted_at": "2026-10-07T06:00:00Z",
+          "urgency": "log",
+          "thread": "item:4496"
+        }
+      },
+      "expect": {
+        "status": 201
+      },
+      "save": {
+        "g96": "body.change_seq"
+      }
+    },
+    {
+      "op": "put",
+      "args": {
+        "token": "goalpath",
+        "card": {
+          "protocol": "pbcp/1",
+          "id": "goalpath:item:4497",
+          "kind": "signal",
+          "to_person": "morten",
+          "producer": "goalpath",
+          "title": "Item 4497 in review",
+          "body": "Item 4497 moved to review.",
+          "emitted_at": "2026-10-07T06:00:00Z",
+          "urgency": "log",
+          "thread": "item:4497"
+        }
+      },
+      "expect": {
+        "status": 201
+      },
+      "save": {
+        "g97": "body.change_seq"
+      }
+    },
+    {
+      "op": "put",
+      "args": {
+        "token": "goalpath",
+        "card": {
+          "protocol": "pbcp/1",
+          "id": "goalpath:item:4498",
+          "kind": "signal",
+          "to_person": "morten",
+          "producer": "goalpath",
+          "title": "Item 4498 in review",
+          "body": "Item 4498 moved to review.",
+          "emitted_at": "2026-10-07T06:00:00Z",
+          "urgency": "log",
+          "thread": "item:4498"
+        }
+      },
+      "expect": {
+        "status": 201
+      },
+      "save": {
+        "g98": "body.change_seq"
+      }
+    },
+    {
+      "op": "put",
+      "args": {
+        "token": "goalpath",
+        "card": {
+          "protocol": "pbcp/1",
+          "id": "goalpath:item:4499",
+          "kind": "signal",
+          "to_person": "morten",
+          "producer": "goalpath",
+          "title": "Item 4499 in review",
+          "body": "Item 4499 moved to review.",
+          "emitted_at": "2026-10-07T06:00:00Z",
+          "urgency": "log",
+          "thread": "item:4499"
+        }
+      },
+      "expect": {
+        "status": 201
+      },
+      "save": {
+        "g99": "body.change_seq"
+      }
+    },
+    {
+      "op": "put",
+      "args": {
+        "token": "goalpath",
+        "card": {
+          "protocol": "pbcp/1",
+          "id": "goalpath:item:4500",
+          "kind": "signal",
+          "to_person": "morten",
+          "producer": "goalpath",
+          "title": "Item 4500 in review",
+          "body": "Item 4500 moved to review.",
+          "emitted_at": "2026-10-07T06:00:00Z",
+          "urgency": "log",
+          "thread": "item:4500"
+        }
+      },
+      "expect": {
+        "status": 201
+      },
+      "save": {
+        "g100": "body.change_seq"
+      }
+    },
+    {
+      "op": "put",
+      "args": {
+        "token": "hermes",
+        "card": {
+          "protocol": "pbcp/1",
+          "id": "hermes:gmail:batch-100",
+          "kind": "artifact",
+          "to_person": "morten",
+          "producer": "hermes",
+          "title": "Mail batch 100",
+          "body": "Ten new messages.",
+          "emitted_at": "2026-10-07T06:00:00Z"
+        }
+      },
+      "expect": {
+        "status": 201
+      },
+      "save": {
+        "last": "body.change_seq"
+      }
+    },
+    {
+      "op": "put",
+      "args": {
+        "token": "goalpath",
+        "card": {
+          "protocol": "pbcp/1",
+          "id": "goalpath:item:4501",
+          "kind": "signal",
+          "to_person": "morten",
+          "producer": "goalpath",
+          "title": "Item 4501 in review",
+          "body": "Item 4501 moved to review.",
+          "emitted_at": "2026-10-07T06:00:00Z",
+          "urgency": "log",
+          "thread": "item:4501"
+        }
+      },
+      "expect": {
+        "status": 201
+      },
+      "save": {
+        "g101": "body.change_seq"
+      }
+    },
+    {
+      "op": "put",
+      "args": {
+        "token": "goalpath",
+        "card": {
+          "protocol": "pbcp/1",
+          "id": "goalpath:item:4502",
+          "kind": "signal",
+          "to_person": "morten",
+          "producer": "goalpath",
+          "title": "Item 4502 in review",
+          "body": "Item 4502 moved to review.",
+          "emitted_at": "2026-10-07T06:00:00Z",
+          "urgency": "log",
+          "thread": "item:4502"
+        }
+      },
+      "expect": {
+        "status": 201
+      },
+      "save": {
+        "g102": "body.change_seq"
+      }
+    },
+    {
+      "op": "put",
+      "args": {
+        "token": "goalpath",
+        "card": {
+          "protocol": "pbcp/1",
+          "id": "goalpath:item:4503",
+          "kind": "signal",
+          "to_person": "morten",
+          "producer": "goalpath",
+          "title": "Item 4503 in review",
+          "body": "Item 4503 moved to review.",
+          "emitted_at": "2026-10-07T06:00:00Z",
+          "urgency": "log",
+          "thread": "item:4503"
+        }
+      },
+      "expect": {
+        "status": 201
+      },
+      "save": {
+        "g103": "body.change_seq"
+      }
+    },
+    {
+      "op": "put",
+      "args": {
+        "token": "goalpath",
+        "card": {
+          "protocol": "pbcp/1",
+          "id": "goalpath:item:4504",
+          "kind": "signal",
+          "to_person": "morten",
+          "producer": "goalpath",
+          "title": "Item 4504 in review",
+          "body": "Item 4504 moved to review.",
+          "emitted_at": "2026-10-07T06:00:00Z",
+          "urgency": "log",
+          "thread": "item:4504"
+        }
+      },
+      "expect": {
+        "status": 201
+      },
+      "save": {
+        "g104": "body.change_seq"
+      }
+    },
+    {
+      "op": "put",
+      "args": {
+        "token": "goalpath",
+        "card": {
+          "protocol": "pbcp/1",
+          "id": "goalpath:item:4505",
+          "kind": "signal",
+          "to_person": "morten",
+          "producer": "goalpath",
+          "title": "Item 4505 in review",
+          "body": "Item 4505 moved to review.",
+          "emitted_at": "2026-10-07T06:00:00Z",
+          "urgency": "log",
+          "thread": "item:4505"
+        }
+      },
+      "expect": {
+        "status": 201
+      },
+      "save": {
+        "g105": "body.change_seq"
+      }
+    },
+    {
+      "op": "put",
+      "args": {
+        "token": "goalpath",
+        "card": {
+          "protocol": "pbcp/1",
+          "id": "goalpath:item:4506",
+          "kind": "signal",
+          "to_person": "morten",
+          "producer": "goalpath",
+          "title": "Item 4506 in review",
+          "body": "Item 4506 moved to review.",
+          "emitted_at": "2026-10-07T06:00:00Z",
+          "urgency": "log",
+          "thread": "item:4506"
+        }
+      },
+      "expect": {
+        "status": 201
+      },
+      "save": {
+        "g106": "body.change_seq"
+      }
+    },
+    {
+      "op": "put",
+      "args": {
+        "token": "goalpath",
+        "card": {
+          "protocol": "pbcp/1",
+          "id": "goalpath:item:4507",
+          "kind": "signal",
+          "to_person": "morten",
+          "producer": "goalpath",
+          "title": "Item 4507 in review",
+          "body": "Item 4507 moved to review.",
+          "emitted_at": "2026-10-07T06:00:00Z",
+          "urgency": "log",
+          "thread": "item:4507"
+        }
+      },
+      "expect": {
+        "status": 201
+      },
+      "save": {
+        "g107": "body.change_seq"
+      }
+    },
+    {
+      "op": "put",
+      "args": {
+        "token": "goalpath",
+        "card": {
+          "protocol": "pbcp/1",
+          "id": "goalpath:item:4508",
+          "kind": "signal",
+          "to_person": "morten",
+          "producer": "goalpath",
+          "title": "Item 4508 in review",
+          "body": "Item 4508 moved to review.",
+          "emitted_at": "2026-10-07T06:00:00Z",
+          "urgency": "log",
+          "thread": "item:4508"
+        }
+      },
+      "expect": {
+        "status": 201
+      },
+      "save": {
+        "g108": "body.change_seq"
+      }
+    },
+    {
+      "op": "put",
+      "args": {
+        "token": "goalpath",
+        "card": {
+          "protocol": "pbcp/1",
+          "id": "goalpath:item:4509",
+          "kind": "signal",
+          "to_person": "morten",
+          "producer": "goalpath",
+          "title": "Item 4509 in review",
+          "body": "Item 4509 moved to review.",
+          "emitted_at": "2026-10-07T06:00:00Z",
+          "urgency": "log",
+          "thread": "item:4509"
+        }
+      },
+      "expect": {
+        "status": 201
+      },
+      "save": {
+        "g109": "body.change_seq"
+      }
+    },
+    {
+      "op": "put",
+      "args": {
+        "token": "goalpath",
+        "card": {
+          "protocol": "pbcp/1",
+          "id": "goalpath:item:4510",
+          "kind": "signal",
+          "to_person": "morten",
+          "producer": "goalpath",
+          "title": "Item 4510 in review",
+          "body": "Item 4510 moved to review.",
+          "emitted_at": "2026-10-07T06:00:00Z",
+          "urgency": "log",
+          "thread": "item:4510"
+        }
+      },
+      "expect": {
+        "status": 201
+      },
+      "save": {
+        "g110": "body.change_seq"
+      }
+    },
+    {
+      "op": "put",
+      "args": {
+        "token": "hermes",
+        "card": {
+          "protocol": "pbcp/1",
+          "id": "hermes:gmail:batch-110",
+          "kind": "artifact",
+          "to_person": "morten",
+          "producer": "hermes",
+          "title": "Mail batch 110",
+          "body": "Ten new messages.",
+          "emitted_at": "2026-10-07T06:00:00Z"
+        }
+      },
+      "expect": {
+        "status": 201
+      },
+      "save": {
+        "last": "body.change_seq"
+      }
+    },
+    {
+      "op": "syncAll",
+      "args": {
+        "token": "goalpath",
+        "after": 0
+      },
+      "expect": {
+        "status": 200,
+        "body": {
+          "ascending": true,
+          "next": {
+            "$var": "last"
+          },
+          "changes": [
+            {
+              "seq": {
+                "$var": "g1"
+              },
+              "card": {
+                "id": "goalpath:item:4401"
+              }
+            },
+            {
+              "seq": {
+                "$var": "g2"
+              },
+              "card": {
+                "id": "goalpath:item:4402"
+              }
+            },
+            {
+              "seq": {
+                "$var": "g3"
+              },
+              "card": {
+                "id": "goalpath:item:4403"
+              }
+            },
+            {
+              "seq": {
+                "$var": "g4"
+              },
+              "card": {
+                "id": "goalpath:item:4404"
+              }
+            },
+            {
+              "seq": {
+                "$var": "g5"
+              },
+              "card": {
+                "id": "goalpath:item:4405"
+              }
+            },
+            {
+              "seq": {
+                "$var": "g6"
+              },
+              "card": {
+                "id": "goalpath:item:4406"
+              }
+            },
+            {
+              "seq": {
+                "$var": "g7"
+              },
+              "card": {
+                "id": "goalpath:item:4407"
+              }
+            },
+            {
+              "seq": {
+                "$var": "g8"
+              },
+              "card": {
+                "id": "goalpath:item:4408"
+              }
+            },
+            {
+              "seq": {
+                "$var": "g9"
+              },
+              "card": {
+                "id": "goalpath:item:4409"
+              }
+            },
+            {
+              "seq": {
+                "$var": "g10"
+              },
+              "card": {
+                "id": "goalpath:item:4410"
+              }
+            },
+            {
+              "seq": {
+                "$var": "g11"
+              },
+              "card": {
+                "id": "goalpath:item:4411"
+              }
+            },
+            {
+              "seq": {
+                "$var": "g12"
+              },
+              "card": {
+                "id": "goalpath:item:4412"
+              }
+            },
+            {
+              "seq": {
+                "$var": "g13"
+              },
+              "card": {
+                "id": "goalpath:item:4413"
+              }
+            },
+            {
+              "seq": {
+                "$var": "g14"
+              },
+              "card": {
+                "id": "goalpath:item:4414"
+              }
+            },
+            {
+              "seq": {
+                "$var": "g15"
+              },
+              "card": {
+                "id": "goalpath:item:4415"
+              }
+            },
+            {
+              "seq": {
+                "$var": "g16"
+              },
+              "card": {
+                "id": "goalpath:item:4416"
+              }
+            },
+            {
+              "seq": {
+                "$var": "g17"
+              },
+              "card": {
+                "id": "goalpath:item:4417"
+              }
+            },
+            {
+              "seq": {
+                "$var": "g18"
+              },
+              "card": {
+                "id": "goalpath:item:4418"
+              }
+            },
+            {
+              "seq": {
+                "$var": "g19"
+              },
+              "card": {
+                "id": "goalpath:item:4419"
+              }
+            },
+            {
+              "seq": {
+                "$var": "g20"
+              },
+              "card": {
+                "id": "goalpath:item:4420"
+              }
+            },
+            {
+              "seq": {
+                "$var": "g21"
+              },
+              "card": {
+                "id": "goalpath:item:4421"
+              }
+            },
+            {
+              "seq": {
+                "$var": "g22"
+              },
+              "card": {
+                "id": "goalpath:item:4422"
+              }
+            },
+            {
+              "seq": {
+                "$var": "g23"
+              },
+              "card": {
+                "id": "goalpath:item:4423"
+              }
+            },
+            {
+              "seq": {
+                "$var": "g24"
+              },
+              "card": {
+                "id": "goalpath:item:4424"
+              }
+            },
+            {
+              "seq": {
+                "$var": "g25"
+              },
+              "card": {
+                "id": "goalpath:item:4425"
+              }
+            },
+            {
+              "seq": {
+                "$var": "g26"
+              },
+              "card": {
+                "id": "goalpath:item:4426"
+              }
+            },
+            {
+              "seq": {
+                "$var": "g27"
+              },
+              "card": {
+                "id": "goalpath:item:4427"
+              }
+            },
+            {
+              "seq": {
+                "$var": "g28"
+              },
+              "card": {
+                "id": "goalpath:item:4428"
+              }
+            },
+            {
+              "seq": {
+                "$var": "g29"
+              },
+              "card": {
+                "id": "goalpath:item:4429"
+              }
+            },
+            {
+              "seq": {
+                "$var": "g30"
+              },
+              "card": {
+                "id": "goalpath:item:4430"
+              }
+            },
+            {
+              "seq": {
+                "$var": "g31"
+              },
+              "card": {
+                "id": "goalpath:item:4431"
+              }
+            },
+            {
+              "seq": {
+                "$var": "g32"
+              },
+              "card": {
+                "id": "goalpath:item:4432"
+              }
+            },
+            {
+              "seq": {
+                "$var": "g33"
+              },
+              "card": {
+                "id": "goalpath:item:4433"
+              }
+            },
+            {
+              "seq": {
+                "$var": "g34"
+              },
+              "card": {
+                "id": "goalpath:item:4434"
+              }
+            },
+            {
+              "seq": {
+                "$var": "g35"
+              },
+              "card": {
+                "id": "goalpath:item:4435"
+              }
+            },
+            {
+              "seq": {
+                "$var": "g36"
+              },
+              "card": {
+                "id": "goalpath:item:4436"
+              }
+            },
+            {
+              "seq": {
+                "$var": "g37"
+              },
+              "card": {
+                "id": "goalpath:item:4437"
+              }
+            },
+            {
+              "seq": {
+                "$var": "g38"
+              },
+              "card": {
+                "id": "goalpath:item:4438"
+              }
+            },
+            {
+              "seq": {
+                "$var": "g39"
+              },
+              "card": {
+                "id": "goalpath:item:4439"
+              }
+            },
+            {
+              "seq": {
+                "$var": "g40"
+              },
+              "card": {
+                "id": "goalpath:item:4440"
+              }
+            },
+            {
+              "seq": {
+                "$var": "g41"
+              },
+              "card": {
+                "id": "goalpath:item:4441"
+              }
+            },
+            {
+              "seq": {
+                "$var": "g42"
+              },
+              "card": {
+                "id": "goalpath:item:4442"
+              }
+            },
+            {
+              "seq": {
+                "$var": "g43"
+              },
+              "card": {
+                "id": "goalpath:item:4443"
+              }
+            },
+            {
+              "seq": {
+                "$var": "g44"
+              },
+              "card": {
+                "id": "goalpath:item:4444"
+              }
+            },
+            {
+              "seq": {
+                "$var": "g45"
+              },
+              "card": {
+                "id": "goalpath:item:4445"
+              }
+            },
+            {
+              "seq": {
+                "$var": "g46"
+              },
+              "card": {
+                "id": "goalpath:item:4446"
+              }
+            },
+            {
+              "seq": {
+                "$var": "g47"
+              },
+              "card": {
+                "id": "goalpath:item:4447"
+              }
+            },
+            {
+              "seq": {
+                "$var": "g48"
+              },
+              "card": {
+                "id": "goalpath:item:4448"
+              }
+            },
+            {
+              "seq": {
+                "$var": "g49"
+              },
+              "card": {
+                "id": "goalpath:item:4449"
+              }
+            },
+            {
+              "seq": {
+                "$var": "g50"
+              },
+              "card": {
+                "id": "goalpath:item:4450"
+              }
+            },
+            {
+              "seq": {
+                "$var": "g51"
+              },
+              "card": {
+                "id": "goalpath:item:4451"
+              }
+            },
+            {
+              "seq": {
+                "$var": "g52"
+              },
+              "card": {
+                "id": "goalpath:item:4452"
+              }
+            },
+            {
+              "seq": {
+                "$var": "g53"
+              },
+              "card": {
+                "id": "goalpath:item:4453"
+              }
+            },
+            {
+              "seq": {
+                "$var": "g54"
+              },
+              "card": {
+                "id": "goalpath:item:4454"
+              }
+            },
+            {
+              "seq": {
+                "$var": "g55"
+              },
+              "card": {
+                "id": "goalpath:item:4455"
+              }
+            },
+            {
+              "seq": {
+                "$var": "g56"
+              },
+              "card": {
+                "id": "goalpath:item:4456"
+              }
+            },
+            {
+              "seq": {
+                "$var": "g57"
+              },
+              "card": {
+                "id": "goalpath:item:4457"
+              }
+            },
+            {
+              "seq": {
+                "$var": "g58"
+              },
+              "card": {
+                "id": "goalpath:item:4458"
+              }
+            },
+            {
+              "seq": {
+                "$var": "g59"
+              },
+              "card": {
+                "id": "goalpath:item:4459"
+              }
+            },
+            {
+              "seq": {
+                "$var": "g60"
+              },
+              "card": {
+                "id": "goalpath:item:4460"
+              }
+            },
+            {
+              "seq": {
+                "$var": "g61"
+              },
+              "card": {
+                "id": "goalpath:item:4461"
+              }
+            },
+            {
+              "seq": {
+                "$var": "g62"
+              },
+              "card": {
+                "id": "goalpath:item:4462"
+              }
+            },
+            {
+              "seq": {
+                "$var": "g63"
+              },
+              "card": {
+                "id": "goalpath:item:4463"
+              }
+            },
+            {
+              "seq": {
+                "$var": "g64"
+              },
+              "card": {
+                "id": "goalpath:item:4464"
+              }
+            },
+            {
+              "seq": {
+                "$var": "g65"
+              },
+              "card": {
+                "id": "goalpath:item:4465"
+              }
+            },
+            {
+              "seq": {
+                "$var": "g66"
+              },
+              "card": {
+                "id": "goalpath:item:4466"
+              }
+            },
+            {
+              "seq": {
+                "$var": "g67"
+              },
+              "card": {
+                "id": "goalpath:item:4467"
+              }
+            },
+            {
+              "seq": {
+                "$var": "g68"
+              },
+              "card": {
+                "id": "goalpath:item:4468"
+              }
+            },
+            {
+              "seq": {
+                "$var": "g69"
+              },
+              "card": {
+                "id": "goalpath:item:4469"
+              }
+            },
+            {
+              "seq": {
+                "$var": "g70"
+              },
+              "card": {
+                "id": "goalpath:item:4470"
+              }
+            },
+            {
+              "seq": {
+                "$var": "g71"
+              },
+              "card": {
+                "id": "goalpath:item:4471"
+              }
+            },
+            {
+              "seq": {
+                "$var": "g72"
+              },
+              "card": {
+                "id": "goalpath:item:4472"
+              }
+            },
+            {
+              "seq": {
+                "$var": "g73"
+              },
+              "card": {
+                "id": "goalpath:item:4473"
+              }
+            },
+            {
+              "seq": {
+                "$var": "g74"
+              },
+              "card": {
+                "id": "goalpath:item:4474"
+              }
+            },
+            {
+              "seq": {
+                "$var": "g75"
+              },
+              "card": {
+                "id": "goalpath:item:4475"
+              }
+            },
+            {
+              "seq": {
+                "$var": "g76"
+              },
+              "card": {
+                "id": "goalpath:item:4476"
+              }
+            },
+            {
+              "seq": {
+                "$var": "g77"
+              },
+              "card": {
+                "id": "goalpath:item:4477"
+              }
+            },
+            {
+              "seq": {
+                "$var": "g78"
+              },
+              "card": {
+                "id": "goalpath:item:4478"
+              }
+            },
+            {
+              "seq": {
+                "$var": "g79"
+              },
+              "card": {
+                "id": "goalpath:item:4479"
+              }
+            },
+            {
+              "seq": {
+                "$var": "g80"
+              },
+              "card": {
+                "id": "goalpath:item:4480"
+              }
+            },
+            {
+              "seq": {
+                "$var": "g81"
+              },
+              "card": {
+                "id": "goalpath:item:4481"
+              }
+            },
+            {
+              "seq": {
+                "$var": "g82"
+              },
+              "card": {
+                "id": "goalpath:item:4482"
+              }
+            },
+            {
+              "seq": {
+                "$var": "g83"
+              },
+              "card": {
+                "id": "goalpath:item:4483"
+              }
+            },
+            {
+              "seq": {
+                "$var": "g84"
+              },
+              "card": {
+                "id": "goalpath:item:4484"
+              }
+            },
+            {
+              "seq": {
+                "$var": "g85"
+              },
+              "card": {
+                "id": "goalpath:item:4485"
+              }
+            },
+            {
+              "seq": {
+                "$var": "g86"
+              },
+              "card": {
+                "id": "goalpath:item:4486"
+              }
+            },
+            {
+              "seq": {
+                "$var": "g87"
+              },
+              "card": {
+                "id": "goalpath:item:4487"
+              }
+            },
+            {
+              "seq": {
+                "$var": "g88"
+              },
+              "card": {
+                "id": "goalpath:item:4488"
+              }
+            },
+            {
+              "seq": {
+                "$var": "g89"
+              },
+              "card": {
+                "id": "goalpath:item:4489"
+              }
+            },
+            {
+              "seq": {
+                "$var": "g90"
+              },
+              "card": {
+                "id": "goalpath:item:4490"
+              }
+            },
+            {
+              "seq": {
+                "$var": "g91"
+              },
+              "card": {
+                "id": "goalpath:item:4491"
+              }
+            },
+            {
+              "seq": {
+                "$var": "g92"
+              },
+              "card": {
+                "id": "goalpath:item:4492"
+              }
+            },
+            {
+              "seq": {
+                "$var": "g93"
+              },
+              "card": {
+                "id": "goalpath:item:4493"
+              }
+            },
+            {
+              "seq": {
+                "$var": "g94"
+              },
+              "card": {
+                "id": "goalpath:item:4494"
+              }
+            },
+            {
+              "seq": {
+                "$var": "g95"
+              },
+              "card": {
+                "id": "goalpath:item:4495"
+              }
+            },
+            {
+              "seq": {
+                "$var": "g96"
+              },
+              "card": {
+                "id": "goalpath:item:4496"
+              }
+            },
+            {
+              "seq": {
+                "$var": "g97"
+              },
+              "card": {
+                "id": "goalpath:item:4497"
+              }
+            },
+            {
+              "seq": {
+                "$var": "g98"
+              },
+              "card": {
+                "id": "goalpath:item:4498"
+              }
+            },
+            {
+              "seq": {
+                "$var": "g99"
+              },
+              "card": {
+                "id": "goalpath:item:4499"
+              }
+            },
+            {
+              "seq": {
+                "$var": "g100"
+              },
+              "card": {
+                "id": "goalpath:item:4500"
+              }
+            },
+            {
+              "seq": {
+                "$var": "g101"
+              },
+              "card": {
+                "id": "goalpath:item:4501"
+              }
+            },
+            {
+              "seq": {
+                "$var": "g102"
+              },
+              "card": {
+                "id": "goalpath:item:4502"
+              }
+            },
+            {
+              "seq": {
+                "$var": "g103"
+              },
+              "card": {
+                "id": "goalpath:item:4503"
+              }
+            },
+            {
+              "seq": {
+                "$var": "g104"
+              },
+              "card": {
+                "id": "goalpath:item:4504"
+              }
+            },
+            {
+              "seq": {
+                "$var": "g105"
+              },
+              "card": {
+                "id": "goalpath:item:4505"
+              }
+            },
+            {
+              "seq": {
+                "$var": "g106"
+              },
+              "card": {
+                "id": "goalpath:item:4506"
+              }
+            },
+            {
+              "seq": {
+                "$var": "g107"
+              },
+              "card": {
+                "id": "goalpath:item:4507"
+              }
+            },
+            {
+              "seq": {
+                "$var": "g108"
+              },
+              "card": {
+                "id": "goalpath:item:4508"
+              }
+            },
+            {
+              "seq": {
+                "$var": "g109"
+              },
+              "card": {
+                "id": "goalpath:item:4509"
+              }
+            },
+            {
+              "seq": {
+                "$var": "g110"
+              },
+              "card": {
+                "id": "goalpath:item:4510"
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "op": "syncAll",
+      "args": {
+        "token": "goalpath",
+        "after": {
+          "$var": "g50"
+        }
+      },
+      "expect": {
+        "status": 200,
+        "body": {
+          "ascending": true,
+          "next": {
+            "$var": "last"
+          },
+          "changes": [
+            {
+              "seq": {
+                "$var": "g51"
+              },
+              "card": {
+                "id": "goalpath:item:4451"
+              }
+            },
+            {
+              "seq": {
+                "$var": "g52"
+              },
+              "card": {
+                "id": "goalpath:item:4452"
+              }
+            },
+            {
+              "seq": {
+                "$var": "g53"
+              },
+              "card": {
+                "id": "goalpath:item:4453"
+              }
+            },
+            {
+              "seq": {
+                "$var": "g54"
+              },
+              "card": {
+                "id": "goalpath:item:4454"
+              }
+            },
+            {
+              "seq": {
+                "$var": "g55"
+              },
+              "card": {
+                "id": "goalpath:item:4455"
+              }
+            },
+            {
+              "seq": {
+                "$var": "g56"
+              },
+              "card": {
+                "id": "goalpath:item:4456"
+              }
+            },
+            {
+              "seq": {
+                "$var": "g57"
+              },
+              "card": {
+                "id": "goalpath:item:4457"
+              }
+            },
+            {
+              "seq": {
+                "$var": "g58"
+              },
+              "card": {
+                "id": "goalpath:item:4458"
+              }
+            },
+            {
+              "seq": {
+                "$var": "g59"
+              },
+              "card": {
+                "id": "goalpath:item:4459"
+              }
+            },
+            {
+              "seq": {
+                "$var": "g60"
+              },
+              "card": {
+                "id": "goalpath:item:4460"
+              }
+            },
+            {
+              "seq": {
+                "$var": "g61"
+              },
+              "card": {
+                "id": "goalpath:item:4461"
+              }
+            },
+            {
+              "seq": {
+                "$var": "g62"
+              },
+              "card": {
+                "id": "goalpath:item:4462"
+              }
+            },
+            {
+              "seq": {
+                "$var": "g63"
+              },
+              "card": {
+                "id": "goalpath:item:4463"
+              }
+            },
+            {
+              "seq": {
+                "$var": "g64"
+              },
+              "card": {
+                "id": "goalpath:item:4464"
+              }
+            },
+            {
+              "seq": {
+                "$var": "g65"
+              },
+              "card": {
+                "id": "goalpath:item:4465"
+              }
+            },
+            {
+              "seq": {
+                "$var": "g66"
+              },
+              "card": {
+                "id": "goalpath:item:4466"
+              }
+            },
+            {
+              "seq": {
+                "$var": "g67"
+              },
+              "card": {
+                "id": "goalpath:item:4467"
+              }
+            },
+            {
+              "seq": {
+                "$var": "g68"
+              },
+              "card": {
+                "id": "goalpath:item:4468"
+              }
+            },
+            {
+              "seq": {
+                "$var": "g69"
+              },
+              "card": {
+                "id": "goalpath:item:4469"
+              }
+            },
+            {
+              "seq": {
+                "$var": "g70"
+              },
+              "card": {
+                "id": "goalpath:item:4470"
+              }
+            },
+            {
+              "seq": {
+                "$var": "g71"
+              },
+              "card": {
+                "id": "goalpath:item:4471"
+              }
+            },
+            {
+              "seq": {
+                "$var": "g72"
+              },
+              "card": {
+                "id": "goalpath:item:4472"
+              }
+            },
+            {
+              "seq": {
+                "$var": "g73"
+              },
+              "card": {
+                "id": "goalpath:item:4473"
+              }
+            },
+            {
+              "seq": {
+                "$var": "g74"
+              },
+              "card": {
+                "id": "goalpath:item:4474"
+              }
+            },
+            {
+              "seq": {
+                "$var": "g75"
+              },
+              "card": {
+                "id": "goalpath:item:4475"
+              }
+            },
+            {
+              "seq": {
+                "$var": "g76"
+              },
+              "card": {
+                "id": "goalpath:item:4476"
+              }
+            },
+            {
+              "seq": {
+                "$var": "g77"
+              },
+              "card": {
+                "id": "goalpath:item:4477"
+              }
+            },
+            {
+              "seq": {
+                "$var": "g78"
+              },
+              "card": {
+                "id": "goalpath:item:4478"
+              }
+            },
+            {
+              "seq": {
+                "$var": "g79"
+              },
+              "card": {
+                "id": "goalpath:item:4479"
+              }
+            },
+            {
+              "seq": {
+                "$var": "g80"
+              },
+              "card": {
+                "id": "goalpath:item:4480"
+              }
+            },
+            {
+              "seq": {
+                "$var": "g81"
+              },
+              "card": {
+                "id": "goalpath:item:4481"
+              }
+            },
+            {
+              "seq": {
+                "$var": "g82"
+              },
+              "card": {
+                "id": "goalpath:item:4482"
+              }
+            },
+            {
+              "seq": {
+                "$var": "g83"
+              },
+              "card": {
+                "id": "goalpath:item:4483"
+              }
+            },
+            {
+              "seq": {
+                "$var": "g84"
+              },
+              "card": {
+                "id": "goalpath:item:4484"
+              }
+            },
+            {
+              "seq": {
+                "$var": "g85"
+              },
+              "card": {
+                "id": "goalpath:item:4485"
+              }
+            },
+            {
+              "seq": {
+                "$var": "g86"
+              },
+              "card": {
+                "id": "goalpath:item:4486"
+              }
+            },
+            {
+              "seq": {
+                "$var": "g87"
+              },
+              "card": {
+                "id": "goalpath:item:4487"
+              }
+            },
+            {
+              "seq": {
+                "$var": "g88"
+              },
+              "card": {
+                "id": "goalpath:item:4488"
+              }
+            },
+            {
+              "seq": {
+                "$var": "g89"
+              },
+              "card": {
+                "id": "goalpath:item:4489"
+              }
+            },
+            {
+              "seq": {
+                "$var": "g90"
+              },
+              "card": {
+                "id": "goalpath:item:4490"
+              }
+            },
+            {
+              "seq": {
+                "$var": "g91"
+              },
+              "card": {
+                "id": "goalpath:item:4491"
+              }
+            },
+            {
+              "seq": {
+                "$var": "g92"
+              },
+              "card": {
+                "id": "goalpath:item:4492"
+              }
+            },
+            {
+              "seq": {
+                "$var": "g93"
+              },
+              "card": {
+                "id": "goalpath:item:4493"
+              }
+            },
+            {
+              "seq": {
+                "$var": "g94"
+              },
+              "card": {
+                "id": "goalpath:item:4494"
+              }
+            },
+            {
+              "seq": {
+                "$var": "g95"
+              },
+              "card": {
+                "id": "goalpath:item:4495"
+              }
+            },
+            {
+              "seq": {
+                "$var": "g96"
+              },
+              "card": {
+                "id": "goalpath:item:4496"
+              }
+            },
+            {
+              "seq": {
+                "$var": "g97"
+              },
+              "card": {
+                "id": "goalpath:item:4497"
+              }
+            },
+            {
+              "seq": {
+                "$var": "g98"
+              },
+              "card": {
+                "id": "goalpath:item:4498"
+              }
+            },
+            {
+              "seq": {
+                "$var": "g99"
+              },
+              "card": {
+                "id": "goalpath:item:4499"
+              }
+            },
+            {
+              "seq": {
+                "$var": "g100"
+              },
+              "card": {
+                "id": "goalpath:item:4500"
+              }
+            },
+            {
+              "seq": {
+                "$var": "g101"
+              },
+              "card": {
+                "id": "goalpath:item:4501"
+              }
+            },
+            {
+              "seq": {
+                "$var": "g102"
+              },
+              "card": {
+                "id": "goalpath:item:4502"
+              }
+            },
+            {
+              "seq": {
+                "$var": "g103"
+              },
+              "card": {
+                "id": "goalpath:item:4503"
+              }
+            },
+            {
+              "seq": {
+                "$var": "g104"
+              },
+              "card": {
+                "id": "goalpath:item:4504"
+              }
+            },
+            {
+              "seq": {
+                "$var": "g105"
+              },
+              "card": {
+                "id": "goalpath:item:4505"
+              }
+            },
+            {
+              "seq": {
+                "$var": "g106"
+              },
+              "card": {
+                "id": "goalpath:item:4506"
+              }
+            },
+            {
+              "seq": {
+                "$var": "g107"
+              },
+              "card": {
+                "id": "goalpath:item:4507"
+              }
+            },
+            {
+              "seq": {
+                "$var": "g108"
+              },
+              "card": {
+                "id": "goalpath:item:4508"
+              }
+            },
+            {
+              "seq": {
+                "$var": "g109"
+              },
+              "card": {
+                "id": "goalpath:item:4509"
+              }
+            },
+            {
+              "seq": {
+                "$var": "g110"
+              },
+              "card": {
+                "id": "goalpath:item:4510"
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "op": "put",
+      "args": {
+        "token": "goalpath",
+        "card": {
+          "protocol": "pbcp/1",
+          "id": "goalpath:item:4403",
+          "kind": "signal",
+          "to_person": "morten",
+          "producer": "goalpath",
+          "title": "Item 4403 in review",
+          "body": "Item 4403 back in progress.",
+          "emitted_at": "2026-10-07T06:00:00Z",
+          "urgency": "log",
+          "thread": "item:4403"
+        }
+      },
+      "expect": {
+        "status": 200
+      }
+    },
+    {
+      "op": "put",
+      "args": {
+        "token": "goalpath",
+        "card": {
+          "protocol": "pbcp/1",
+          "id": "goalpath:item:4403",
+          "kind": "signal",
+          "to_person": "morten",
+          "producer": "goalpath",
+          "title": "Item 4403 in review",
+          "body": "Item 4403 done.",
+          "emitted_at": "2026-10-07T06:00:00Z",
+          "urgency": "log",
+          "thread": "item:4403"
+        }
+      },
+      "expect": {
+        "status": 200
+      },
+      "save": {
+        "g3b": "body.change_seq"
+      }
+    },
+    {
+      "op": "syncAll",
+      "args": {
+        "token": "goalpath",
+        "after": {
+          "$var": "last"
+        }
+      },
+      "expect": {
+        "status": 200,
+        "body": {
+          "changes": [
+            {
+              "seq": {
+                "$var": "g3b"
+              },
+              "card": {
+                "id": "goalpath:item:4403",
+                "body": "Item 4403 done."
+              }
+            }
+          ],
+          "next": {
+            "$var": "g3b"
+          }
+        }
+      }
+    }
+  ]
+}

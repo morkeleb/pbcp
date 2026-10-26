@@ -1,0 +1,92 @@
+{
+  "name": "R06 the first eight fences render; the ninth is collapsed or rendered, never dropped",
+  "rfc": [
+    "§3.1"
+  ],
+  "steps": [
+    {
+      "op": "render",
+      "args": {
+        "body": "Nine charts follow.\n\n```mermaid\npie title Chart 1\n  \"Done\" : 1\n  \"Open\" : 10\n```\n\n```mermaid\npie title Chart 2\n  \"Done\" : 2\n  \"Open\" : 9\n```\n\n```mermaid\npie title Chart 3\n  \"Done\" : 3\n  \"Open\" : 8\n```\n\n```mermaid\npie title Chart 4\n  \"Done\" : 4\n  \"Open\" : 7\n```\n\n```mermaid\npie title Chart 5\n  \"Done\" : 5\n  \"Open\" : 6\n```\n\n```mermaid\npie title Chart 6\n  \"Done\" : 6\n  \"Open\" : 5\n```\n\n```mermaid\npie title Chart 7\n  \"Done\" : 7\n  \"Open\" : 4\n```\n\n```mermaid\npie title Chart 8\n  \"Done\" : 8\n  \"Open\" : 3\n```\n\n```mermaid\npie title Chart 9\n  \"Done\" : 9\n  \"Open\" : 2\n```\n\nText after the ninth chart."
+      },
+      "expect": {
+        "status": 200,
+        "body": {
+          "fences": [
+            {
+              "type": "pie",
+              "class": "render",
+              "source": {
+                "$includes": "Chart 1"
+              }
+            },
+            {
+              "type": "pie",
+              "class": "render",
+              "source": {
+                "$includes": "Chart 2"
+              }
+            },
+            {
+              "type": "pie",
+              "class": "render",
+              "source": {
+                "$includes": "Chart 3"
+              }
+            },
+            {
+              "type": "pie",
+              "class": "render",
+              "source": {
+                "$includes": "Chart 4"
+              }
+            },
+            {
+              "type": "pie",
+              "class": "render",
+              "source": {
+                "$includes": "Chart 5"
+              }
+            },
+            {
+              "type": "pie",
+              "class": "render",
+              "source": {
+                "$includes": "Chart 6"
+              }
+            },
+            {
+              "type": "pie",
+              "class": "render",
+              "source": {
+                "$includes": "Chart 7"
+              }
+            },
+            {
+              "type": "pie",
+              "class": "render",
+              "source": {
+                "$includes": "Chart 8"
+              }
+            },
+            {
+              "type": "pie",
+              "class": {
+                "$oneOf": [
+                  "render",
+                  "collapsed"
+                ]
+              },
+              "source": {
+                "$includes": "Chart 9"
+              }
+            }
+          ],
+          "text": {
+            "$includes": "Text after the ninth chart."
+          }
+        }
+      }
+    }
+  ]
+}

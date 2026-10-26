@@ -1,0 +1,141 @@
+{
+  "name": "C12 front-matter PUT using YAML outside the restricted subset returns 400",
+  "rfc": [
+    "§3"
+  ],
+  "steps": [
+    {
+      "op": "put",
+      "args": {
+        "token": "hermes",
+        "card": "---\nprotocol: pbcp/1\nid: hermes:gmail:yaml-anchor\nkind: decision\nto_person: morten\nproducer: hermes\nthread: gmail:19a4f2e7c3b1\nurgency: brief\ntitle: &t Reply to Anna re invoice timing\nactions: [approve, reject, edit]\nreferences:\n  - goalpath:item:4421\nemitted_at: \"2026-10-07T13:02:11Z\"\nsource:\n  url: https://mail.google.com/mail/u/0/#inbox/19a4f2e7c3b1\n  label: Gmail thread\n---\n\nAnna asks whether the September invoice can be paid on the 20th."
+      },
+      "expect": {
+        "status": 400
+      }
+    },
+    {
+      "op": "put",
+      "args": {
+        "token": "hermes",
+        "card": "---\nprotocol: pbcp/1\nid: hermes:gmail:yaml-alias\nkind: decision\nto_person: morten\nproducer: hermes\nthread: *t\nurgency: brief\ntitle: &t Reply to Anna re invoice timing\nactions: [approve, reject, edit]\nreferences:\n  - goalpath:item:4421\nemitted_at: \"2026-10-07T13:02:11Z\"\nsource:\n  url: https://mail.google.com/mail/u/0/#inbox/19a4f2e7c3b1\n  label: Gmail thread\n---\n\nAnna asks whether the September invoice can be paid on the 20th."
+      },
+      "expect": {
+        "status": 400
+      }
+    },
+    {
+      "op": "put",
+      "args": {
+        "token": "hermes",
+        "card": "---\nprotocol: pbcp/1\nid: hermes:gmail:yaml-tag\nkind: decision\nto_person: morten\nproducer: hermes\nthread: gmail:19a4f2e7c3b1\nurgency: brief\ntitle: !!str Reply to Anna re invoice timing\nactions: [approve, reject, edit]\nreferences:\n  - goalpath:item:4421\nemitted_at: \"2026-10-07T13:02:11Z\"\nsource:\n  url: https://mail.google.com/mail/u/0/#inbox/19a4f2e7c3b1\n  label: Gmail thread\n---\n\nAnna asks whether the September invoice can be paid on the 20th."
+      },
+      "expect": {
+        "status": 400
+      }
+    },
+    {
+      "op": "put",
+      "args": {
+        "token": "hermes",
+        "card": "---\nprotocol: pbcp/1\nid: hermes:gmail:yaml-custom-type\nkind: decision\nto_person: morten\nproducer: hermes\nthread: gmail:19a4f2e7c3b1\nurgency: brief\ntitle: !invoice Reply to Anna re invoice timing\nactions: [approve, reject, edit]\nreferences:\n  - goalpath:item:4421\nemitted_at: \"2026-10-07T13:02:11Z\"\nsource:\n  url: https://mail.google.com/mail/u/0/#inbox/19a4f2e7c3b1\n  label: Gmail thread\n---\n\nAnna asks whether the September invoice can be paid on the 20th."
+      },
+      "expect": {
+        "status": 400
+      }
+    },
+    {
+      "op": "put",
+      "args": {
+        "token": "hermes",
+        "card": "---\nprotocol: pbcp/1\nid: hermes:gmail:yaml-deep-nesting\nkind: decision\nto_person: morten\nproducer: hermes\nthread: gmail:19a4f2e7c3b1\nurgency: brief\ntitle: Reply to Anna re invoice timing\nactions: [approve, reject, edit]\nreferences:\n  - goalpath:item:4421\nemitted_at: \"2026-10-07T13:02:11Z\"\nsource:\n  url: https://mail.google.com/mail/u/0/#inbox/19a4f2e7c3b1\n  label: Gmail thread\n  meta:\n    folder: inbox\n---\n\nAnna asks whether the September invoice can be paid on the 20th."
+      },
+      "expect": {
+        "status": 400
+      }
+    },
+    {
+      "op": "put",
+      "args": {
+        "token": "hermes",
+        "card": "---\nprotocol: pbcp/1\nid: hermes:gmail:yaml-nested-sequence\nkind: decision\nto_person: morten\nproducer: hermes\nthread: gmail:19a4f2e7c3b1\nurgency: brief\ntitle: Reply to Anna re invoice timing\nactions: [approve, reject, edit]\nreferences: [[goalpath:item:4421]]\nemitted_at: \"2026-10-07T13:02:11Z\"\nsource:\n  url: https://mail.google.com/mail/u/0/#inbox/19a4f2e7c3b1\n  label: Gmail thread\n---\n\nAnna asks whether the September invoice can be paid on the 20th."
+      },
+      "expect": {
+        "status": 400
+      }
+    },
+    {
+      "op": "syncAll",
+      "args": {
+        "token": "hermes",
+        "after": 0
+      },
+      "expect": {
+        "status": 200,
+        "body": {
+          "changes": {
+            "$len": 0
+          }
+        }
+      }
+    },
+    {
+      "op": "put",
+      "args": {
+        "token": "hermes",
+        "card": "---\nprotocol: pbcp/1\nid: hermes:gmail:19a4f2e7c3b1\nkind: decision\nto_person: morten\nproducer: hermes\nthread: gmail:19a4f2e7c3b1\nurgency: brief\ntitle: Reply to Anna re invoice timing\nactions: [approve, reject, edit]\nreferences:\n  - goalpath:item:4421\nemitted_at: \"2026-10-07T13:02:11Z\"\nsource:\n  url: https://mail.google.com/mail/u/0/#inbox/19a4f2e7c3b1\n  label: Gmail thread\n---\n\nAnna asks whether the September invoice can be paid on the 20th."
+      },
+      "expect": {
+        "status": 201,
+        "body": {
+          "id": "hermes:gmail:19a4f2e7c3b1",
+          "state": "open",
+          "actions": [
+            "approve",
+            "reject",
+            "edit"
+          ],
+          "references": [
+            "goalpath:item:4421"
+          ],
+          "source": {
+            "url": "https://mail.google.com/mail/u/0/#inbox/19a4f2e7c3b1",
+            "label": "Gmail thread"
+          },
+          "body": {
+            "$includes": "paid on the 20th"
+          }
+        }
+      }
+    },
+    {
+      "op": "put",
+      "args": {
+        "token": "hermes",
+        "card": "---\nprotocol: pbcp/1\nid: hermes:gmail:yaml-scalars\nkind: decision\nto_person: morten\nproducer: hermes\nthread: 1.0\nurgency: brief\ntitle: no\nactions: [approve, reject, edit]\nreferences:\n  - goalpath:item:4421\nemitted_at: \"2026-10-07T13:02:11Z\"\nsource:\n  url: https://mail.google.com/mail/u/0/#inbox/19a4f2e7c3b1\n  label: Gmail thread\n---\n\nAnna asks whether the September invoice can be paid on the 20th."
+      },
+      "expect": {
+        "status": 201,
+        "body": {
+          "title": "no",
+          "thread": "1.0"
+        }
+      }
+    },
+    {
+      "op": "syncAll",
+      "args": {
+        "token": "hermes",
+        "after": 0
+      },
+      "expect": {
+        "status": 200,
+        "body": {
+          "changes": {
+            "$len": 2
+          }
+        }
+      }
+    }
+  ]
+}

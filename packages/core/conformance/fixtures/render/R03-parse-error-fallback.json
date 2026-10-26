@@ -1,0 +1,67 @@
+{
+  "name": "R03 a fence that fails to parse falls back with the parser message; other fences still render",
+  "rfc": [
+    "§3.1"
+  ],
+  "steps": [
+    {
+      "op": "render",
+      "args": {
+        "body": "Intro text survives.\n\n```mermaid\nflowchart TD\n  A --> B\n```\n\n```mermaid\npie title Broken\n  \"Approved\" : lots\n  \"Rejected\" : 2\n```\n\nMiddle text survives.\n\n```mermaid\nsequenceDiagram\n  Alice->>Bob: Hello\n```\n\nOutro text survives."
+      },
+      "expect": {
+        "status": 200,
+        "body": {
+          "fences": [
+            {
+              "type": "flowchart",
+              "class": "render"
+            },
+            {
+              "type": "pie",
+              "class": "fallback",
+              "message": {
+                "$type": "string"
+              }
+            },
+            {
+              "type": "sequenceDiagram",
+              "class": "render"
+            }
+          ],
+          "text": {
+            "$includes": "Intro text survives."
+          }
+        }
+      }
+    },
+    {
+      "op": "render",
+      "args": {
+        "body": "Intro text survives.\n\n```mermaid\nflowchart TD\n  A --> B\n```\n\n```mermaid\npie title Broken\n  \"Approved\" : lots\n  \"Rejected\" : 2\n```\n\nMiddle text survives.\n\n```mermaid\nsequenceDiagram\n  Alice->>Bob: Hello\n```\n\nOutro text survives."
+      },
+      "expect": {
+        "status": 200,
+        "body": {
+          "text": {
+            "$includes": "Middle text survives."
+          }
+        }
+      }
+    },
+    {
+      "op": "render",
+      "args": {
+        "body": "Intro text survives.\n\n```mermaid\nflowchart TD\n  A --> B\n```\n\n```mermaid\npie title Broken\n  \"Approved\" : lots\n  \"Rejected\" : 2\n```\n\nMiddle text survives.\n\n```mermaid\nsequenceDiagram\n  Alice->>Bob: Hello\n```\n\nOutro text survives."
+      },
+      "expect": {
+        "status": 200,
+        "body": {
+          "text": {
+            "$includes": "Outro text survives."
+          }
+        }
+      }
+    }
+  ]
+}

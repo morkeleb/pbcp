@@ -1,0 +1,104 @@
+{
+  "name": "C13 id outside the token root returns 403; producer field not matching the id root returns 400",
+  "rfc": [
+    "§5",
+    "§12",
+    "§4.1"
+  ],
+  "steps": [
+    {
+      "op": "put",
+      "args": {
+        "token": "hermes",
+        "card": {
+          "protocol": "pbcp/1",
+          "id": "goalpath:item:4421",
+          "kind": "decision",
+          "to_person": "morten",
+          "producer": "goalpath",
+          "title": "Approve shipping item 4421 Friday",
+          "body": "Tests are green.\n\n## Proposal\n\nShip on Friday.",
+          "emitted_at": "2026-10-07T06:05:00Z",
+          "thread": "item:4421"
+        }
+      },
+      "expect": {
+        "status": 403
+      }
+    },
+    {
+      "op": "put",
+      "args": {
+        "token": "goalpath",
+        "card": {
+          "protocol": "pbcp/1",
+          "id": "goalpath:item:4421",
+          "kind": "decision",
+          "to_person": "morten",
+          "producer": "hermes",
+          "title": "Approve shipping item 4421 Friday",
+          "body": "Tests are green.\n\n## Proposal\n\nShip on Friday.",
+          "emitted_at": "2026-10-07T06:05:00Z",
+          "thread": "item:4421"
+        }
+      },
+      "expect": {
+        "status": 400
+      }
+    },
+    {
+      "op": "syncAll",
+      "args": {
+        "token": "goalpath",
+        "after": 0
+      },
+      "expect": {
+        "status": 200,
+        "body": {
+          "changes": {
+            "$len": 0
+          }
+        }
+      }
+    },
+    {
+      "op": "syncAll",
+      "args": {
+        "token": "hermes",
+        "after": 0
+      },
+      "expect": {
+        "status": 200,
+        "body": {
+          "changes": {
+            "$len": 0
+          }
+        }
+      }
+    },
+    {
+      "op": "put",
+      "args": {
+        "token": "goalpath",
+        "card": {
+          "protocol": "pbcp/1",
+          "id": "goalpath:item:4421",
+          "kind": "decision",
+          "to_person": "morten",
+          "producer": "goalpath",
+          "title": "Approve shipping item 4421 Friday",
+          "body": "Tests are green.\n\n## Proposal\n\nShip on Friday.",
+          "emitted_at": "2026-10-07T06:05:00Z",
+          "thread": "item:4421"
+        }
+      },
+      "expect": {
+        "status": 201,
+        "body": {
+          "id": "goalpath:item:4421",
+          "producer": "goalpath"
+        }
+      }
+    }
+  ]
+}

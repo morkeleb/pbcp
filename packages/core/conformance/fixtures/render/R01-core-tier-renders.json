@@ -1,0 +1,150 @@
+{
+  "name": "R01 every core-tier mermaid type renders and the surrounding text is intact",
+  "rfc": [
+    "§3.1"
+  ],
+  "steps": [
+    {
+      "op": "render",
+      "args": {
+        "body": "# Weekly brief\n\nOpening paragraph alpha.\n\n```mermaid\nflowchart LR\n  A[Draft] --> B[Review] --> C[Send]\n```\n\nParagraph after flowchart number 1.\n\n```mermaid\nsequenceDiagram\n  Hermes->>Head: PUT card\n  Head-->>Hermes: 201 Created\n```\n\nParagraph after sequenceDiagram number 2.\n\n```mermaid\nstateDiagram-v2\n  [*] --> open\n  open --> decided\n  open --> superseded\n  decided --> superseded\n```\n\nParagraph after stateDiagram-v2 number 3.\n\n```mermaid\ngantt\n  title Release M4\n  dateFormat YYYY-MM-DD\n  section Build\n  Implement :a1, 2026-10-01, 5d\n  Test      :after a1, 3d\n```\n\nParagraph after gantt number 4.\n\n```mermaid\ntimeline\n  title A day\n  Morning : Mail reader drafts a reply\n  Evening : Day view\n```\n\nParagraph after timeline number 5.\n\n```mermaid\npie title Decisions this week\n  \"Approved\" : 7\n  \"Rejected\" : 2\n  \"Edited\" : 1\n```\n\nParagraph after pie number 6.\n\n```mermaid\nxychart-beta\n  title \"Cards per day\"\n  x-axis [Mon, Tue, Wed]\n  y-axis \"Cards\" 0 --> 20\n  bar [5, 12, 8]\n  line [5, 12, 8]\n```\n\nParagraph after xychart-beta number 7."
+      },
+      "expect": {
+        "status": 200,
+        "body": {
+          "fences": [
+            {
+              "type": "flowchart",
+              "class": "render"
+            },
+            {
+              "type": "sequenceDiagram",
+              "class": "render"
+            },
+            {
+              "type": "stateDiagram-v2",
+              "class": "render"
+            },
+            {
+              "type": "gantt",
+              "class": "render"
+            },
+            {
+              "type": "timeline",
+              "class": "render"
+            },
+            {
+              "type": "pie",
+              "class": "render"
+            },
+            {
+              "type": "xychart-beta",
+              "class": "render"
+            }
+          ],
+          "text": {
+            "$includes": "Opening paragraph alpha."
+          }
+        }
+      }
+    },
+    {
+      "op": "render",
+      "args": {
+        "body": "# Weekly brief\n\nOpening paragraph alpha.\n\n```mermaid\nflowchart LR\n  A[Draft] --> B[Review] --> C[Send]\n```\n\nParagraph after flowchart number 1.\n\n```mermaid\nsequenceDiagram\n  Hermes->>Head: PUT card\n  Head-->>Hermes: 201 Created\n```\n\nParagraph after sequenceDiagram number 2.\n\n```mermaid\nstateDiagram-v2\n  [*] --> open\n  open --> decided\n  open --> superseded\n  decided --> superseded\n```\n\nParagraph after stateDiagram-v2 number 3.\n\n```mermaid\ngantt\n  title Release M4\n  dateFormat YYYY-MM-DD\n  section Build\n  Implement :a1, 2026-10-01, 5d\n  Test      :after a1, 3d\n```\n\nParagraph after gantt number 4.\n\n```mermaid\ntimeline\n  title A day\n  Morning : Mail reader drafts a reply\n  Evening : Day view\n```\n\nParagraph after timeline number 5.\n\n```mermaid\npie title Decisions this week\n  \"Approved\" : 7\n  \"Rejected\" : 2\n  \"Edited\" : 1\n```\n\nParagraph after pie number 6.\n\n```mermaid\nxychart-beta\n  title \"Cards per day\"\n  x-axis [Mon, Tue, Wed]\n  y-axis \"Cards\" 0 --> 20\n  bar [5, 12, 8]\n  line [5, 12, 8]\n```\n\nParagraph after xychart-beta number 7."
+      },
+      "expect": {
+        "status": 200,
+        "body": {
+          "text": {
+            "$includes": "Paragraph after flowchart number 1."
+          }
+        }
+      }
+    },
+    {
+      "op": "render",
+      "args": {
+        "body": "# Weekly brief\n\nOpening paragraph alpha.\n\n```mermaid\nflowchart LR\n  A[Draft] --> B[Review] --> C[Send]\n```\n\nParagraph after flowchart number 1.\n\n```mermaid\nsequenceDiagram\n  Hermes->>Head: PUT card\n  Head-->>Hermes: 201 Created\n```\n\nParagraph after sequenceDiagram number 2.\n\n```mermaid\nstateDiagram-v2\n  [*] --> open\n  open --> decided\n  open --> superseded\n  decided --> superseded\n```\n\nParagraph after stateDiagram-v2 number 3.\n\n```mermaid\ngantt\n  title Release M4\n  dateFormat YYYY-MM-DD\n  section Build\n  Implement :a1, 2026-10-01, 5d\n  Test      :after a1, 3d\n```\n\nParagraph after gantt number 4.\n\n```mermaid\ntimeline\n  title A day\n  Morning : Mail reader drafts a reply\n  Evening : Day view\n```\n\nParagraph after timeline number 5.\n\n```mermaid\npie title Decisions this week\n  \"Approved\" : 7\n  \"Rejected\" : 2\n  \"Edited\" : 1\n```\n\nParagraph after pie number 6.\n\n```mermaid\nxychart-beta\n  title \"Cards per day\"\n  x-axis [Mon, Tue, Wed]\n  y-axis \"Cards\" 0 --> 20\n  bar [5, 12, 8]\n  line [5, 12, 8]\n```\n\nParagraph after xychart-beta number 7."
+      },
+      "expect": {
+        "status": 200,
+        "body": {
+          "text": {
+            "$includes": "Paragraph after sequenceDiagram number 2."
+          }
+        }
+      }
+    },
+    {
+      "op": "render",
+      "args": {
+        "body": "# Weekly brief\n\nOpening paragraph alpha.\n\n```mermaid\nflowchart LR\n  A[Draft] --> B[Review] --> C[Send]\n```\n\nParagraph after flowchart number 1.\n\n```mermaid\nsequenceDiagram\n  Hermes->>Head: PUT card\n  Head-->>Hermes: 201 Created\n```\n\nParagraph after sequenceDiagram number 2.\n\n```mermaid\nstateDiagram-v2\n  [*] --> open\n  open --> decided\n  open --> superseded\n  decided --> superseded\n```\n\nParagraph after stateDiagram-v2 number 3.\n\n```mermaid\ngantt\n  title Release M4\n  dateFormat YYYY-MM-DD\n  section Build\n  Implement :a1, 2026-10-01, 5d\n  Test      :after a1, 3d\n```\n\nParagraph after gantt number 4.\n\n```mermaid\ntimeline\n  title A day\n  Morning : Mail reader drafts a reply\n  Evening : Day view\n```\n\nParagraph after timeline number 5.\n\n```mermaid\npie title Decisions this week\n  \"Approved\" : 7\n  \"Rejected\" : 2\n  \"Edited\" : 1\n```\n\nParagraph after pie number 6.\n\n```mermaid\nxychart-beta\n  title \"Cards per day\"\n  x-axis [Mon, Tue, Wed]\n  y-axis \"Cards\" 0 --> 20\n  bar [5, 12, 8]\n  line [5, 12, 8]\n```\n\nParagraph after xychart-beta number 7."
+      },
+      "expect": {
+        "status": 200,
+        "body": {
+          "text": {
+            "$includes": "Paragraph after stateDiagram-v2 number 3."
+          }
+        }
+      }
+    },
+    {
+      "op": "render",
+      "args": {
+        "body": "# Weekly brief\n\nOpening paragraph alpha.\n\n```mermaid\nflowchart LR\n  A[Draft] --> B[Review] --> C[Send]\n```\n\nParagraph after flowchart number 1.\n\n```mermaid\nsequenceDiagram\n  Hermes->>Head: PUT card\n  Head-->>Hermes: 201 Created\n```\n\nParagraph after sequenceDiagram number 2.\n\n```mermaid\nstateDiagram-v2\n  [*] --> open\n  open --> decided\n  open --> superseded\n  decided --> superseded\n```\n\nParagraph after stateDiagram-v2 number 3.\n\n```mermaid\ngantt\n  title Release M4\n  dateFormat YYYY-MM-DD\n  section Build\n  Implement :a1, 2026-10-01, 5d\n  Test      :after a1, 3d\n```\n\nParagraph after gantt number 4.\n\n```mermaid\ntimeline\n  title A day\n  Morning : Mail reader drafts a reply\n  Evening : Day view\n```\n\nParagraph after timeline number 5.\n\n```mermaid\npie title Decisions this week\n  \"Approved\" : 7\n  \"Rejected\" : 2\n  \"Edited\" : 1\n```\n\nParagraph after pie number 6.\n\n```mermaid\nxychart-beta\n  title \"Cards per day\"\n  x-axis [Mon, Tue, Wed]\n  y-axis \"Cards\" 0 --> 20\n  bar [5, 12, 8]\n  line [5, 12, 8]\n```\n\nParagraph after xychart-beta number 7."
+      },
+      "expect": {
+        "status": 200,
+        "body": {
+          "text": {
+            "$includes": "Paragraph after gantt number 4."
+          }
+        }
+      }
+    },
+    {
+      "op": "render",
+      "args": {
+        "body": "# Weekly brief\n\nOpening paragraph alpha.\n\n```mermaid\nflowchart LR\n  A[Draft] --> B[Review] --> C[Send]\n```\n\nParagraph after flowchart number 1.\n\n```mermaid\nsequenceDiagram\n  Hermes->>Head: PUT card\n  Head-->>Hermes: 201 Created\n```\n\nParagraph after sequenceDiagram number 2.\n\n```mermaid\nstateDiagram-v2\n  [*] --> open\n  open --> decided\n  open --> superseded\n  decided --> superseded\n```\n\nParagraph after stateDiagram-v2 number 3.\n\n```mermaid\ngantt\n  title Release M4\n  dateFormat YYYY-MM-DD\n  section Build\n  Implement :a1, 2026-10-01, 5d\n  Test      :after a1, 3d\n```\n\nParagraph after gantt number 4.\n\n```mermaid\ntimeline\n  title A day\n  Morning : Mail reader drafts a reply\n  Evening : Day view\n```\n\nParagraph after timeline number 5.\n\n```mermaid\npie title Decisions this week\n  \"Approved\" : 7\n  \"Rejected\" : 2\n  \"Edited\" : 1\n```\n\nParagraph after pie number 6.\n\n```mermaid\nxychart-beta\n  title \"Cards per day\"\n  x-axis [Mon, Tue, Wed]\n  y-axis \"Cards\" 0 --> 20\n  bar [5, 12, 8]\n  line [5, 12, 8]\n```\n\nParagraph after xychart-beta number 7."
+      },
+      "expect": {
+        "status": 200,
+        "body": {
+          "text": {
+            "$includes": "Paragraph after timeline number 5."
+          }
+        }
+      }
+    },
+    {
+      "op": "render",
+      "args": {
+        "body": "# Weekly brief\n\nOpening paragraph alpha.\n\n```mermaid\nflowchart LR\n  A[Draft] --> B[Review] --> C[Send]\n```\n\nParagraph after flowchart number 1.\n\n```mermaid\nsequenceDiagram\n  Hermes->>Head: PUT card\n  Head-->>Hermes: 201 Created\n```\n\nParagraph after sequenceDiagram number 2.\n\n```mermaid\nstateDiagram-v2\n  [*] --> open\n  open --> decided\n  open --> superseded\n  decided --> superseded\n```\n\nParagraph after stateDiagram-v2 number 3.\n\n```mermaid\ngantt\n  title Release M4\n  dateFormat YYYY-MM-DD\n  section Build\n  Implement :a1, 2026-10-01, 5d\n  Test      :after a1, 3d\n```\n\nParagraph after gantt number 4.\n\n```mermaid\ntimeline\n  title A day\n  Morning : Mail reader drafts a reply\n  Evening : Day view\n```\n\nParagraph after timeline number 5.\n\n```mermaid\npie title Decisions this week\n  \"Approved\" : 7\n  \"Rejected\" : 2\n  \"Edited\" : 1\n```\n\nParagraph after pie number 6.\n\n```mermaid\nxychart-beta\n  title \"Cards per day\"\n  x-axis [Mon, Tue, Wed]\n  y-axis \"Cards\" 0 --> 20\n  bar [5, 12, 8]\n  line [5, 12, 8]\n```\n\nParagraph after xychart-beta number 7."
+      },
+      "expect": {
+        "status": 200,
+        "body": {
+          "text": {
+            "$includes": "Paragraph after pie number 6."
+          }
+        }
+      }
+    },
+    {
+      "op": "render",
+      "args": {
+        "body": "# Weekly brief\n\nOpening paragraph alpha.\n\n```mermaid\nflowchart LR\n  A[Draft] --> B[Review] --> C[Send]\n```\n\nParagraph after flowchart number 1.\n\n```mermaid\nsequenceDiagram\n  Hermes->>Head: PUT card\n  Head-->>Hermes: 201 Created\n```\n\nParagraph after sequenceDiagram number 2.\n\n```mermaid\nstateDiagram-v2\n  [*] --> open\n  open --> decided\n  open --> superseded\n  decided --> superseded\n```\n\nParagraph after stateDiagram-v2 number 3.\n\n```mermaid\ngantt\n  title Release M4\n  dateFormat YYYY-MM-DD\n  section Build\n  Implement :a1, 2026-10-01, 5d\n  Test      :after a1, 3d\n```\n\nParagraph after gantt number 4.\n\n```mermaid\ntimeline\n  title A day\n  Morning : Mail reader drafts a reply\n  Evening : Day view\n```\n\nParagraph after timeline number 5.\n\n```mermaid\npie title Decisions this week\n  \"Approved\" : 7\n  \"Rejected\" : 2\n  \"Edited\" : 1\n```\n\nParagraph after pie number 6.\n\n```mermaid\nxychart-beta\n  title \"Cards per day\"\n  x-axis [Mon, Tue, Wed]\n  y-axis \"Cards\" 0 --> 20\n  bar [5, 12, 8]\n  line [5, 12, 8]\n```\n\nParagraph after xychart-beta number 7."
+      },
+      "expect": {
+        "status": 200,
+        "body": {
+          "text": {
+            "$includes": "Paragraph after xychart-beta number 7."
+          }
+        }
+      }
+    }
+  ]
+}

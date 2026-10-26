@@ -1,0 +1,66 @@
+{
+  "name": "R02 an unknown diagram type falls back with its type label; text and other diagrams intact",
+  "rfc": [
+    "§3.1"
+  ],
+  "steps": [
+    {
+      "op": "render",
+      "args": {
+        "body": "Before the unknown diagram.\n\n```mermaid\nfuturechart-beta\n  title Something new\n  a --> b\n```\n\nBetween the diagrams.\n\n```mermaid\npie title Split\n  \"A\" : 1\n  \"B\" : 2\n```\n\nAfter both diagrams."
+      },
+      "expect": {
+        "status": 200,
+        "body": {
+          "fences": [
+            {
+              "type": "futurechart-beta",
+              "class": "fallback",
+              "message": {
+                "$includes": "not supported"
+              },
+              "source": {
+                "$includes": "Something new"
+              }
+            },
+            {
+              "type": "pie",
+              "class": "render"
+            }
+          ],
+          "text": {
+            "$includes": "Before the unknown diagram."
+          }
+        }
+      }
+    },
+    {
+      "op": "render",
+      "args": {
+        "body": "Before the unknown diagram.\n\n```mermaid\nfuturechart-beta\n  title Something new\n  a --> b\n```\n\nBetween the diagrams.\n\n```mermaid\npie title Split\n  \"A\" : 1\n  \"B\" : 2\n```\n\nAfter both diagrams."
+      },
+      "expect": {
+        "status": 200,
+        "body": {
+          "text": {
+            "$includes": "Between the diagrams."
+          }
+        }
+      }
+    },
+    {
+      "op": "render",
+      "args": {
+        "body": "Before the unknown diagram.\n\n```mermaid\nfuturechart-beta\n  title Something new\n  a --> b\n```\n\nBetween the diagrams.\n\n```mermaid\npie title Split\n  \"A\" : 1\n  \"B\" : 2\n```\n\nAfter both diagrams."
+      },
+      "expect": {
+        "status": 200,
+        "body": {
+          "text": {
+            "$includes": "After both diagrams."
+          }
+        }
+      }
+    }
+  ]
+}

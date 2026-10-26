@@ -1,0 +1,205 @@
+{
+  "name": "R05 raw HTML stripped; http image shown as link; https and data:image/png as images; inline SVG sanitised",
+  "rfc": [
+    "§3",
+    "§3.1",
+    "§12"
+  ],
+  "steps": [
+    {
+      "op": "render",
+      "args": {
+        "body": "Visible paragraph one.\n\n<div onclick=\"steal()\">Raw block</div>\n\n<script>window.leak = 1</script>\n\n<iframe src=\"https://widget.evil.example/embed\"></iframe>\n\n<img src=\"https://pixel.evil.example/open.gif\">\n\nVisible paragraph two.\n\n![Plain http chart](http://charts.example.com/a.png)\n\n![Secure chart](https://charts.example.com/b.png)\n\n![Inline png](data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR4nGPQqr/yHwAE0QJ9PWShagAAAABJRU5ErkJggg==)\n\n![Inline svg](data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHhtbG5zOnhsaW5rPSJodHRwOi8vd3d3LnczLm9yZy8xOTk5L3hsaW5rIiB3aWR0aD0iMjAiIGhlaWdodD0iMjAiIG9ubG9hZD0iYWxlcnQoMSkiPjxzY3JpcHQ+YWxlcnQoMik8L3NjcmlwdD48Y2lyY2xlIGN4PSIxMCIgY3k9IjEwIiByPSI4IiBmaWxsPSIjMmE3ZmQ0IiBvbmNsaWNrPSJhbGVydCgzKSIvPjxmb3JlaWduT2JqZWN0IHdpZHRoPSIyMCIgaGVpZ2h0PSIyMCI+PGRpdiB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMTk5OS94aHRtbCI+eDwvZGl2PjwvZm9yZWlnbk9iamVjdD48aW1hZ2UgaHJlZj0iaHR0cHM6Ly90cmFja2VyLmV2aWwuZXhhbXBsZS9waXhlbC5wbmciIHdpZHRoPSIxIiBoZWlnaHQ9IjEiLz48dXNlIHhsaW5rOmhyZWY9Imh0dHBzOi8vdHJhY2tlci5ldmlsLmV4YW1wbGUvc3ByaXRlLnN2ZyNpY29uIi8+PC9zdmc+)\n\nVisible paragraph three."
+      },
+      "expect": {
+        "status": 200,
+        "body": {
+          "stripped": {
+            "$contains": [
+              "html"
+            ]
+          },
+          "text": {
+            "$includes": "Visible paragraph one.",
+            "$excludes": "<script"
+          },
+          "images": [
+            {
+              "alt": "Plain http chart",
+              "class": "link"
+            },
+            {
+              "alt": "Secure chart",
+              "class": "image"
+            },
+            {
+              "alt": "Inline png",
+              "class": "image"
+            },
+            {
+              "alt": "Inline svg",
+              "class": "image",
+              "svg": {
+                "$type": "string",
+                "$includes": "<circle"
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "op": "render",
+      "args": {
+        "body": "Visible paragraph one.\n\n<div onclick=\"steal()\">Raw block</div>\n\n<script>window.leak = 1</script>\n\n<iframe src=\"https://widget.evil.example/embed\"></iframe>\n\n<img src=\"https://pixel.evil.example/open.gif\">\n\nVisible paragraph two.\n\n![Plain http chart](http://charts.example.com/a.png)\n\n![Secure chart](https://charts.example.com/b.png)\n\n![Inline png](data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR4nGPQqr/yHwAE0QJ9PWShagAAAABJRU5ErkJggg==)\n\n![Inline svg](data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHhtbG5zOnhsaW5rPSJodHRwOi8vd3d3LnczLm9yZy8xOTk5L3hsaW5rIiB3aWR0aD0iMjAiIGhlaWdodD0iMjAiIG9ubG9hZD0iYWxlcnQoMSkiPjxzY3JpcHQ+YWxlcnQoMik8L3NjcmlwdD48Y2lyY2xlIGN4PSIxMCIgY3k9IjEwIiByPSI4IiBmaWxsPSIjMmE3ZmQ0IiBvbmNsaWNrPSJhbGVydCgzKSIvPjxmb3JlaWduT2JqZWN0IHdpZHRoPSIyMCIgaGVpZ2h0PSIyMCI+PGRpdiB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMTk5OS94aHRtbCI+eDwvZGl2PjwvZm9yZWlnbk9iamVjdD48aW1hZ2UgaHJlZj0iaHR0cHM6Ly90cmFja2VyLmV2aWwuZXhhbXBsZS9waXhlbC5wbmciIHdpZHRoPSIxIiBoZWlnaHQ9IjEiLz48dXNlIHhsaW5rOmhyZWY9Imh0dHBzOi8vdHJhY2tlci5ldmlsLmV4YW1wbGUvc3ByaXRlLnN2ZyNpY29uIi8+PC9zdmc+)\n\nVisible paragraph three."
+      },
+      "expect": {
+        "status": 200,
+        "body": {
+          "text": {
+            "$includes": "Visible paragraph two.",
+            "$excludes": "<iframe"
+          }
+        }
+      }
+    },
+    {
+      "op": "render",
+      "args": {
+        "body": "Visible paragraph one.\n\n<div onclick=\"steal()\">Raw block</div>\n\n<script>window.leak = 1</script>\n\n<iframe src=\"https://widget.evil.example/embed\"></iframe>\n\n<img src=\"https://pixel.evil.example/open.gif\">\n\nVisible paragraph two.\n\n![Plain http chart](http://charts.example.com/a.png)\n\n![Secure chart](https://charts.example.com/b.png)\n\n![Inline png](data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR4nGPQqr/yHwAE0QJ9PWShagAAAABJRU5ErkJggg==)\n\n![Inline svg](data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHhtbG5zOnhsaW5rPSJodHRwOi8vd3d3LnczLm9yZy8xOTk5L3hsaW5rIiB3aWR0aD0iMjAiIGhlaWdodD0iMjAiIG9ubG9hZD0iYWxlcnQoMSkiPjxzY3JpcHQ+YWxlcnQoMik8L3NjcmlwdD48Y2lyY2xlIGN4PSIxMCIgY3k9IjEwIiByPSI4IiBmaWxsPSIjMmE3ZmQ0IiBvbmNsaWNrPSJhbGVydCgzKSIvPjxmb3JlaWduT2JqZWN0IHdpZHRoPSIyMCIgaGVpZ2h0PSIyMCI+PGRpdiB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMTk5OS94aHRtbCI+eDwvZGl2PjwvZm9yZWlnbk9iamVjdD48aW1hZ2UgaHJlZj0iaHR0cHM6Ly90cmFja2VyLmV2aWwuZXhhbXBsZS9waXhlbC5wbmciIHdpZHRoPSIxIiBoZWlnaHQ9IjEiLz48dXNlIHhsaW5rOmhyZWY9Imh0dHBzOi8vdHJhY2tlci5ldmlsLmV4YW1wbGUvc3ByaXRlLnN2ZyNpY29uIi8+PC9zdmc+)\n\nVisible paragraph three."
+      },
+      "expect": {
+        "status": 200,
+        "body": {
+          "text": {
+            "$includes": "Visible paragraph three.",
+            "$excludes": "window.leak"
+          }
+        }
+      }
+    },
+    {
+      "op": "render",
+      "args": {
+        "body": "Visible paragraph one.\n\n<div onclick=\"steal()\">Raw block</div>\n\n<script>window.leak = 1</script>\n\n<iframe src=\"https://widget.evil.example/embed\"></iframe>\n\n<img src=\"https://pixel.evil.example/open.gif\">\n\nVisible paragraph two.\n\n![Plain http chart](http://charts.example.com/a.png)\n\n![Secure chart](https://charts.example.com/b.png)\n\n![Inline png](data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR4nGPQqr/yHwAE0QJ9PWShagAAAABJRU5ErkJggg==)\n\n![Inline svg](data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHhtbG5zOnhsaW5rPSJodHRwOi8vd3d3LnczLm9yZy8xOTk5L3hsaW5rIiB3aWR0aD0iMjAiIGhlaWdodD0iMjAiIG9ubG9hZD0iYWxlcnQoMSkiPjxzY3JpcHQ+YWxlcnQoMik8L3NjcmlwdD48Y2lyY2xlIGN4PSIxMCIgY3k9IjEwIiByPSI4IiBmaWxsPSIjMmE3ZmQ0IiBvbmNsaWNrPSJhbGVydCgzKSIvPjxmb3JlaWduT2JqZWN0IHdpZHRoPSIyMCIgaGVpZ2h0PSIyMCI+PGRpdiB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMTk5OS94aHRtbCI+eDwvZGl2PjwvZm9yZWlnbk9iamVjdD48aW1hZ2UgaHJlZj0iaHR0cHM6Ly90cmFja2VyLmV2aWwuZXhhbXBsZS9waXhlbC5wbmciIHdpZHRoPSIxIiBoZWlnaHQ9IjEiLz48dXNlIHhsaW5rOmhyZWY9Imh0dHBzOi8vdHJhY2tlci5ldmlsLmV4YW1wbGUvc3ByaXRlLnN2ZyNpY29uIi8+PC9zdmc+)\n\nVisible paragraph three."
+      },
+      "expect": {
+        "status": 200,
+        "body": {
+          "images": {
+            "$none": {
+              "src": {
+                "$includes": "pixel.evil.example"
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "op": "render",
+      "args": {
+        "body": "Visible paragraph one.\n\n<div onclick=\"steal()\">Raw block</div>\n\n<script>window.leak = 1</script>\n\n<iframe src=\"https://widget.evil.example/embed\"></iframe>\n\n<img src=\"https://pixel.evil.example/open.gif\">\n\nVisible paragraph two.\n\n![Plain http chart](http://charts.example.com/a.png)\n\n![Secure chart](https://charts.example.com/b.png)\n\n![Inline png](data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR4nGPQqr/yHwAE0QJ9PWShagAAAABJRU5ErkJggg==)\n\n![Inline svg](data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHhtbG5zOnhsaW5rPSJodHRwOi8vd3d3LnczLm9yZy8xOTk5L3hsaW5rIiB3aWR0aD0iMjAiIGhlaWdodD0iMjAiIG9ubG9hZD0iYWxlcnQoMSkiPjxzY3JpcHQ+YWxlcnQoMik8L3NjcmlwdD48Y2lyY2xlIGN4PSIxMCIgY3k9IjEwIiByPSI4IiBmaWxsPSIjMmE3ZmQ0IiBvbmNsaWNrPSJhbGVydCgzKSIvPjxmb3JlaWduT2JqZWN0IHdpZHRoPSIyMCIgaGVpZ2h0PSIyMCI+PGRpdiB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMTk5OS94aHRtbCI+eDwvZGl2PjwvZm9yZWlnbk9iamVjdD48aW1hZ2UgaHJlZj0iaHR0cHM6Ly90cmFja2VyLmV2aWwuZXhhbXBsZS9waXhlbC5wbmciIHdpZHRoPSIxIiBoZWlnaHQ9IjEiLz48dXNlIHhsaW5rOmhyZWY9Imh0dHBzOi8vdHJhY2tlci5ldmlsLmV4YW1wbGUvc3ByaXRlLnN2ZyNpY29uIi8+PC9zdmc+)\n\nVisible paragraph three."
+      },
+      "expect": {
+        "status": 200,
+        "body": {
+          "images": {
+            "$contains": [
+              {
+                "alt": "Inline svg",
+                "svg": {
+                  "$excludes": "<script"
+                }
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "op": "render",
+      "args": {
+        "body": "Visible paragraph one.\n\n<div onclick=\"steal()\">Raw block</div>\n\n<script>window.leak = 1</script>\n\n<iframe src=\"https://widget.evil.example/embed\"></iframe>\n\n<img src=\"https://pixel.evil.example/open.gif\">\n\nVisible paragraph two.\n\n![Plain http chart](http://charts.example.com/a.png)\n\n![Secure chart](https://charts.example.com/b.png)\n\n![Inline png](data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR4nGPQqr/yHwAE0QJ9PWShagAAAABJRU5ErkJggg==)\n\n![Inline svg](data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHhtbG5zOnhsaW5rPSJodHRwOi8vd3d3LnczLm9yZy8xOTk5L3hsaW5rIiB3aWR0aD0iMjAiIGhlaWdodD0iMjAiIG9ubG9hZD0iYWxlcnQoMSkiPjxzY3JpcHQ+YWxlcnQoMik8L3NjcmlwdD48Y2lyY2xlIGN4PSIxMCIgY3k9IjEwIiByPSI4IiBmaWxsPSIjMmE3ZmQ0IiBvbmNsaWNrPSJhbGVydCgzKSIvPjxmb3JlaWduT2JqZWN0IHdpZHRoPSIyMCIgaGVpZ2h0PSIyMCI+PGRpdiB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMTk5OS94aHRtbCI+eDwvZGl2PjwvZm9yZWlnbk9iamVjdD48aW1hZ2UgaHJlZj0iaHR0cHM6Ly90cmFja2VyLmV2aWwuZXhhbXBsZS9waXhlbC5wbmciIHdpZHRoPSIxIiBoZWlnaHQ9IjEiLz48dXNlIHhsaW5rOmhyZWY9Imh0dHBzOi8vdHJhY2tlci5ldmlsLmV4YW1wbGUvc3ByaXRlLnN2ZyNpY29uIi8+PC9zdmc+)\n\nVisible paragraph three."
+      },
+      "expect": {
+        "status": 200,
+        "body": {
+          "images": {
+            "$contains": [
+              {
+                "alt": "Inline svg",
+                "svg": {
+                  "$excludes": "foreignObject"
+                }
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "op": "render",
+      "args": {
+        "body": "Visible paragraph one.\n\n<div onclick=\"steal()\">Raw block</div>\n\n<script>window.leak = 1</script>\n\n<iframe src=\"https://widget.evil.example/embed\"></iframe>\n\n<img src=\"https://pixel.evil.example/open.gif\">\n\nVisible paragraph two.\n\n![Plain http chart](http://charts.example.com/a.png)\n\n![Secure chart](https://charts.example.com/b.png)\n\n![Inline png](data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR4nGPQqr/yHwAE0QJ9PWShagAAAABJRU5ErkJggg==)\n\n![Inline svg](data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHhtbG5zOnhsaW5rPSJodHRwOi8vd3d3LnczLm9yZy8xOTk5L3hsaW5rIiB3aWR0aD0iMjAiIGhlaWdodD0iMjAiIG9ubG9hZD0iYWxlcnQoMSkiPjxzY3JpcHQ+YWxlcnQoMik8L3NjcmlwdD48Y2lyY2xlIGN4PSIxMCIgY3k9IjEwIiByPSI4IiBmaWxsPSIjMmE3ZmQ0IiBvbmNsaWNrPSJhbGVydCgzKSIvPjxmb3JlaWduT2JqZWN0IHdpZHRoPSIyMCIgaGVpZ2h0PSIyMCI+PGRpdiB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMTk5OS94aHRtbCI+eDwvZGl2PjwvZm9yZWlnbk9iamVjdD48aW1hZ2UgaHJlZj0iaHR0cHM6Ly90cmFja2VyLmV2aWwuZXhhbXBsZS9waXhlbC5wbmciIHdpZHRoPSIxIiBoZWlnaHQ9IjEiLz48dXNlIHhsaW5rOmhyZWY9Imh0dHBzOi8vdHJhY2tlci5ldmlsLmV4YW1wbGUvc3ByaXRlLnN2ZyNpY29uIi8+PC9zdmc+)\n\nVisible paragraph three."
+      },
+      "expect": {
+        "status": 200,
+        "body": {
+          "images": {
+            "$contains": [
+              {
+                "alt": "Inline svg",
+                "svg": {
+                  "$excludes": "onload"
+                }
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "op": "render",
+      "args": {
+        "body": "Visible paragraph one.\n\n<div onclick=\"steal()\">Raw block</div>\n\n<script>window.leak = 1</script>\n\n<iframe src=\"https://widget.evil.example/embed\"></iframe>\n\n<img src=\"https://pixel.evil.example/open.gif\">\n\nVisible paragraph two.\n\n![Plain http chart](http://charts.example.com/a.png)\n\n![Secure chart](https://charts.example.com/b.png)\n\n![Inline png](data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR4nGPQqr/yHwAE0QJ9PWShagAAAABJRU5ErkJggg==)\n\n![Inline svg](data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHhtbG5zOnhsaW5rPSJodHRwOi8vd3d3LnczLm9yZy8xOTk5L3hsaW5rIiB3aWR0aD0iMjAiIGhlaWdodD0iMjAiIG9ubG9hZD0iYWxlcnQoMSkiPjxzY3JpcHQ+YWxlcnQoMik8L3NjcmlwdD48Y2lyY2xlIGN4PSIxMCIgY3k9IjEwIiByPSI4IiBmaWxsPSIjMmE3ZmQ0IiBvbmNsaWNrPSJhbGVydCgzKSIvPjxmb3JlaWduT2JqZWN0IHdpZHRoPSIyMCIgaGVpZ2h0PSIyMCI+PGRpdiB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMTk5OS94aHRtbCI+eDwvZGl2PjwvZm9yZWlnbk9iamVjdD48aW1hZ2UgaHJlZj0iaHR0cHM6Ly90cmFja2VyLmV2aWwuZXhhbXBsZS9waXhlbC5wbmciIHdpZHRoPSIxIiBoZWlnaHQ9IjEiLz48dXNlIHhsaW5rOmhyZWY9Imh0dHBzOi8vdHJhY2tlci5ldmlsLmV4YW1wbGUvc3ByaXRlLnN2ZyNpY29uIi8+PC9zdmc+)\n\nVisible paragraph three."
+      },
+      "expect": {
+        "status": 200,
+        "body": {
+          "images": {
+            "$contains": [
+              {
+                "alt": "Inline svg",
+                "svg": {
+                  "$excludes": "onclick"
+                }
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "op": "render",
+      "args": {
+        "body": "Visible paragraph one.\n\n<div onclick=\"steal()\">Raw block</div>\n\n<script>window.leak = 1</script>\n\n<iframe src=\"https://widget.evil.example/embed\"></iframe>\n\n<img src=\"https://pixel.evil.example/open.gif\">\n\nVisible paragraph two.\n\n![Plain http chart](http://charts.example.com/a.png)\n\n![Secure chart](https://charts.example.com/b.png)\n\n![Inline png](data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR4nGPQqr/yHwAE0QJ9PWShagAAAABJRU5ErkJggg==)\n\n![Inline svg](data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHhtbG5zOnhsaW5rPSJodHRwOi8vd3d3LnczLm9yZy8xOTk5L3hsaW5rIiB3aWR0aD0iMjAiIGhlaWdodD0iMjAiIG9ubG9hZD0iYWxlcnQoMSkiPjxzY3JpcHQ+YWxlcnQoMik8L3NjcmlwdD48Y2lyY2xlIGN4PSIxMCIgY3k9IjEwIiByPSI4IiBmaWxsPSIjMmE3ZmQ0IiBvbmNsaWNrPSJhbGVydCgzKSIvPjxmb3JlaWduT2JqZWN0IHdpZHRoPSIyMCIgaGVpZ2h0PSIyMCI+PGRpdiB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMTk5OS94aHRtbCI+eDwvZGl2PjwvZm9yZWlnbk9iamVjdD48aW1hZ2UgaHJlZj0iaHR0cHM6Ly90cmFja2VyLmV2aWwuZXhhbXBsZS9waXhlbC5wbmciIHdpZHRoPSIxIiBoZWlnaHQ9IjEiLz48dXNlIHhsaW5rOmhyZWY9Imh0dHBzOi8vdHJhY2tlci5ldmlsLmV4YW1wbGUvc3ByaXRlLnN2ZyNpY29uIi8+PC9zdmc+)\n\nVisible paragraph three."
+      },
+      "expect": {
+        "status": 200,
+        "body": {
+          "images": {
+            "$contains": [
+              {
+                "alt": "Inline svg",
+                "svg": {
+                  "$excludes": "tracker.evil.example"
+                }
+              }
+            ]
+          }
+        }
+      }
+    }
+  ]
+}

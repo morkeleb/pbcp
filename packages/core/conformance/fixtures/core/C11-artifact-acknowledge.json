@@ -1,0 +1,157 @@
+{
+  "name": "C11 acknowledging an artifact sets acknowledged_at and the card stays open",
+  "rfc": [
+    "§4.2",
+    "§6"
+  ],
+  "steps": [
+    {
+      "op": "put",
+      "args": {
+        "token": "hermes",
+        "card": {
+          "protocol": "pbcp/1",
+          "id": "hermes:gmail:19b07c2d4e11",
+          "kind": "artifact",
+          "to_person": "morten",
+          "producer": "hermes",
+          "title": "Newsletter from Nordic Supply",
+          "body": "Quarterly update; no action needed.",
+          "emitted_at": "2026-10-07T13:02:11Z",
+          "urgency": "log",
+          "thread": "gmail:19b07c2d4e11"
+        }
+      },
+      "expect": {
+        "status": 201,
+        "body": {
+          "state": "open",
+          "acknowledged_at": {
+            "$absent": true
+          }
+        }
+      }
+    },
+    {
+      "op": "seen",
+      "args": {
+        "id": "hermes:gmail:19b07c2d4e11"
+      },
+      "expect": {
+        "status": 200,
+        "body": {
+          "seen_at": {
+            "$present": true
+          },
+          "acknowledged_at": {
+            "$absent": true
+          }
+        }
+      }
+    },
+    {
+      "op": "syncAll",
+      "args": {
+        "token": "hermes",
+        "after": 0
+      },
+      "expect": {
+        "status": 200,
+        "body": {
+          "changes": [
+            {
+              "card": {
+                "id": "hermes:gmail:19b07c2d4e11",
+                "acknowledged_at": {
+                  "$absent": true
+                }
+              }
+            }
+          ]
+        }
+      },
+      "save": {
+        "seqSeen": "body.changes.0.seq"
+      }
+    },
+    {
+      "op": "acknowledge",
+      "args": {
+        "id": "hermes:gmail:19b07c2d4e11"
+      },
+      "expect": {
+        "status": 200,
+        "body": {
+          "id": "hermes:gmail:19b07c2d4e11",
+          "state": "open",
+          "acknowledged_at": {
+            "$present": true
+          },
+          "decision": {
+            "$absent": true
+          }
+        }
+      }
+    },
+    {
+      "op": "syncAll",
+      "args": {
+        "token": "hermes",
+        "after": {
+          "$var": "seqSeen"
+        }
+      },
+      "expect": {
+        "status": 200,
+        "body": {
+          "changes": [
+            {
+              "seq": {
+                "$gt": {
+                  "$var": "seqSeen"
+                }
+              },
+              "card": {
+                "id": "hermes:gmail:19b07c2d4e11",
+                "state": "open",
+                "acknowledged_at": {
+                  "$present": true
+                },
+                "decision": {
+                  "$absent": true
+                },
+                "decided_at": {
+                  "$absent": true
+                }
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "op": "put",
+      "args": {
+        "token": "hermes",
+        "card": {
+          "protocol": "pbcp/1",
+          "id": "hermes:gmail:19b07c2d4e11",
+          "kind": "artifact",
+          "to_person": "morten",
+          "producer": "hermes",
+          "title": "Newsletter from Nordic Supply",
+          "body": "Quarterly update; prices unchanged.",
+          "emitted_at": "2026-10-07T13:02:11Z",
+          "urgency": "log",
+          "thread": "gmail:19b07c2d4e11"
+        }
+      },
+      "expect": {
+        "status": 200,
+        "body": {
+          "state": "open"
+        }
+      }
+    }
+  ]
+}

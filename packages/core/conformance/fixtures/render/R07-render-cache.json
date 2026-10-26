@@ -1,0 +1,52 @@
+{
+  "name": "R07 an identical fence in two different cards is drawn once",
+  "rfc": [
+    "§3.1"
+  ],
+  "steps": [
+    {
+      "op": "render",
+      "args": {
+        "body": "Card one: weekly summary.\n\n```mermaid\npie title Decisions this week\n  \"Approved\" : 7\n  \"Rejected\" : 2\n```"
+      },
+      "expect": {
+        "status": 200,
+        "body": {
+          "fences": [
+            {
+              "type": "pie",
+              "class": "render"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "op": "render",
+      "args": {
+        "body": "Card two has different text.\n\n```mermaid\npie title Decisions this week\n  \"Approved\" : 7\n  \"Rejected\" : 2\n```\n\nAnd a trailing note."
+      },
+      "expect": {
+        "status": 200,
+        "body": {
+          "fences": [
+            {
+              "type": "pie",
+              "class": "render"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "op": "draws",
+      "args": {},
+      "expect": {
+        "status": 200,
+        "body": {
+          "count": 1
+        }
+      }
+    }
+  ]
+}

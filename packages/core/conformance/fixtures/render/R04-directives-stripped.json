@@ -1,0 +1,89 @@
+{
+  "name": "R04 click and URL-loading init directives are stripped before rendering",
+  "rfc": [
+    "§3.1",
+    "§12"
+  ],
+  "steps": [
+    {
+      "op": "render",
+      "args": {
+        "body": "Before the directives.\n\n```mermaid\n%%{init: {\"themeCSS\": \"@import url(https://fonts.evil.example/f.css);\"}}%%\nflowchart LR\n  A[Invoice] --> B[Reply]\n  click A \"https://evil.example/track\" \"Open\"\n  click B callbackFn\n```\n\nAfter the directives."
+      },
+      "expect": {
+        "status": 200,
+        "body": {
+          "stripped": {
+            "$contains": [
+              "click",
+              "init"
+            ]
+          },
+          "fences": [
+            {
+              "type": "flowchart",
+              "class": "render",
+              "source": {
+                "$excludes": "click",
+                "$includes": "A[Invoice] --> B[Reply]"
+              }
+            }
+          ],
+          "text": {
+            "$includes": "Before the directives."
+          }
+        }
+      }
+    },
+    {
+      "op": "render",
+      "args": {
+        "body": "Before the directives.\n\n```mermaid\n%%{init: {\"themeCSS\": \"@import url(https://fonts.evil.example/f.css);\"}}%%\nflowchart LR\n  A[Invoice] --> B[Reply]\n  click A \"https://evil.example/track\" \"Open\"\n  click B callbackFn\n```\n\nAfter the directives."
+      },
+      "expect": {
+        "status": 200,
+        "body": {
+          "fences": [
+            {
+              "source": {
+                "$excludes": "evil.example"
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "op": "render",
+      "args": {
+        "body": "Before the directives.\n\n```mermaid\n%%{init: {\"themeCSS\": \"@import url(https://fonts.evil.example/f.css);\"}}%%\nflowchart LR\n  A[Invoice] --> B[Reply]\n  click A \"https://evil.example/track\" \"Open\"\n  click B callbackFn\n```\n\nAfter the directives."
+      },
+      "expect": {
+        "status": 200,
+        "body": {
+          "fences": [
+            {
+              "source": {
+                "$excludes": "%%{init"
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "op": "render",
+      "args": {
+        "body": "Before the directives.\n\n```mermaid\n%%{init: {\"themeCSS\": \"@import url(https://fonts.evil.example/f.css);\"}}%%\nflowchart LR\n  A[Invoice] --> B[Reply]\n  click A \"https://evil.example/track\" \"Open\"\n  click B callbackFn\n```\n\nAfter the directives."
+      },
+      "expect": {
+        "status": 200,
+        "body": {
+          "text": {
+            "$includes": "After the directives."
+          }
+        }
+      }
+    }
+  ]
+}

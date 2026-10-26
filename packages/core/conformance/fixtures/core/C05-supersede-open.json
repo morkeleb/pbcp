@@ -1,0 +1,157 @@
+{
+  "name": "C05 superseding an open card: successor and superseded predecessor appear together with adjacent change_seq",
+  "rfc": [
+    "§8",
+    "§6",
+    "§7.2"
+  ],
+  "steps": [
+    {
+      "op": "put",
+      "args": {
+        "token": "goalpath",
+        "card": {
+          "protocol": "pbcp/1",
+          "id": "goalpath:item:4421",
+          "kind": "decision",
+          "to_person": "morten",
+          "producer": "goalpath",
+          "title": "Approve shipping item 4421 Friday",
+          "body": "Tests are green.\n\n## Proposal\n\nShip on Friday.",
+          "emitted_at": "2026-10-07T06:05:00Z",
+          "thread": "item:4421"
+        }
+      },
+      "expect": {
+        "status": 201,
+        "body": {
+          "id": "goalpath:item:4421",
+          "state": "open"
+        }
+      }
+    },
+    {
+      "op": "seen",
+      "args": {
+        "id": "goalpath:item:4421"
+      },
+      "expect": {
+        "status": 200,
+        "body": {
+          "seen_at": {
+            "$present": true
+          }
+        }
+      }
+    },
+    {
+      "op": "syncAll",
+      "args": {
+        "token": "goalpath",
+        "after": 0
+      },
+      "expect": {
+        "status": 200,
+        "body": {
+          "changes": [
+            {
+              "card": {
+                "id": "goalpath:item:4421",
+                "state": "open",
+                "seen_at": {
+                  "$present": true
+                }
+              }
+            }
+          ]
+        }
+      },
+      "save": {
+        "cursor": "body.next"
+      }
+    },
+    {
+      "op": "put",
+      "args": {
+        "token": "goalpath",
+        "card": {
+          "protocol": "pbcp/1",
+          "id": "goalpath:item:4421:revised",
+          "kind": "decision",
+          "to_person": "morten",
+          "producer": "goalpath",
+          "title": "Approve shipping item 4421 Monday",
+          "body": "One test regressed overnight.\n\n## Proposal\n\nShip on Monday instead.",
+          "emitted_at": "2026-10-07T07:00:00Z",
+          "thread": "item:4421",
+          "supersedes": "goalpath:item:4421"
+        }
+      },
+      "expect": {
+        "status": 201,
+        "body": {
+          "id": "goalpath:item:4421:revised",
+          "state": "open",
+          "supersedes": "goalpath:item:4421",
+          "seen_at": {
+            "$absent": true
+          },
+          "change_seq": {
+            "$gt": {
+              "$var": "cursor"
+            }
+          }
+        }
+      },
+      "save": {
+        "seqNew": "body.change_seq"
+      }
+    },
+    {
+      "op": "syncAll",
+      "args": {
+        "token": "goalpath",
+        "after": {
+          "$var": "cursor"
+        }
+      },
+      "expect": {
+        "status": 200,
+        "body": {
+          "ascending": true,
+          "changes": {
+            "$len": 2,
+            "$contains": [
+              {
+                "seq": {
+                  "$var": "seqNew"
+                },
+                "card": {
+                  "id": "goalpath:item:4421:revised",
+                  "state": "open",
+                  "seen_at": {
+                    "$absent": true
+                  }
+                }
+              },
+              {
+                "seq": {
+                  "$adjacent": {
+                    "$var": "seqNew"
+                  },
+                  "$gt": {
+                    "$var": "cursor"
+                  }
+                },
+                "card": {
+                  "id": "goalpath:item:4421",
+                  "state": "superseded"
+                }
+              }
+            ]
+          }
+        }
+      }
+    }
+  ]
+}

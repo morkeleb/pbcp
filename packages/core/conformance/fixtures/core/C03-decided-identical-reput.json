@@ -1,0 +1,142 @@
+{
+  "name": "C03 identical re-PUT of a decided card returns 200 with the decision in the body",
+  "rfc": [
+    "§5",
+    "§7.1"
+  ],
+  "steps": [
+    {
+      "op": "put",
+      "args": {
+        "token": "hermes",
+        "card": {
+          "protocol": "pbcp/1",
+          "id": "hermes:gmail:19a4f2e7c3b1",
+          "kind": "decision",
+          "to_person": "morten",
+          "producer": "hermes",
+          "title": "Reply to Anna re invoice timing",
+          "body": "Anna (Nordic Supply) asks whether the September invoice can be paid on the 20th instead of the 15th.\n\n## Proposed reply\n\n> Hi Anna, the 20th is fine for September.",
+          "emitted_at": "2026-10-07T13:02:11Z",
+          "thread": "gmail:19a4f2e7c3b1",
+          "urgency": "brief",
+          "actions": [
+            "approve",
+            "reject",
+            "edit"
+          ]
+        }
+      },
+      "expect": {
+        "status": 201,
+        "body": {
+          "state": "open"
+        }
+      }
+    },
+    {
+      "op": "decide",
+      "args": {
+        "id": "hermes:gmail:19a4f2e7c3b1",
+        "decision": {
+          "decision": "approve",
+          "comment": "Fine by me"
+        }
+      },
+      "expect": {
+        "status": 200,
+        "body": {
+          "id": "hermes:gmail:19a4f2e7c3b1",
+          "state": "decided",
+          "decision": "approve",
+          "decided_at": {
+            "$present": true
+          }
+        }
+      }
+    },
+    {
+      "op": "syncAll",
+      "args": {
+        "token": "hermes",
+        "after": 0
+      },
+      "expect": {
+        "status": 200,
+        "body": {
+          "changes": [
+            {
+              "card": {
+                "id": "hermes:gmail:19a4f2e7c3b1",
+                "state": "decided",
+                "decision": "approve"
+              }
+            }
+          ]
+        }
+      },
+      "save": {
+        "seqDecided": "body.changes.0.seq"
+      }
+    },
+    {
+      "op": "put",
+      "args": {
+        "token": "hermes",
+        "card": {
+          "protocol": "pbcp/1",
+          "id": "hermes:gmail:19a4f2e7c3b1",
+          "kind": "decision",
+          "to_person": "morten",
+          "producer": "hermes",
+          "title": "Reply to Anna re invoice timing",
+          "body": "Anna (Nordic Supply) asks whether the September invoice can be paid on the 20th instead of the 15th.\n\n## Proposed reply\n\n> Hi Anna, the 20th is fine for September.",
+          "emitted_at": "2026-10-08T06:00:00Z",
+          "thread": "gmail:19a4f2e7c3b1",
+          "urgency": "brief",
+          "actions": [
+            "approve",
+            "reject",
+            "edit"
+          ]
+        }
+      },
+      "expect": {
+        "status": 200,
+        "body": {
+          "id": "hermes:gmail:19a4f2e7c3b1",
+          "state": "decided",
+          "decision": "approve",
+          "comment": "Fine by me",
+          "decided_at": {
+            "$present": true
+          },
+          "change_seq": {
+            "$var": "seqDecided"
+          },
+          "body": "Anna (Nordic Supply) asks whether the September invoice can be paid on the 20th instead of the 15th.\n\n## Proposed reply\n\n> Hi Anna, the 20th is fine for September."
+        }
+      }
+    },
+    {
+      "op": "syncAll",
+      "args": {
+        "token": "hermes",
+        "after": {
+          "$var": "seqDecided"
+        }
+      },
+      "expect": {
+        "status": 200,
+        "body": {
+          "changes": {
+            "$len": 0
+          },
+          "next": {
+            "$var": "seqDecided"
+          }
+        }
+      }
+    }
+  ]
+}
