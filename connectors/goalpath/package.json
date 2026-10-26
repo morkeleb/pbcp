@@ -1,0 +1,17 @@
+{
+  "name": "@pbcp/connector-goalpath",
+  "version": "0.3.0",
+  "private": true,
+  "description": "Example producer: GoalPath milestone risk, approvals, red builds and a nightly digest to cards.",
+  "license": "MIT",
+  "type": "module",
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "start": "node dist/src/index.js"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.32.2",
+    "@pbcp/client": "workspace:*",
+    "@pbcp/core": "workspace:*"
+  }
+}

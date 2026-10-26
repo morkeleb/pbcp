@@ -7,7 +7,7 @@
     "node": ">=22"
   },
   "scripts": {
-    "build": "tsc -p packages/core/tsconfig.build.json && tsc -p packages/client/tsconfig.build.json && tsc -p packages/cli/tsconfig.build.json && tsc -p packages/mcp/tsconfig.build.json && tsc -p connectors/imap/tsconfig.build.json && tsc -p connectors/obsidian-daily/tsconfig.build.json && tsc -p connectors/caldav/tsconfig.build.json",
+    "build": "tsc -p packages/core/tsconfig.build.json && tsc -p packages/client/tsconfig.build.json && tsc -p packages/cli/tsconfig.build.json && tsc -p packages/mcp/tsconfig.build.json && tsc -p connectors/imap/tsconfig.build.json && tsc -p connectors/obsidian-daily/tsconfig.build.json && tsc -p connectors/caldav/tsconfig.build.json && tsc -p connectors/n8n/tsconfig.build.json && tsc -p connectors/goalpath/tsconfig.build.json",
     "typecheck": "tsc -p tsconfig.json",
     "test": "vitest run --passWithNoTests"
   },

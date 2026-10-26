@@ -1,0 +1,4 @@
+{
+  "nodes": [{ "id": "7a1e0c2e-4d4b-4c51-9b1a-000000000004", "name": "Billing revamp" }, { "id": "7a1e0c2e-4d4b-4c51-9b1a-000000000005", "name": "Mobile beta" }, { "id": "7a1e0c2e-4d4b-4c51-9b1a-000000000006", "name": "Rollout" }],
+  "edges": [{ "prerequisiteId": "7a1e0c2e-4d4b-4c51-9b1a-000000000004", "enablesId": "7a1e0c2e-4d4b-4c51-9b1a-000000000006" }, { "prerequisiteId": "7a1e0c2e-4d4b-4c51-9b1a-000000000005", "enablesId": "7a1e0c2e-4d4b-4c51-9b1a-000000000006" }]
+}

@@ -1,0 +1,10 @@
+{
+  "items": [
+    { "id": "3c9b7f10-2a6e-4e0f-8d3e-000000000012", "number": 12, "title": "Export invoices as CSV", "status": "Finished", "milestoneId": "7a1e0c2e-4d4b-4c51-9b1a-000000000004", "highlights": [], "url": "https://goalpath.example/i/12" },
+    { "id": "3c9b7f10-2a6e-4e0f-8d3e-000000000014", "number": "GP-14", "title": "Retry failed card payments", "status": "Started", "milestone": { "id": "7a1e0c2e-4d4b-4c51-9b1a-000000000004", "name": "Billing revamp" }, "highlight": "Blocked" },
+    { "id": "3c9b7f10-2a6e-4e0f-8d3e-000000000015", "number": 15, "title": "Offline mode for receipts", "status": "NotStarted", "milestoneId": "7a1e0c2e-4d4b-4c51-9b1a-000000000005", "highlights": [{ "type": "Question" }] },
+    { "id": "3c9b7f10-2a6e-4e0f-8d3e-000000000016", "number": 16, "title": "Push notification opt-in", "status": "Started", "milestoneId": "7a1e0c2e-4d4b-4c51-9b1a-000000000005" },
+    { "id": "3c9b7f10-2a6e-4e0f-8d3e-000000000010", "number": 10, "title": "Invoice PDF layout", "status": "Accepted", "milestoneId": "7a1e0c2e-4d4b-4c51-9b1a-000000000004", "acceptedAt": "2026-10-26T09:40:00.000Z" },
+    { "id": "3c9b7f10-2a6e-4e0f-8d3e-000000000009", "number": 9, "title": "Tax rates per region", "status": "Accepted", "milestoneId": "7a1e0c2e-4d4b-4c51-9b1a-000000000004", "acceptedAt": "2026-10-20T15:00:00.000Z" }
+  ]
+}

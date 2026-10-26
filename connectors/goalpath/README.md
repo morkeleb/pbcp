@@ -1,0 +1,91 @@
+# connectors/goalpath
+
+```sh
+pnpm --filter @pbcp/connector-goalpath build
+export GOALPATH_MCP_URL=https://… GOALPATH_TOKEN=… GOALPATH_PROJECT=… PBCP_HEAD_URL=https://head.example PBCP_TOKEN=…
+node connectors/goalpath/dist/src/index.js
+```
+
+An example producer on `@pbcp/client` for the GoalPath project tracker, read through its MCP server, one process per person. GoalPath stays the system of record; the connector carries only what needs this one person (RFC §10), and writes the answer to GoalPath's own approvals back. Individual tickets never become cards. There is no executor side yet (orders are milestone 2).
+
+**Status.** This connector has been run against the recorded fixtures in `fixtures/` only, never against a live GoalPath. The shapes of the tool outputs are guesses; see [Guessed shapes](#guessed-shapes).
+
+## Configuration
+
+| Variable | Default | |
+|---|---|---|
+| `GOALPATH_MCP_URL`, `GOALPATH_TOKEN` | – | streamable-HTTP MCP endpoint; the token is sent as `Authorization: Bearer` |
+| `GOALPATH_PROJECT` | – | project id |
+| `GOALPATH_FIXTURES` | – | a fixture file or directory to replay instead of the MCP; write-backs are then printed on exit, not sent |
+| `GOALPATH_MILESTONES` | the milestones of your open items | comma-separated milestone ids you own |
+| `GOALPATH_APPROVAL_STATUS` | `Finished` | the item status that means "waiting for your acceptance" |
+| `GOALPATH_DIGEST_AT` | `20:00` | local time from which the day's digest is produced |
+| `GOALPATH_TZ` | the process time zone | IANA name, for the digest date and time |
+| `GOALPATH_INTERVAL_S` | `300` | seconds between passes |
+| `PBCP_HEAD_URL`, `PBCP_TOKEN` | – | the head and this producer's token (root `goalpath`) |
+| `PBCP_TO_PERSON` | the head's `owner` | read once from `GET /` at startup when unset |
+| `PBCP_CURSOR` | `pbcp-goalpath.cursor.json` | sync cursor |
+| `PBCP_STATE` | the cursor path with `.cursor.json` replaced by `.state.json` | producer state |
+
+## Cards
+
+The producer root is `goalpath`. `<…-id>` is GoalPath's id, percent-encoded as in §5 (a UUID is unchanged). `<date>` is `YYYYMMDD` in ids and `YYYY-MM-DD` for the digest.
+
+| Trigger | Id | Kind, urgency | Thread |
+|---|---|---|---|
+| Forecast of a milestone you own is past its deadline | `goalpath:milestone:<milestone-id>.<projected>:risk` | `signal`, `brief` | milestone id |
+| … and then back on or before the deadline | `goalpath:milestone:<milestone-id>.<projected>:on-track` | `signal`, `brief` | milestone id |
+| An item assigned to you is in `GOALPATH_APPROVAL_STATUS` | `goalpath:approval:<item-id>`, `goalpath:approval:<item-id>.<round>` from round 2 | `decision`, `brief` | item's milestone id |
+| … and it left that status in GoalPath first | `<approval card id>:answered` | `signal`, `brief` | item's milestone id |
+| A confirmed code link of one of your items in a milestone you own has a failing check | `goalpath:build:<run-id>` | `signal`, `immediate` (subject to the head's ceiling, §9) | item's milestone id |
+| Once a day, from `GOALPATH_DIGEST_AT` | `goalpath:digest:<YYYY-MM-DD>` | `artifact`, `brief` | project id |
+
+- **Risk.** Forecast, the deadline, by how many days, what moved (the forecast in the previous card of the chain, and the forecast's reasons), the milestones that depend on this one (from the dependency graph), and three options as text: cut scope, move the deadline, add capacity. It is a signal, so there are no actions.
+- **Approval.** The item, its status, milestone and highlights as evidence, then a `## Proposal` section. `actions` are `accept` and `reject`, each with a `body` saying what it sets. `edit` is not offered (§4.4); an `edited` decision, which the decide operation accepts on any decision card, is written back as an accept with the text as a comment.
+- **Build.** The check name and conclusion, the PR or commit, the item and milestone; `source` is the run URL. Only one card per run id, even when the run is linked to several items. Only checks on items in `Started`, `Finished` or `Delivered` are looked at, and only `confirmed` links: `suggested` ones are heuristic. A red run is re-submitted on every pass while it is reported; the content is the same, so the head changes nothing (§5).
+- **Digest.** First one `mermaid` `gantt` (core tier, §3.1) of up to 20 milestones not Done, from forecast start (else the milestone's start, else today) to projected end, late ones tagged `crit`; then your items accepted in the last 24 hours, your open items highlighted `Blocked`, and the unplanned share of completed work for the last week and the three before. Gantt task names drop `:` `#` `;` `%`, are cut to 40 characters, and a name starting with a gantt keyword is prefixed with `· `.
+
+"Own" is a guess: a milestone you own is one listed in `GOALPATH_MILESTONES`, or else one containing an open (not Accepted) item assigned to you. Risk and build cards are limited to those; the digest's gantt shows every milestone of the project that has a forecast.
+
+## Supersession
+
+All chains stay inside one namespace (§6) and always name the current card, which the state file records, never one already superseded (§8).
+
+- **Risk.** Each distinct projected date past the deadline is its own card. A later slip (a different projected date) supersedes the current card of that milestone. The same slip seen again yields the same id; since the state's current card already has it, nothing is sent. When the forecast comes back on or before the deadline, an `on-track` signal supersedes the risk card; staying on track sends nothing; a new slip supersedes the `on-track` card. A milestone that is Done, loses its forecast, or stops being owned leaves its last card as it is.
+- **Approval answered in GoalPath.** When an approval card is open and its item is no longer in the approval status, an `:answered` signal supersedes it, saying what the status is now (or that it is no longer assigned to you). Not when the card was decided on the head: the write-back itself moves the item out of the queue.
+- **New round.** When an item whose round was closed (decided on the head, or answered in GoalPath) has been seen out of the queue and then comes back into it (rejected, reworked, finished again), a new decision card `goalpath:approval:<item-id>.<n>` supersedes the previous round's card.
+
+## Write-back
+
+A decision on the current approval card is applied to GoalPath through the MCP when it arrives, by sync or as the body of a `200`/`409` on submit:
+
+| Decision | GoalPath |
+|---|---|
+| `accept` | `set_item_status(Accepted)`, then `add_comment(comment)` if the person left one |
+| `reject` | `set_item_status(Rejected)`, then the comment as above |
+| `edited` | `set_item_status(Accepted)`, then `add_comment(edited_proposal + comment)`: §4.3 treats `edited` as approving the proposal ("Accept GP-N") with the person's text in its place |
+| `delegated` | `add_comment("Delegated to <person>." + comment)`; no status change |
+| `dismissed` | nothing |
+
+The state file marks the round decided once the write-back succeeded, so a decision seen again (§7.2) writes nothing. A write-back that fails is retried on the next pass and parked after five failures (`@pbcp/client`). If the process dies between `set_item_status` and saving the state, the next delivery sets the same status again, which is harmless, and repeats the comment. If the item was answered in GoalPath first (an `:answered` card was sent), a decision that still reaches the head is not written back: GoalPath is authoritative. A decision made on the head after GoalPath moved the item but before the next pass sees that is written back; GoalPath's last write wins.
+
+## State and failures
+
+The state file holds the current card of every milestone's risk chain, every approval round (card id, round, whether it was submitted, decided, answered, and whether the item left the queue), and the date of the last digest. A card's state changes only after the head returned `200` or `201` (or, for an approval, any card), so a failed submit is recomputed and re-sent on the next pass. Approval rounds are never pruned.
+
+Known gap: a risk chain that comes back to a projected date it already used (slip to 24 Nov, on track, slip to 24 Nov again) mints an id the head holds as superseded; the head answers `409` and the slip is not shown until the forecast moves again.
+
+## Guessed shapes
+
+Nothing below comes from GoalPath documentation of tool output; the tool names and inputs are the MCP's, everything about outputs is assumed. The normaliser in `src/source.ts` reads each field from the first of several plausible keys, so one wrong guess degrades one fact rather than the whole pass. `fixtures/` holds synthetic output in these shapes.
+
+- **Tool results** are `structuredContent` if present, else the first `text` block parsed as JSON. `isError` throws. Lists may be bare arrays or under `items`, `data`, `results` or a tool-specific key.
+- **`list_milestones({projectId})`**: `{ milestones: [{ id, name, status, startDate, deadline, url? }] }`; status `Done` is skipped. `title`, `dueDate`, `targetDate` are accepted as alternatives.
+- **`get_milestone_forecast({milestoneId})`**: `{ projectedCompletionDate, startDate?, deadline?, confidence?, reasons?: string[] }`, possibly under `forecast`. Also read: `projectedDate`, `forecastDate`, `projectedEndDate`, `estimatedCompletionDate`; `drivers`, `risks`. A failing call leaves the milestone without a forecast. Dates are ISO dates or timestamps; the first ten characters are used.
+- **`list_my_items({projectId, includeAccepted: true})`**: `{ items: [{ id, number, title, status, milestoneId | milestone: { id }, highlight? | highlights?: (string | { type })[], acceptedAt?, url? }] }`. A numeric `number` becomes `GP-<n>`. Accepted items are fetched so the digest can list what was done; this grows with the project's history.
+- **`list_code_activity({itemId})`**: `{ confirmed: [link], suggested: [link] }`, link `{ type, number? | sha?, title | message, url?, checks | checkRuns: [{ runId | id, name, conclusion | status | state, url? }] }`. No tool exposes CI explicitly; that links carry checks with a run id is the largest guess here. A check counts as red when its conclusion, lowercased, is `failure`, `failed`, `error` or `timed_out`.
+- **`get_unplanned_work_trend({projectId, weekCount: 4})`**: `{ weeks: [{ weekStart, plannedCount, unplannedCount, unplannedRatio }] }`, oldest first; counts win, else the ratio (0–1, or a percentage above 1). A failing call (the tool needs an add-on) shows "Not available."
+- **`get_dependency_graph({projectId})`**: `{ nodes, edges: [{ prerequisiteId, enablesId }] }`.
+- **`set_item_status({itemId, status})`**, **`add_comment({itemId, content})`**: results ignored.
+- **The approval queue** is a guess: GoalPath has no approval tool, so an item assigned to you in `Finished` (GoalPath: "code ready for review, may be awaiting stakeholder acceptance") is read as waiting for your acceptance; `GOALPATH_APPROVAL_STATUS=Delivered` switches that. "Answered in GoalPath" means the item left that status.
+- **Card shapes** the skeleton leaves open: the risk id carries the projected date so a later slip can supersede (a fixed `goalpath:milestone:<id>:risk` could only be re-PUT); the `on-track`, `answered` and round ids; the digest's thread (the project id); the approval actions `accept`/`reject` without `edit`; options on the risk card as text.

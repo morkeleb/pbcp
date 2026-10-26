@@ -1,0 +1,13 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "outDir": "dist",
+    "rootDir": ".",
+    "customConditions": [],
+    "module": "CommonJS",
+    "moduleResolution": "Bundler",
+    "verbatimModuleSyntax": false
+  },
+  "include": ["src"],
+  "exclude": ["**/*.test.ts", "src/fake-context.ts"]
+}

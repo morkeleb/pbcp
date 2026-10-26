@@ -1,0 +1,9 @@
+{
+  "projectId": "p-demo",
+  "weeks": [
+    { "weekStart": "2026-09-28", "plannedCount": 9, "unplannedCount": 1, "unplannedRatio": 0.1 },
+    { "weekStart": "2026-10-05", "plannedCount": 8, "unplannedCount": 2, "unplannedRatio": 0.2 },
+    { "weekStart": "2026-10-12", "plannedCount": 6, "unplannedCount": 4, "unplannedRatio": 0.4 },
+    { "weekStart": "2026-10-19", "unplannedRatio": 25 }
+  ]
+}

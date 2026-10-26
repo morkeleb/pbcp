@@ -1,0 +1,48 @@
+{
+  "name": "n8n-nodes-pbcp",
+  "version": "0.3.0",
+  "description": "n8n community nodes for PBCP: a polling trigger on sync and a submit action.",
+  "license": "MIT",
+  "keywords": [
+    "n8n-community-node-package",
+    "pbcp"
+  ],
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "prepack": "tsc -p tsconfig.build.json"
+  },
+  "n8n": {
+    "n8nNodesApiVersion": 1,
+    "credentials": [
+      "dist/src/credentials/PbcpApi.credentials.js"
+    ],
+    "nodes": [
+      "dist/src/nodes/PbcpTrigger/PbcpTrigger.node.js",
+      "dist/src/nodes/PbcpSubmit/PbcpSubmit.node.js"
+    ]
+  },
+  "dependencies": {
+    "@pbcp/client": "workspace:*",
+    "@pbcp/core": "workspace:*"
+  },
+  "peerDependencies": {
+    "n8n-workflow": "*"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/morkeleb/pbcp.git",
+    "directory": "connectors/n8n"
+  },
+  "homepage": "https://github.com/morkeleb/pbcp/tree/main/connectors/n8n",
+  "engines": {
+    "node": ">=22.12"
+  },
+  "devDependencies": {
+    "n8n-workflow": "^2.16.0"
+  }
+}
