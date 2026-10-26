@@ -1,6 +1,6 @@
 # RFC: Personal Brief Card Protocol
 
-Oct 26, 2026 · @Morten Nielsen · Draft 0.3
+Oct 26, 2026 · @Morten Nielsen · Draft 0.4
 
 ## Abstract
 
@@ -8,7 +8,7 @@ This document specifies a protocol for crossing the authority boundary between a
 
 The core protocol is deliberately small: three operations, one document, one state machine in the core (extensions may add their own lifecycle). A conforming producer can be written in an afternoon with an HTTP client and a string template. It is the mailbox model (SMTP, IMAP) rather than the collaboration model (Google Wave): one writer per card and no concurrent editing. A card may be replaced by its producer while open; once decided it is locked, and change requires a new card. Giving work back to agents — orders, claims, delegation — is specified as an extension (Appendix A) on top of the same card primitive, so a head or producer that only needs the decision flow can ignore it.
 
-**Status:** Draft 0.3, for discussion. The core protocol is implemented as a library, a conformance suite, a client and one producer; no head implements it end to end yet. Draft 0.3 makes normative what that implementation had to decide: the restricted YAML subset, semantic equality, percent-encoded upstream ids, sync and parking rules, refusals and their error codes, and a `GET /` description. `rfc/CHANGELOG.md` lists every change against 0.2.
+**Status:** Draft 0.4, for discussion. The core protocol is implemented as a library, a conformance suite, a client, a command line, an MCP adapter and several producers, and one head implements it end to end over HTTP. Draft 0.4 resolves what that head and that tooling found: the clamped urgency is a head-owned `delivery` field, decide is the owner's operation and refuses producer tokens, a malformed sync cursor has its own error code, and paths are relative to the head's base URL. `rfc/CHANGELOG.md` lists every change against 0.3.
 
 ## 1. Motivation
 
@@ -52,7 +52,7 @@ The head is authoritative only for what reached the person, what they saw, what 
 | 08:12 | colleague's head | Syncs the delegation, shows it to its owner as a decision card | (Appendix B, not yet specified) |
 | 18:00 | head | Day view: every card, every decision, in order | — |
 
-Each producer talked only to the head, only by PUT and sync, and never had to know what the brief looked like or that the other producers existed.
+Each producer talked only to the head, only by PUT and sync, and never had to know what the brief looked like or that the other producers existed. The three decisions at 08:10 were made through the head's own interface with the owner's credential (§7.3); no producer token can decide. Every card here lands as it asked (its `delivery` equals its `urgency`) because no producer is above its ceiling (§9).
 
 ## 2. Terminology and conventions
 
@@ -184,7 +184,7 @@ What this means for a producer: a visual is legible at 360 px wide or it is not 
 
 A head declares its tier support in `render.mermaid` of its description (`GET /`, §7.5), so a producer or a client can check before relying on a type.
 
-**Size.** A head MUST accept a card whose JSON wire form is up to 64 KiB and MAY reject larger ones with `413`. The limit is on the wire representation, so the two forms cannot disagree.
+**Size.** A head MUST accept a card whose JSON wire form is up to 64 KiB and MAY reject larger ones with `413`; it MUST reject one larger than 1 MiB with `413`. The limit is on the wire representation, so the two forms cannot disagree.
 
 **Unknown fields.** A head MUST ignore producer-owned fields it does not recognise and SHOULD preserve them, verbatim, in what it returns and syncs, so a producer can round-trip its own extensions. Because preservation is only recommended, a producer that needs state to act on a decision (where the message is, which record to update) keeps that state itself, keyed on the card id, rather than in fields it expects the head to echo. A head MUST reject any field in the head-owned set (§4.2) on submission. Extensions (Appendix A) define their fields under a prefix (`x-` for private use, the extension's name otherwise) to keep them out of the core namespace.
 
@@ -203,7 +203,7 @@ Set by the producer at submission. The head MUST NOT alter them.
 | `producer` | yes | string | Denormalised from the first segment of `id` for readability and filtering; the id namespace is authoritative, and a mismatch is `400`. See `id`. |
 | `title` | yes | string | One line, shown in lists and the brief. MUST NOT be empty or contain CR or LF. |
 | `body` | yes | string | Markdown, see §3. |
-| `urgency` | no | enum | `immediate`, `brief` (default), `log`. See §9. |
+| `urgency` | no | enum | `immediate`, `brief` (default), `log`. The producer's request; the head never alters it. Where the card lands is the head-owned `delivery` (§4.2, §9). |
 | `thread` | no | string | Grouping key within the producer. Not empty. |
 | `references` | no | list | Ids of related cards, any producer. |
 | `supersedes` | no | string | Id of an earlier card this one replaces; same namespace only. |
@@ -220,6 +220,7 @@ Set only by the head. A producer MUST NOT include them on submission; a head MUS
 | `state` | enum | `open`, `decided`, `superseded`. |
 | `change_seq` | integer | Monotonic sequence number, assigned anew on every head-side change to this card, including the owner-side fields below (`seen_at`, `acknowledged_at`, `snoozed_until`). The sync cursor, see §7.2. |
 | `received_at` | timestamp | When the head accepted the card (head clock). |
+| `delivery` | enum | `immediate`, `brief` or `log`: where the card lands. Set whenever the head stores the producer's content (`201`, or `200` with a replacement) to the card's `urgency` (default `brief`) clamped to the producer's ceiling (§9). |
 | `changed_at` | timestamp | When any head-owned field last changed (head clock). |
 | `seen_at` | timestamp | Implementation-defined evidence that the head presented the card to its owner. A head MUST NOT set it merely because the card was synced or folded into a generated brief. |
 | `acknowledged_at` | timestamp | For `artifact` and `signal` cards: when the person acknowledged the card through whatever explicit acknowledgement the head's interface offers. Inclusion in a generated brief MUST NOT by itself set it, and a head MUST NOT set it on a `decision` card. The head's record that the person explicitly acknowledged the card; a producer observes it through sync. Acknowledging an acknowledged card changes nothing. |
@@ -337,7 +338,9 @@ Snooze is not a state: `snoozed_until` hides an `open` card from the brief witho
 
 ## 7. Operations
 
-There are three operations, and a description of the head (§7.5). A head MUST expose them over HTTPS with JSON bodies. The head never calls a producer; all traffic is producer-initiated, so a producer behind NAT or on a laptop needs no inbound port. HTTP is the protocol; an MCP server exposing `submit_card`, `poll_changes` and `decide_card` is an adapter over it, not a second definition, and a head SHOULD offer one.
+There are three operations, and a description of the head (§7.5). Two are a producer's: submit (§7.1) and sync (§7.2), authenticated with its producer token. The third, decide (§7.3), is the owner's, authenticated with a credential the protocol does not define. A head MUST expose them over HTTPS with JSON bodies. The head never calls a producer; all traffic is producer-initiated, so a producer behind NAT or on a laptop needs no inbound port. HTTP is the protocol; an MCP server exposing `submit_card`, `poll_changes` and, when the head implements the `orders` extension, `claim_order` is an adapter over it, not a second definition, and a head SHOULD offer one. Decide is not offered over MCP: the adapter acts with a producer token, which decide refuses.
+
+The paths in this document are relative to the head's base URL. A head MAY mount them under a prefix (`https://example.org/pbcp/cards/{id}`); `GET /` is the base URL itself.
 
 ### 7.1 Submit
 
@@ -349,7 +352,7 @@ Authorization: Bearer <producer token>
 { card }
 ```
 
-Responses: `201`, `200`, `400` (the card does not conform), `401` (missing or bad token), `403` (id outside the producer's namespace, a card for another person, or cross-namespace `supersedes`), `409` (locked card, different content; or a supersede target already superseded), `413` (card too large), `429` (rate-limited). A `201` and a `200` return the stored card in full, including head-owned fields; so does a `409` for a locked card. Every other refusal carries an error body (§7.4), including the `409` for superseding a card that is already superseded (§8).
+Responses: `201`, `200`, `400` (the card does not conform), `401` (missing or invalid producer token), `403` (id outside the producer's namespace, a card for another person, or cross-namespace `supersedes`), `409` (locked card, different content; or a supersede target already superseded), `413` (card too large), `429` (rate-limited). A `201` and a `200` return the stored card in full, including head-owned fields; so does a `409` for a locked card. Every other refusal carries an error body (§7.4), including the `409` for superseding a card that is already superseded (§8).
 
 `{id}` is the card's id, percent-encoded as a URL path segment; the decoded value MUST equal the card's `id`, or the head rejects the card with `400`. When several refusals apply, a head reports the first in this order, so a producer can tell what to fix:
 
@@ -371,6 +374,8 @@ Authorization: Bearer <producer token>
 
 Sync returns current cards, not an event log. Each entry is a card in the producer's namespace whose latest `change_seq` is greater than `after`, carrying that card's current representation and its `seq`; intermediate representations between two polls are not returned. Entries are in ascending `seq`. The head MUST assign `change_seq` from one strictly increasing counter per head — gaps are allowed, and an atomic change to several cards takes several consecutive values; in a supersession the predecessor takes the lower and the successor the higher — so a producer that stores `next` and passes it back never misses a changed card and never sees a stale one, regardless of clocks. A card's `change_seq` MUST increase whenever its current representation changes, owner-side fields included (§4.2), and a sequence value once assigned MUST never be reused, also across a restore of the head's storage.
 
+`after` is a non-negative integer in decimal notation: `0`, or a `next` the head returned. A missing or malformed `after` (`-1`, `1.5`, `abc`) is refused with `400` and the code `invalid_cursor`.
+
 `next` is the highest *global* head sequence the head examined while building the response — not the highest belonging to this producer, since cards of other producers advance it too — or `after` when nothing is newer. A head MAY cap the page; when it does, `next` is the `seq` of the last entry returned, and the producer loops until `next` stops moving. `next` is never lower than `after`; a producer that receives a lower `next` treats the response as an error and leaves its cursor where it was. Timestamps are for display and filtering, never for synchronisation.
 
 The durable-consumer pattern a producer MUST follow:
@@ -391,13 +396,14 @@ A producer sees the same change more than once: a `200` or `409` on submit retur
 ```
 POST /cards/{id}/decision
 Content-Type: application/json
+Authorization: <the owner's credential>
 
 { "decision": "edited", "edited_proposal": "...", "comment": "..." }
 ```
 
-Head-only in the core protocol: this endpoint is called by the head's own interface on behalf of the person, never by a producer. (Appendix A uses it for the person to cancel an order; an executor's claim is a separate operation, A.2.) `decision` MUST be one of the card's `actions` other than `edit`, or one of the built-in values `dismissed`, `delegated` (with `delegated_to`), `edited` (with `edited_proposal`); `edited` is accepted on every decision card (§4.4). `edited_proposal` and `delegated_to` appear with their decision and with no other; `comment` may accompany any. The protocol defines no credentials for human interfaces: who may decide on behalf of the owner is entirely the head's responsibility.
+The owner's operation: the head's own interface calls it on behalf of the person, never a producer. It is performed with the head owner's credential, which the protocol does not define (a session, a passkey assertion, a local socket); a head exposes it however it likes, at this path or another. A producer token MUST be refused with `401`, before the request is otherwise examined. (Appendix A uses decide for the person to cancel an order; an executor's claim is a separate operation, A.2.) `decision` MUST be one of the card's `actions` other than `edit`, or one of the built-in values `dismissed`, `delegated` (with `delegated_to`), `edited` (with `edited_proposal`); `edited` is accepted on every decision card (§4.4). `edited_proposal` and `delegated_to` appear with their decision and with no other; `comment` may accompany any. The protocol defines no credentials for human interfaces: who may decide on behalf of the owner is entirely the head's responsibility.
 
-Responses: `200` with the decided card; `400` for a value not allowed above, or for a card that is not `kind: decision`; `404` for an id the head does not hold; `409` with the stored card when the card is already `decided` or `superseded`.
+Responses: `200` with the decided card; `401` for a missing or invalid owner credential, a producer token included; `400` for a value not allowed above, or for a card that is not `kind: decision`; `404` for an id the head does not hold; `409` with the stored card when the card is already `decided` or `superseded`.
 
 ### 7.4 Status codes
 
@@ -406,7 +412,7 @@ Responses: `200` with the decided card; `400` for a value not allowed above, or 
 | `200` | Accepted, nothing new, or already decided — read the body |
 | `201` | New card stored |
 | `400` | Card or request does not conform |
-| `401` | Missing or bad producer token |
+| `401` | Missing or invalid credential: a producer token on submit or sync, the owner's credential on decide |
 | `403` | Id or supersede target outside the producer's namespace, or a card for another person |
 | `404` | No card with this id |
 | `409` | Card is locked and the content differs, or a supersede target is already superseded |
@@ -417,7 +423,7 @@ Responses: `200` with the decided card; `400` for a value not allowed above, or 
 
 | Status | `error` codes |
 | --- | --- |
-| `400` | `malformed_json`, `malformed_front_matter`, `yaml_outside_subset`, `invalid_card`, `invalid_id`, `producer_mismatch`, `head_owned_field`, `unsupported_protocol`, `unsupported_kind`, `duplicate_action`, `multiple_defaults`, `id_mismatch`, `supersede_self`, `supersede_target_missing`, `invalid_decision`, `not_decidable`, `not_acknowledgeable` |
+| `400` | `malformed_json`, `malformed_front_matter`, `yaml_outside_subset`, `invalid_card`, `invalid_id`, `producer_mismatch`, `head_owned_field`, `unsupported_protocol`, `unsupported_kind`, `duplicate_action`, `multiple_defaults`, `id_mismatch`, `supersede_self`, `supersede_target_missing`, `invalid_cursor`, `invalid_decision`, `not_decidable`, `not_acknowledgeable` |
 | `401` | `unauthorized` |
 | `403` | `outside_root`, `wrong_person`, `cross_namespace_supersede` |
 | `404` | `not_found` |
@@ -425,7 +431,7 @@ Responses: `200` with the decided card; `400` for a value not allowed above, or 
 | `413` | `too_large` |
 | `429` | `rate_limited` |
 
-`not_acknowledgeable` is for a head's own interface, which refuses to acknowledge a decision card (§4.2). Extensions define their own statuses and codes; the orders extension uses `409` and `410` for claims (A.2, A.5). A `429` carries `Retry-After` in seconds; a producer SHOULD NOT send another request to that head before it has elapsed.
+`unauthorized` covers every missing or invalid credential, producer or owner. `invalid_cursor` is a missing or malformed `after` on sync (§7.2). `not_acknowledgeable` is for a head's own interface, which refuses to acknowledge a decision card (§4.2). Extensions define their own statuses and codes; the orders extension uses `409` and `410` for claims (A.2, A.5). A `429` carries `Retry-After` in seconds; a producer SHOULD NOT send another request to that head before it has elapsed.
 
 ### 7.5 Describe
 
@@ -433,10 +439,10 @@ Responses: `200` with the decided card; `400` for a value not allowed above, or 
 GET /
 
 200 OK
-{ "protocol": "pbcp/1", "owner": "morten", "extensions": [], "render": { "mermaid": ["core", "extended"] } }
+{ "protocol": "pbcp/1", "owner": "morten", "seq": 1042, "extensions": [], "render": { "mermaid": ["core", "extended"] } }
 ```
 
-A head MUST answer `GET /` with its description: `protocol`, the version it implements; `owner`, the person id it stores cards for, which a producer uses as `to_person` (§10); `extensions`, the names of the extensions it implements (`orders` for Appendix A), empty for the core alone; and `render.mermaid`, the mermaid tiers it renders (§3.1): `core`, `extended`, and `other` for a head that renders types outside both. A client ignores values it does not know. A head MAY require a producer token for `GET /`, and MAY add members; a client ignores members it does not know.
+A head MUST answer `GET /` with its description: `protocol`, the version it implements; `owner`, the person id it stores cards for, which a producer uses as `to_person` (§10); `seq`, the highest `change_seq` the head has assigned (`0` before the first), which a producer that wants only what happens from now on passes as its first `after` (§7.2) instead of reading the whole change feed; `extensions`, the names of the extensions it implements (`orders` for Appendix A), empty for the core alone; and `render.mermaid`, the mermaid tiers it renders (§3.1): `core`, `extended`, and `other` for a head that renders types outside both. A client ignores values it does not know. A head MAY require a producer token for `GET /`, and MAY add members; a client ignores members it does not know.
 
 ## 8. Threads, supersession and folding
 
@@ -452,17 +458,17 @@ Folding is the head's job: turning a day of cards into one readable brief, colla
 
 ## 9. Urgency and producer trust
 
-`urgency` is a delivery preference: it says where a card lands when it arrives, not how important it is. It does not change the card's lifecycle.
+`urgency` is a delivery preference: it says where the producer asks a card to land, not how important it is. Where it actually lands is the head-owned `delivery` (§4.2), which the head sets from `urgency` and the producer's ceiling. Neither changes the card's lifecycle.
 
-| Value | Where it lands | Typical use |
+| `delivery` | Where it lands | Typical use |
 | --- | --- | --- |
 | `immediate` | Shown at once; MAY notify | A meeting moved to ten minutes from now; a production alert |
 | `brief` (default) | Woven into the next brief | A reply to approve; today's agenda; an overnight summary |
 | `log` | Stored, shown only in the day view | A commit; a progress update; a routine signal |
 
-A `kind: decision` card remains open until decided, whatever its urgency. How a head keeps it in view (pinned, badged, listed) is the head's choice; that it stays reachable is the protocol's.
+A `kind: decision` card remains open until decided, whatever its `delivery`. How a head keeps it in view (pinned, badged, listed) is the head's choice; that it stays reachable is the protocol's.
 
-**Ceilings.** Urgency is a producer's request, not a right. A head MUST let the person set a per-producer ceiling, and MUST clamp any card above it. A new producer SHOULD default to a ceiling of `brief` until the person raises it. This is the only defence against a noisy producer short of revoking its token.
+**Ceilings.** Urgency is a producer's request, not a right. A head MUST let the person set a per-producer ceiling. When it stores a card's content it sets `delivery` to the card's `urgency` (absent is `brief`), lowered to the ceiling if above it, in the order `log` < `brief` < `immediate`; it MUST NOT alter `urgency` itself, which stays as the producer sent it for equality (§5) and is returned unchanged. Sync returns both, so a producer can see that it was clamped. Changing a ceiling does not revisit cards already stored. A new producer SHOULD default to a ceiling of `brief` until the person raises it. This is the only defence against a noisy producer short of revoking its token.
 
 ## 10. Addressee
 
@@ -500,13 +506,13 @@ Everything in 11.1, plus:
 ### 11.3 A head
 
 - [ ] Stores cards for exactly one person and rejects others
-- [ ] Implements submit, sync, decide and describe with the status codes and error codes in §7
+- [ ] Implements submit, sync and describe for producers, and decide for its owner only, with the status codes and error codes in §7
 - [ ] Assigns `change_seq` from one monotonic counter
 - [ ] Enforces namespace ownership and the lock on decided cards
 - [ ] Retains the decided version of every card and every decision, reachable in original form (the decision log)
 - [ ] Ignores unknown producer fields; rejects head-owned fields on PUT
 - [ ] Renders markdown; strips raw HTML
-- [ ] Lets the person set per-producer urgency ceilings
+- [ ] Lets the person set per-producer urgency ceilings, and records the clamped value as `delivery` without altering `urgency`
 - [ ] For the `orders` extension: mints orders, implements claim leases and lease expiry
 
 A head is a role, not a particular service: a cloud service, a local daemon, an MCP server or a plugin inside another product can each be one. A head MAY add a brief writer, `mermaid` rendering, search, dictation or any other interface. None of that is part of the protocol.
@@ -519,7 +525,7 @@ A head is a role, not a particular service: a cloud service, a local daemon, an 
 
 **Decisions are the sensitive record.** The decision log says what the person approved, rejected and delegated, with timestamps. A head MUST protect it at least as carefully as the cards themselves and MUST NOT expose it to producers beyond their own namespace.
 
-**Urgency as a vector.** A compromised or misbehaving producer can flood `immediate`. Ceilings (§9) and rate limits (`429`) are the mitigations; a head SHOULD alert the person when a producer's volume changes sharply.
+**Urgency as a vector.** A compromised or misbehaving producer can flood `immediate`. Ceilings (§9), which clamp `delivery`, and rate limits (`429`) are the mitigations; a head SHOULD alert the person when a producer's volume changes sharply.
 
 **No raw HTML.** Stripping HTML from bodies closes the obvious injection path into the head's interface. Mermaid fences are declarative content: rendering one MUST NOT cause network access or code execution. Links in markdown and source.url are permitted; a head SHOULD show the destination hostname beside any link, MUST NOT auto-open them, and MUST treat source.label as untrusted display text that says nothing about where the link goes.
 
@@ -540,7 +546,7 @@ Sources: [Wave Federation Protocol](https://en.wikipedia.org/wiki/Google_Wave_Fe
 
 ## 14. Open questions
 
-**Conformance suite.** Conformance is tested with fixtures: language-neutral JSON files, published with the reference implementation, that a head runs through an adapter. Protocol fixtures drive a head through submit, sync and decide, plus two actions its owner would take (presenting a card, which sets `seen_at`, and acknowledging one); the head under test is owned by `morten`, and paging is exercised by syncing until `next` stops moving, whatever page size the head chooses. A fixture marked `SHOULD` checks a recommendation and may fail without breaking conformance. Rendering conformance (§3.1) is tested from card bodies rather than over HTTP: each fixture gives a body and the expected classification of every fence (`render`, `fallback`, `collapsed`), what was stripped (raw HTML, `click`, URL-loading `init`, `htmlLabels`), and how each image is shown; for `fallback`, the surrounding text must still appear. A head passes by rendering the fixture and matching the classification; pixel output is not compared. Producer obligations (cursor handling, parking) are tested in the client library, not against a head.
+**Conformance suite.** Conformance is tested with fixtures: language-neutral JSON files, published with the reference implementation, that a head runs through an adapter. Protocol fixtures drive a head through describe, submit and sync, through decide with the owner's credential, and through two more actions its owner would take (presenting a card, which sets `seen_at`, and acknowledging one); they also check that a missing or invalid producer token and a producer token on decide are refused; the head under test is owned by `morten`, and paging is exercised by syncing until `next` stops moving, whatever page size the head chooses. A fixture marked `SHOULD` checks a recommendation and may fail without breaking conformance. Rendering conformance (§3.1) is tested from card bodies rather than over HTTP: each fixture gives a body and the expected classification of every fence (`render`, `fallback`, `collapsed`), what was stripped (raw HTML, `click`, URL-loading `init`, `htmlLabels`), and how each image is shown; for `fallback`, the surrounding text must still appear. A head passes by rendering the fixture and matching the classification; pixel output is not compared. Producer obligations (cursor handling, parking) are tested in the client library, not against a head.
 
 - [ ] **Last-visit cursor.** The brief is defined by one global "since last visit" cursor. Per-producer cursors would let a person catch up on one producer without clearing the rest. Global is simpler; undecided.
 - [ ] **Withdraw.** There is no delete. Superseding with a signal is the workaround; is a first-class withdraw worth an operation?
@@ -548,7 +554,6 @@ Sources: [Wave Federation Protocol](https://en.wikipedia.org/wiki/Google_Wave_Fe
 - [ ] **Retention.** How long a head keeps `log` cards, and whether retention is per producer.
 - [ ] **Head-to-head trust.** Appendix B has a delegate's head polling the delegator's head as a producer. Who issues that token, and how does the delegator's head learn the delegate's endpoint?
 - [ ] **Content hash.** A `content_hash` on the wire would separate identity, content version and decision cleanly and make `409` diagnosis trivial. Worth adding before 1.0?
-- [ ] **Field name.** `urgency` is a delivery preference; `attention` or `delivery` may be the better word. Cosmetic, but names stick.
 
 ## Appendix A. Extension: Orders
 

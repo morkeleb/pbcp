@@ -1,5 +1,21 @@
 # RFC changelog
 
+## 0.4 (2026-10-26)
+
+Draft 0.4 resolves what the first head over HTTP (`morkeleb/pbcp-head` PR #1, "Probable RFC bugs" and "Conformance suite and packaging issues") and the first tooling (`morkeleb/pbcp` PRs #2 and #3) found. Nothing else changed.
+
+- **§4.1, §4.2, §9 — urgency is never altered; the clamp lands in `delivery`.** §4.1 forbade altering producer-owned fields while §9 required clamping `urgency` (head PR #1, bug 1). A new head-owned field `delivery` (`immediate | brief | log`) is set whenever the head stores a card's content, to `urgency` (absent is `brief`) lowered to the producer's ceiling. `urgency` is stored and returned as sent, so equality (§5) is unaffected; sync returns both. Changing a ceiling does not revisit stored cards. §9's table, §11.3 and §12 are restated in terms of `delivery`; §1.2 notes that every card there lands as it asked.
+- **§7, §7.3 — decide is the owner's operation.** `HeadClient.decide` sent a producer token to the decide endpoint, which the head could only refuse (head PR #1, bug 2). §7 now names submit and sync as the producer's operations and decide as the owner's, performed with the owner's credential, which the protocol does not define; a head exposes it however it likes. A producer token on decide MUST be refused with `401`, before anything else. §11.3 says so.
+- **§7.2, §7.4 — `invalid_cursor`.** A missing or malformed `after` (`-1`, `1.5`, `abc`) is `400` with the new code `invalid_cursor`; no listed code fitted (head PR #1, bug 3).
+- **§7.4 — `unauthorized`** covers every missing or invalid credential, producer or owner; the `401` row says so (head PR #1, bug 4).
+- **§7 — paths are relative to the base URL.** A head MAY mount the paths under a prefix; `GET /` is the base URL (head PR #1, bug 5: the head mounts the API under `/api`).
+- **§7 — the MCP adapter** offers `submit_card`, `poll_changes` and, with the `orders` extension, `claim_order`. `decide_card` is removed: an adapter acts with a producer token, which decide refuses (follows from the decide change; tooling PR #2 had left it out already).
+- **§7.5 — `seq` in the description.** `GET /` carries `seq`, the highest `change_seq` assigned (`0` before the first). A producer that wants only what happens from now passes it as its first `after` instead of reading the whole change feed (tooling PR #3: the n8n trigger's "Start from: now").
+- **§3.1 — a card over 1 MiB MUST be refused with `413`.** The size rule only said a head MAY refuse above 64 KiB, so a `413` could not be tested (head PR #1: no fixture covers `413`). A head still chooses its limit between 64 KiB and 1 MiB.
+- **§14** — the conformance description covers describe, the owner's decide and the credential refusals; the "Field name" question is closed by `delivery`.
+
+Conformance: C25 (`GET /` shape), C26 (missing or invalid producer token → `401` on PUT and sync), C27 (64 KiB accepted, over 1 MiB → `413`), C28 (ceiling clamps `delivery`, `urgency` unchanged), C29 (`invalid_cursor`), C30 (producer token on decide → `401`), C31 (`seq`). From C25 on, fixtures also check the error code.
+
 ## 0.3 (2026-10-26)
 
 Draft 0.3 writes down what implementing 0.2 (core library, conformance suite, client, IMAP producer) had to decide. Numbers in brackets refer to the 0.2-era entries of `rfc/OPEN.md` (see its git history).
