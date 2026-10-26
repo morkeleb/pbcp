@@ -14,7 +14,7 @@ Milestone 1 only. Do not start milestone 2 or 3 work (brief folding, orders, exe
 1. `packages/core` — pure functions, no I/O: card schema (Zod), parse/serialize (JSON ⇄ YAML front matter), id grammar, semantic equality, the core lifecycle transitions (`submit`, `decide`, `canSupersede`). Conformance cases **C01–C15** and **R01–R08** must pass in-process.
 2. `packages/core/conformance` — JSON fixtures + a vitest runner that takes a `HeadUnderTest` adapter. The fixtures are the protocol's real definition; write them from the RFC, not from the implementation.
 3. `packages/client` — `HeadClient` + `runProducer` (durable cursor loop). No executor yet.
-4. `connectors/imap` — a producer on `@pbcp/client`, under 100 lines, that turns unseen mail into decision cards.
+4. `connectors/imap` — a producer on `@pbcp/client`, under 100 lines, that turns unseen mail into artifact cards (inbox messages get `archive`/`keep` as their only decision). It is a reader: no model, no SMTP, no reply drafting.
 
 ## Rules
 
@@ -26,6 +26,10 @@ Milestone 1 only. Do not start milestone 2 or 3 work (brief folding, orders, exe
 - **No marketing, no product names** in code, comments, or docs beyond what the RFC's examples already use.
 - Tests before features: a conformance case that fails is the spec for the next change.
 - TypeScript strict, ESM, Node 22+, pnpm workspaces, vitest. Zod for schemas. No other runtime dependencies in `core`.
+
+## Other languages
+
+The conformance fixtures in `packages/core/conformance` are the protocol's definition and are language-neutral. A second-language implementation (Python first; Rust, Swift, Kotlin later if a need appears) lives in its own repo, depends on the fixtures published from here, and claims conformance by passing them. Do not add non-TypeScript code to this repo.
 
 ## Licence
 
