@@ -43,13 +43,13 @@ The head is authoritative only for what reached the person, what they saw, what 
 | Time | Producer | What it does | Card |
 | --- | --- | --- | --- |
 | 06:00 | mail agent | Sees a customer asking for a contract change; drafts a reply | `hermes:gmail:19a4…` decision, brief |
-| 06:05 | project tracker | Notices a milestone at risk after overnight commits | `goalpath:milestone:88:risk` signal, brief |
+| 06:05 | project tracker | Notices a milestone at risk after overnight commits; asks who should review it | `goalpath:milestone:88:risk` decision, brief |
 | 06:10 | calendar | A customer meeting now overlaps the roadmap review | `cal:event:7f3a:conflict` decision, brief |
 | 06:30 | head | Writes the morning brief: 2 decisions, 1 warning, 11 log entries folded | `head:daily:2026-10-07` artifact |
 | 08:10 | person | Reads the brief. Approves the reply, edits the meeting proposal, delegates the risk review to a colleague | three decisions, three cards locked |
 | 08:11 | mail agent | Syncs, sees `approve`, sends the reply, posts a `sent` signal in the thread | `hermes:gmail:19a4…:sent` log |
 | 08:11 | calendar | Syncs, sees `edited`, reschedules to the replacement time | — |
-| 08:12 | colleague's head | Syncs the delegation order, shows it to its owner as a decision card | `head:order:01J9…` (Appendix A) |
+| 08:12 | colleague's head | Syncs the delegation, shows it to its owner as a decision card | (Appendix B, not yet specified) |
 | 18:00 | head | Day view: every card, every decision, in order | — |
 
 Each producer talked only to the head, only by PUT and sync, and never had to know what the brief looked like or that the other producers existed.
@@ -69,7 +69,7 @@ The key words MUST, MUST NOT, SHOULD, SHOULD NOT and MAY are to be interpreted a
 | **Order** | A card minted by the head that asks a producer to do something. |
 | **Namespace** | The prefix of a card id that a producer owns and may write under. |
 
-Timestamps are RFC 3339 in UTC, written with the offset `Z`, `+00:00` or `-00:00`; a head MUST reject a card with any other offset with `400`. Identifiers are ASCII, case-sensitive, and compared as exact strings. The canonical wire encoding of a card is `application/json`; the file form is markdown with YAML front matter, and the two MUST be convertible field for field. Equality between cards is semantic, judged on the parsed fields, never on bytes (§5 defines it). Every card carries `protocol: pbcp/1`; the number is the major version, and backward-compatible additions arrive as extension fields without changing it. The value is exactly `pbcp/` followed by the major version: a head MUST reject with `400` a card whose major version it does not implement, a value of any other shape (`pbcp/1.1` included), and a card without `protocol`.
+Timestamps are RFC 3339 in UTC, written with the offset `Z`, `+00:00` or `-00:00`; a head MUST reject with `400` a card with any other offset, or with a date or time that does not exist (a leap second `:60` is allowed). Identifiers are ASCII, case-sensitive, and compared as exact strings. The canonical wire encoding of a card is `application/json`; the file form is markdown with YAML front matter, and the two MUST be convertible field for field. Equality between cards is semantic, judged on the parsed fields, never on bytes (§5 defines it). Every card carries `protocol: pbcp/1`; the number is the major version, and backward-compatible additions arrive as extension fields without changing it. The value is exactly `pbcp/` followed by the major version: a head MUST reject with `400` a card whose major version it does not implement, a value of any other shape (`pbcp/1.1` included), and a card without `protocol`.
 
 ## 3. Card format
 
@@ -124,8 +124,8 @@ The same card on the wire:
 
 **Restricted YAML.** To keep parsers simple and avoid YAML's implicit-typing surprises, the header MUST use only this subset:
 
-- `key: value` pairs at the top level, with keys of letters, digits, `_`, `.` and `-`, unquoted, each at most once;
-- scalars that are plain, `'single-quoted'` or `"double-quoted"` (with the JSON escape set), each on one line. Every scalar is parsed as a string, whatever it looks like; the protocol then validates named fields against their types (so YAML → strings → validation → typed JSON). An empty value (`thread:` with nothing after it) is the empty string. Producers SHOULD quote anything a YAML parser might otherwise coerce (`no`, `1.0`, dates) so the file reads the same in any editor;
+- `key: value` pairs at the top level, written as the key, a colon and one space; keys are unquoted, start with a letter, digit or `_`, continue with those and `.` or `-`, and appear at most once;
+- scalars that are plain, `'single-quoted'` or `"double-quoted"` (with the JSON escape set), each on one line. A plain scalar does not start with a YAML indicator (`-`, `?`, `:` followed by a space; `,`, `[`, `]`, `{`, `}`, `#`, `&`, `*`, `!`, `|`, `>`, `'`, `"`, `%`, `@`, `` ` ``). Every scalar is parsed as a string, whatever it looks like; the protocol then validates named fields against their types (so YAML → strings → validation → typed JSON). An empty value (`thread:` with nothing after it) is the empty string. Producers SHOULD quote anything a YAML parser might otherwise coerce (`no`, `1.0`, dates) so the file reads the same in any editor;
 - flow sequences of scalars (`[a, b]`) on one line, and block sequences (`- a`);
 - one level of nested mapping (as in `source` above), whose values are scalars;
 - block sequences whose items are one-level mappings of scalars, so that §4.4 choice objects have a file form (below). A boolean in such a mapping is written `"true"` or `"false"` and typed after parsing;
@@ -200,7 +200,7 @@ Set by the producer at submission. The head MUST NOT alter them.
 | `id` | yes | string | Deterministic identifier, see §5. |
 | `kind` | yes | enum | `decision`, `artifact`, `signal`. Extensions MAY add kinds; a head MUST reject with `400` a kind it does not implement. |
 | `to_person` | yes | string | The person this card is addressed to. Required for every core kind; the orders extension forbids it on kind: order (Appendix A). |
-| `producer` | yes | string | Denormalised from the first segment of \`id\` for readability and filtering; the id namespace is authoritative, and a mismatch is \`400\`. See `id`. |
+| `producer` | yes | string | Denormalised from the first segment of `id` for readability and filtering; the id namespace is authoritative, and a mismatch is `400`. See `id`. |
 | `title` | yes | string | One line, shown in lists and the brief. MUST NOT be empty or contain CR or LF. |
 | `body` | yes | string | Markdown, see §3. |
 | `urgency` | no | enum | `immediate`, `brief` (default), `log`. See §9. |
@@ -254,7 +254,7 @@ A producer that wants the person to pick between alternatives rather than approv
 ]
 ```
 
-- `id` is the decision value the head records and the producer syncs; it follows the `intent` grammar in §5. So does a bare string entry.
+- `id` is the decision value the head records and the producer syncs; it follows the `intent` grammar in §5. So does a bare string entry. The protocol decisions `dismissed`, `edited` and `delegated` are reserved: a head MUST reject a card that uses one as an `id` with `400`.
 - `label` is the short text shown on the control; absent, the head shows `id`.
 - `body` is markdown shown beside the option — the consequence, the cost, the thing to know. It is the producer's argument for that option and lives on the option, not in the card body, so the head can lay out choices side by side.
 - `default` marks at most one option. The head MUST pre-select it and MUST treat a bare approve gesture on the card (a swipe, a voice "yes", a keyboard shortcut) as choosing it. With no default, there is no bare approve and the person must pick.
@@ -309,7 +309,14 @@ A `409` tells the producer that the person has already acted on an earlier versi
 
 A card has three states and moves through them in one direction only. Every kind shares this storage lifecycle; only kind: decision additionally takes part in the human-decision layer (§4.3), while artifact and signal cards pass through it with acknowledgement alone.
 
-&#91;embedded content: card lifecycle · 3 states, one-way\]
+```mermaid
+stateDiagram-v2
+  [*] --> open: PUT (201)
+  open --> open: PUT, different (200)
+  open --> decided: decision
+  open --> superseded: successor PUT
+  decided --> superseded: successor PUT
+```
 
 An open card can be replaced by a re-PUT; once decided it is locked, and the only way past a locked card is a newer card that supersedes it.
 
@@ -342,12 +349,12 @@ Authorization: Bearer <producer token>
 { card }
 ```
 
-Responses: `201`, `200`, `400` (malformed header, head-owned field present, oversize body), `403` (id outside the producer's namespace, or cross-namespace `supersedes`), `409` (locked card, different content). A `201` and a `200` return the stored card in full, including head-owned fields; so does a `409` for a locked card. Every other refusal carries an error body (§7.4), including the `409` for superseding a card that is already superseded (§8).
+Responses: `201`, `200`, `400` (the card does not conform), `401` (missing or bad token), `403` (id outside the producer's namespace, a card for another person, or cross-namespace `supersedes`), `409` (locked card, different content; or a supersede target already superseded), `413` (card too large), `429` (rate-limited). A `201` and a `200` return the stored card in full, including head-owned fields; so does a `409` for a locked card. Every other refusal carries an error body (§7.4), including the `409` for superseding a card that is already superseded (§8).
 
 `{id}` is the card's id, percent-encoded as a URL path segment; the decoded value MUST equal the card's `id`, or the head rejects the card with `400`. When several refusals apply, a head reports the first in this order, so a producer can tell what to fix:
 
-1. `401`: no token, or one the head does not accept;
-2. `400`: the card does not conform (encoding, YAML subset, head-owned fields, `protocol`, fields, id grammar, `producer` against the id, `actions`, the URL id);
+1. `401`: no token, or one the head does not accept; then `429` if the producer is rate-limited, and `413` if the card is larger than the head accepts;
+2. `400`: the card does not conform (encoding, YAML subset, head-owned fields, `protocol`, fields, id grammar, `producer` against the id, `actions`, the URL id). When several of these apply, which `400` code is reported is not specified;
 3. `403`: the id is outside the token's root, or `to_person` is not the head's owner (§10);
 4. when the PUT supersedes (§8), the checks of §6 and §8: `400` for a card that names itself, `403` for another namespace, `400` for a card the head does not hold, `409` for a card already superseded;
 5. the submission table of §5.
@@ -388,7 +395,7 @@ Content-Type: application/json
 { "decision": "edited", "edited_proposal": "...", "comment": "..." }
 ```
 
-Head-only in the core protocol: this endpoint is called by the head's own interface on behalf of the person, never by a producer (Appendix A adds one producer-side use). `decision` MUST be one of the card's `actions` other than `edit`, or one of the built-in values `dismissed`, `delegated` (with `delegated_to`), `edited` (with `edited_proposal`); `edited` is accepted on every decision card (§4.4). `edited_proposal` and `delegated_to` appear with their decision and with no other; `comment` may accompany any. The protocol defines no credentials for human interfaces: who may decide on behalf of the owner is entirely the head's responsibility.
+Head-only in the core protocol: this endpoint is called by the head's own interface on behalf of the person, never by a producer. (Appendix A uses it for the person to cancel an order; an executor's claim is a separate operation, A.2.) `decision` MUST be one of the card's `actions` other than `edit`, or one of the built-in values `dismissed`, `delegated` (with `delegated_to`), `edited` (with `edited_proposal`); `edited` is accepted on every decision card (§4.4). `edited_proposal` and `delegated_to` appear with their decision and with no other; `comment` may accompany any. The protocol defines no credentials for human interfaces: who may decide on behalf of the owner is entirely the head's responsibility.
 
 Responses: `200` with the decided card; `400` for a value not allowed above, or for a card that is not `kind: decision`; `404` for an id the head does not hold; `409` with the stored card when the card is already `decided` or `superseded`.
 
@@ -418,7 +425,7 @@ Responses: `200` with the decided card; `400` for a value not allowed above, or 
 | `413` | `too_large` |
 | `429` | `rate_limited` |
 
-`not_acknowledgeable` is for a head's own interface, which refuses to acknowledge a decision card (§4.2). A `429` carries `Retry-After` in seconds; a producer SHOULD NOT send another request to that head before it has elapsed.
+`not_acknowledgeable` is for a head's own interface, which refuses to acknowledge a decision card (§4.2). Extensions define their own statuses and codes; the orders extension uses `409` and `410` for claims (A.2, A.5). A `429` carries `Retry-After` in seconds; a producer SHOULD NOT send another request to that head before it has elapsed.
 
 ### 7.5 Describe
 
@@ -429,7 +436,7 @@ GET /
 { "protocol": "pbcp/1", "owner": "morten", "extensions": [], "render": { "mermaid": ["core", "extended"] } }
 ```
 
-A head MUST answer `GET /` with its description: `protocol`, the version it implements; `owner`, the person id it stores cards for, which a producer uses as `to_person` (§10); `extensions`, the names of the extensions it implements (`orders` for Appendix A), empty for the core alone; and `render.mermaid`, the mermaid tiers it renders (§3.1). A head MAY require a producer token for `GET /`, and MAY add members; a client ignores members it does not know.
+A head MUST answer `GET /` with its description: `protocol`, the version it implements; `owner`, the person id it stores cards for, which a producer uses as `to_person` (§10); `extensions`, the names of the extensions it implements (`orders` for Appendix A), empty for the core alone; and `render.mermaid`, the mermaid tiers it renders (§3.1): `core`, `extended`, and `other` for a head that renders types outside both. A client ignores values it does not know. A head MAY require a producer token for `GET /`, and MAY add members; a client ignores members it does not know.
 
 ## 8. Threads, supersession and folding
 
@@ -461,7 +468,7 @@ A `kind: decision` card remains open until decided, whatever its urgency. How a 
 
 Every card carries `to_person`, naming one person. A head stores only cards addressed to its owner and MUST reject others with `403`. A producer learns the owner's person id from the head's description (§7.5). There is no team mode, no shared inbox and no assignment: work that belongs to a team lives in the team's own tool, which is itself a producer. A producer that serves several people posts to several heads. The one-owner rule is what makes `approve`, `reject` and `delegate` unambiguous; the protocol deliberately keeps multi-party consensus out of scope.
 
-In the core protocol, `delegated` is simply a decision value with `delegated_to` set: the card locks, and the producer learns from sync that it is now waiting on someone else. How the delegate comes to see the card is defined in Appendix A, as an order addressed to a person.
+In the core protocol, `delegated` is simply a decision value with `delegated_to` set: the card locks, and the producer learns from sync that it is now waiting on someone else. How the delegate comes to see the card is federation, sketched in Appendix B and not yet specified.
 
 ## 11. Connector conformance
 
@@ -539,7 +546,7 @@ Sources: [Wave Federation Protocol](https://en.wikipedia.org/wiki/Google_Wave_Fe
 - [ ] **Withdraw.** There is no delete. Superseding with a signal is the workaround; is a first-class withdraw worth an operation?
 - [ ] **Delegation rules.** Standing rules ("always approve replies to Anna") live in the head, outside the protocol. Should a producer be able to ask whether a rule exists before submitting?
 - [ ] **Retention.** How long a head keeps `log` cards, and whether retention is per producer.
-- [ ] **Head-to-head trust.** A.5 has a delegate's head polling the delegator's head as a producer. Who issues that token, and how does the delegator's head learn the delegate's endpoint?
+- [ ] **Head-to-head trust.** Appendix B has a delegate's head polling the delegator's head as a producer. Who issues that token, and how does the delegator's head learn the delegate's endpoint?
 - [ ] **Content hash.** A `content_hash` on the wire would separate identity, content version and decision cleanly and make `409` diagnosis trivial. Worth adding before 1.0?
 - [ ] **Field name.** `urgency` is a delivery preference; `attention` or `delivery` may be the better word. Cosmetic, but names stick.
 
@@ -572,7 +579,7 @@ The two lifecycles are orthogonal. `state` describes the order as a card; `exec_
 
 ### A.2 Claims are leases, not decisions
 
-An executor claims an order with `POST /cards/{id}/claim`, carrying `{ "lease_seconds": N }`. This is the one producer-side write to a card it did not mint, and it is deliberately *not* a decision: a human decision is permanent, an execution claim is temporary. The head records `claimed_by`, `claim_expires_at` and sets the order's execution state to `claimed`. A second claim while the lease holds returns `409` and that executor MUST stand down. An executor MAY renew with the same call before expiry. The head owns the lease clock: a claim or renewal MUST evaluate expiry atomically with the claim itself, and a lease whose claim\_expires\_at is at or before the head's current time is expired. If the lease expires with no outcome, the order returns to `open` and any executor may claim it; the head SHOULD emit a `signal` card to the person when that happens, since it usually means a worker died. Orders therefore have at-least-once delivery; exactly-once execution of any side effect is the executor's problem (A.4).
+An executor claims an order with `POST /cards/{id}/claim`, carrying `{ "lease_seconds": N }`. This is the one producer-side write to a card it did not mint, and it is deliberately *not* a decision: a human decision is permanent, an execution claim is temporary. The head records `claimed_by`, `claim_expires_at` and sets the order's execution state to `claimed`. A second claim while the lease holds returns `409` and that executor MUST stand down. An executor MAY renew with the same call before expiry. The head owns the lease clock: a claim or renewal MUST evaluate expiry atomically with the claim itself, and a lease whose `claim_expires_at` is at or before the head's current time is expired. If the lease expires with no outcome, the order returns to `open` and any executor may claim it; the head SHOULD emit a `signal` card to the person when that happens, since it usually means a worker died. Orders therefore have at-least-once delivery; exactly-once execution of any side effect is the executor's problem (A.4).
 
 ### A.3 Thread shape
 
@@ -620,7 +627,7 @@ loop every N seconds:
   cursor = resp.next                             # only after the loop body succeeded
 ```
 
-ulid\_of is an implementation helper, not a protocol operation: k is the ULID segment of the order id. The executor's card ids use that ULID as `upstream-id`, never the order's full id, which contains colons and would not conform to the grammar in §5.
+`ulid_of` is an implementation helper, not a protocol operation: k is the ULID segment of the order id. The executor's card ids use that ULID as `upstream-id`, never the order's full id, which contains colons and would not conform to the grammar in §5.
 
 ### A.5 Handling cancellation
 

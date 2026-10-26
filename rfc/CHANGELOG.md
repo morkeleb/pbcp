@@ -39,6 +39,16 @@ Draft 0.3 writes down what implementing 0.2 (core library, conformance suite, cl
 - §14: the conformance suite is described (owner actions, owner `morten`, paging, SHOULD-level fixtures, render classes `render`/`fallback`/`collapsed` plus a stripped list). [#29, #30, #31, #34, #36]
 - Appendix A.1: a submitted `kind: order` is `400`. [#17]
 
+**From review of this draft against the implementation**
+
+- §2: a timestamp must name a date and time that exist (a leap second is allowed).
+- §3: keys are written `key: value` with one space and start with a letter, digit or `_`; a plain scalar does not start with a YAML indicator (`,`, `]`, `}` included).
+- §4.4: `dismissed`, `edited` and `delegated` are reserved and cannot be action ids (`400`).
+- §7.1: the response list names every status (oversize is `413`, not `400`); `429` and `413` are placed in the refusal order; which `400` code is reported when several apply is not specified.
+- §7.4: extension statuses (`410` in Appendix A) are the extension's to define.
+- §7.5: `render.mermaid` values are `core`, `extended`, `other`; clients ignore unknown values.
+- Editorial: §1.2 the risk card is a decision (a signal cannot be delegated) and the delegation row points at Appendix B; §7.3, §10 and §14 cross-references fixed (delegation is Appendix B, not A); the §6 lifecycle placeholder is now a diagram; escaped markup repaired.
+
 ## 0.2 (2026-10-26)
 
 JSON canonical on the wire; server `change_seq` cursor; `to_person`/`to_producer`; `protocol: pbcp/1`; Orders as Appendix A with leases; delegation deferred to Appendix B; §3.1 rendering profile; §4.4 choice lists.

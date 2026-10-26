@@ -118,7 +118,7 @@ Dot-separated: `body.change_seq`, `body.changes.0.seq`. A segment `[k=v]` select
 | C13 | Id outside token root → 403; `producer` ≠ id root → 400 | §5, §12 |
 | C14 | Head-owned field on PUT (core and orders-extension fields) → 400; unknown fields accepted | §3.1, §4.2, A.1 |
 | C15 | `protocol: pbcp/2`, `pbcp/1.1`, or no `protocol` → 400 | §2 |
-| C21 | Choice list with two defaults, or a duplicate id → 400; `edit` is never a decision, `edited` always is | §4.4, §7.3 |
+| C21 | Choice list with two defaults, a duplicate id, or a protocol decision as an id → 400; `edit` is never a decision, `edited` always is | §4.4, §7.3 |
 | C22 | Percent-encoded `upstream-id` round-trips unchanged and is not normalised; a malformed escape → 400 | §5 |
 | C24 | Unknown producer fields are preserved through PUT and sync (SHOULD) | §3.1 |
 | R01 | Each core-tier type renders; the text around it is intact | §3.1 |
