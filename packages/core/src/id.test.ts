@@ -75,6 +75,6 @@ describe('percent-encoded upstream-id (§5)', () => {
 
   it('treats differently-cased escapes as different ids (no normalisation)', () => {
     expect(sameNamespace('mail:acme:x%2F', 'mail:acme:x%2f')).toBe(true);
-    expect('mail:acme:x%2F' === 'mail:acme:x%2f').toBe(false);
+    expect(parseId('mail:acme:x%2F')?.upstream).not.toBe(parseId('mail:acme:x%2f')?.upstream);
   });
 });
