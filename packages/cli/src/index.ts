@@ -2,7 +2,7 @@
 
 import { readFile } from 'node:fs/promises';
 import { parseArgs } from 'node:util';
-import { HeadClient, HeadHttpError } from '@pbcp/client';
+import { HeadClient, HeadHttpError, OwnerClient } from '@pbcp/client';
 import { PbcpError, parseCardOrThrow, type Decision } from '@pbcp/core';
 
 export const USAGE = `usage: pbcp <command> [options]
@@ -11,11 +11,13 @@ export const USAGE = `usage: pbcp <command> [options]
   submit <file.md|file.json>                      PUT /cards/{id}  (§7.1); 409 is a result, not a failure
   sync [--after N] [--follow] [--interval S]      GET /changes  (§7.2); one JSON line per change
   decide <id> <decision> [--proposal FILE] [--comment TEXT]
-                                                  POST /cards/{id}/decision  (§7.3); head-dependent
+                                                  POST /cards/{id}/decision  (§7.3), as the owner
 
 options:
-  --head URL      head base URL   (default: $PBCP_HEAD_URL)
-  --token TOKEN   bearer token    (default: $PBCP_TOKEN)
+  --head URL                    head base URL          (default: $PBCP_HEAD_URL)
+  --token TOKEN                 producer token         (default: $PBCP_TOKEN)
+  --owner-credential VALUE      Authorization value of an owner session, for decide only
+                                                       (default: $PBCP_OWNER_CREDENTIAL)
 `;
 
 export interface Io {
@@ -33,6 +35,7 @@ export interface Io {
 const OPTIONS = {
   head: { type: 'string' },
   token: { type: 'string' },
+  'owner-credential': { type: 'string' },
   after: { type: 'string' },
   follow: { type: 'boolean' },
   interval: { type: 'string' },
@@ -65,10 +68,13 @@ export async function main(argv: string[], io: Io): Promise<number> {
     }
     if (!['describe', 'submit', 'sync', 'decide'].includes(command)) throw new UsageError(`unknown command: ${command}`);
     const baseUrl = o.head ?? io.env.PBCP_HEAD_URL;
-    const token = o.token ?? io.env.PBCP_TOKEN;
     if (!baseUrl) throw new UsageError('no head: pass --head or set PBCP_HEAD_URL');
-    if (!token) throw new UsageError('no token: pass --token or set PBCP_TOKEN');
-    const head = new HeadClient({ baseUrl, token, fetch: io.fetch });
+    // §7.3: decide takes the owner's credential, never a producer token; the other commands take the producer token.
+    const credential = o['owner-credential'] ?? io.env.PBCP_OWNER_CREDENTIAL;
+    if (command === 'decide' && !credential) throw new UsageError('decide needs the owner credential: pass --owner-credential or set PBCP_OWNER_CREDENTIAL');
+    const token = o.token ?? io.env.PBCP_TOKEN;
+    if (command !== 'decide' && !token) throw new UsageError('no token: pass --token or set PBCP_TOKEN');
+    const head = new HeadClient({ baseUrl, token: token ?? '', fetch: io.fetch });
     const read = io.readFile ?? ((p: string) => readFile(p, 'utf8'));
     const arity = (n: number) => {
       if (args.length !== n) throw new UsageError(`${command} takes ${n} argument${n === 1 ? '' : 's'}`);
@@ -90,7 +96,7 @@ export async function main(argv: string[], io: Io): Promise<number> {
         const d: Decision = { decision: args[1]! };
         if (o.proposal !== undefined) d.edited_proposal = await read(o.proposal);
         if (o.comment !== undefined) d.comment = o.comment;
-        io.out(JSON.stringify(await head.decide(args[0]!, d), null, 2));
+        io.out(JSON.stringify(await new OwnerClient({ baseUrl, credential: credential!, fetch: io.fetch }).decide(args[0]!, d), null, 2));
         return 0;
       }
       case 'sync': {

@@ -3,7 +3,7 @@ import { InMemoryTransport } from '@modelcontextprotocol/sdk/inMemory.js';
 import { HeadClient, card } from '@pbcp/client';
 import { toFrontMatter } from '@pbcp/core';
 import { describe, expect, it } from 'vitest';
-import { stubHead } from '../../client/test/stub.js';
+import { stubHead } from '@pbcp/client/testing';
 import { configFrom, createServer } from './index.js';
 
 const sample = (title = 'Hi') =>
@@ -61,7 +61,7 @@ describe('@pbcp/mcp', () => {
   it('polls changes page by page with the cursor it returns', async () => {
     const { call, stub } = await setup();
     for (const u of ['a', 'b', 'c']) {
-      await call('submit_card', { card: card({ producer: 'hermes', namespace: 'gmail', upstream: u, kind: 'signal', to_person: 'morten', title: u, body: '' }) });
+      await call('submit_card', { card: card({ producer: 'hermes', namespace: 'gmail', upstream: u, kind: 'decision', to_person: 'morten', title: u, body: '' }) });
     }
     stub.decideHere('hermes:gmail:a', { decision: 'approve' });
     const p1 = await call('poll_changes', { after: 0 });

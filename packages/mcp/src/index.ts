@@ -6,7 +6,7 @@ import { HeadClient, HeadHttpError } from '@pbcp/client';
 import { PbcpError, parseCardOrThrow } from '@pbcp/core';
 import { z } from 'zod';
 
-export const VERSION = '0.3.0';
+export const VERSION = '0.4.0';
 
 export interface Config {
   baseUrl: string;

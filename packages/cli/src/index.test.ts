@@ -1,13 +1,13 @@
 import { card } from '@pbcp/client';
 import { toFrontMatter, toJSON } from '@pbcp/core';
 import { describe, expect, it } from 'vitest';
-import { stubHead } from '../../client/test/stub.js';
+import { stubHead } from '@pbcp/client/testing';
 import { main, type Io } from './index.js';
 
 const sample = (title = 'Hi') =>
   card({ producer: 'mail', namespace: 'acct', upstream: 'm1', kind: 'decision', to_person: 'morten', title, body: 'b', emitted_at: '2026-10-26T10:00:00Z' });
 
-function setup(files: Record<string, string> = {}, env: Record<string, string> = { PBCP_HEAD_URL: 'https://head.test', PBCP_TOKEN: 'tok' }) {
+function setup(files: Record<string, string> = {}, env: Record<string, string> = { PBCP_HEAD_URL: 'https://head.test', PBCP_TOKEN: 'tok', PBCP_OWNER_CREDENTIAL: 'Session owner' }) {
   const stub = stubHead({ pageSize: 2 });
   const out: string[] = [];
   const err: string[] = [];
@@ -149,6 +149,7 @@ describe('pbcp decide', () => {
       method: 'POST',
       url: 'https://head.test/cards/mail%3Aacct%3Am1/decision',
       body: { decision: 'edited', edited_proposal: 'New text\n', comment: 'tweak' },
+      headers: { authorization: 'Session owner' },
     });
     expect(JSON.parse(out[1]!)).toMatchObject({ status: 200, card: { state: 'decided', decision: 'edited' } });
   });
@@ -161,6 +162,28 @@ describe('pbcp decide', () => {
     expect(JSON.parse(out[2]!)).toMatchObject({ status: 409, card: { decision: 'reject' } });
     expect(await run('decide', 'mail:acct:nope', 'approve')).toBe(1);
     expect(err[0]).toMatch(/^pbcp: 404 not_found/);
+  });
+});
+
+describe('pbcp decide credentials (§7.3)', () => {
+  it('needs the owner credential, never the producer token', async () => {
+    const { run, err, stub } = setup({}, { PBCP_HEAD_URL: 'https://head.test', PBCP_TOKEN: 'tok' });
+    expect(await run('decide', 'mail:acct:m1', 'approve')).toBe(2);
+    expect(err[0]).toMatch(/PBCP_OWNER_CREDENTIAL/);
+    expect(stub.requests).toHaveLength(0);
+  });
+
+  it('is refused with 401 when the credential is a producer token', async () => {
+    const { run, err } = setup({ 'c.json': toJSON(sample()) });
+    await run('submit', 'c.json');
+    expect(await run('decide', 'mail:acct:m1', 'approve', '--owner-credential', 'Bearer tok')).toBe(1);
+    expect(err[0]).toMatch(/^pbcp: 401 unauthorized/);
+  });
+
+  it('decides without a producer token configured', async () => {
+    const { run, stub } = setup({}, { PBCP_HEAD_URL: 'https://head.test', PBCP_OWNER_CREDENTIAL: 'Session owner' });
+    expect(await run('decide', 'mail:acct:nope', 'approve')).toBe(1); // reached the head: 404
+    expect(stub.requests[0]!.headers.authorization).toBe('Session owner');
   });
 });
 

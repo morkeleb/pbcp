@@ -15,4 +15,4 @@ npx -y @pbcp/mcp                     # speaks MCP on stdin/stdout
 
 The card is parsed and checked locally before it is sent, so a malformed card is refused without a request. A refusal is a tool error whose text is `{ status, error, message }` with the RFC code (§7.4), for example `{ "status": 400, "error": "head_owned_field", … }`; a failure without a protocol body has `error: "http"` and the response `body`. `--head URL` and `--token TOKEN` override the environment.
 
-Not here yet: `decide_card` (§7) and `claim_order` (Appendix A). The server keeps no cursor; the caller stores `next`.
+There is no `decide_card`: deciding is the owner's operation and refuses a producer token (§7.3), and this server holds a producer token. `claim_order` (Appendix A) comes with the orders extension. The server keeps no cursor; the caller stores `next`. To start from now rather than from the beginning, read `seq` from the head's `GET /` (§7.5) and pass it as the first `after`.
