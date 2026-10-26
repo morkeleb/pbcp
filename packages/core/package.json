@@ -1,6 +1,6 @@
 {
   "name": "@pbcp/core",
-  "version": "0.0.0",
+  "version": "0.3.0",
   "description": "PBCP protocol core: card schema, id grammar, restricted YAML, lifecycle transitions. No I/O.",
   "license": "MIT",
   "type": "module",
@@ -14,14 +14,23 @@
       "source": "./conformance/index.ts",
       "types": "./dist/conformance/index.d.ts",
       "default": "./dist/conformance/index.js"
+    },
+    "./conformance/vitest": {
+      "source": "./conformance/vitest.ts",
+      "types": "./dist/conformance/vitest.d.ts",
+      "default": "./dist/conformance/vitest.js"
     }
   },
   "files": [
     "dist",
-    "conformance/fixtures"
+    "conformance/fixtures",
+    "conformance/README.md",
+    "README.md",
+    "LICENSE"
   ],
   "scripts": {
-    "build": "tsc -p tsconfig.build.json"
+    "build": "tsc -p tsconfig.build.json",
+    "prepack": "tsc -p tsconfig.build.json"
   },
   "dependencies": {
     "zod": "^4.6.7"
@@ -32,6 +41,38 @@
   "peerDependenciesMeta": {
     "vitest": {
       "optional": true
+    }
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/morkeleb/pbcp.git",
+    "directory": "packages/core"
+  },
+  "homepage": "https://github.com/morkeleb/pbcp/tree/main/packages/core",
+  "keywords": [
+    "pbcp",
+    "protocol",
+    "cards"
+  ],
+  "engines": {
+    "node": ">=22"
+  },
+  "sideEffects": false,
+  "publishConfig": {
+    "access": "public",
+    "exports": {
+      ".": {
+        "types": "./dist/src/index.d.ts",
+        "default": "./dist/src/index.js"
+      },
+      "./conformance": {
+        "types": "./dist/conformance/index.d.ts",
+        "default": "./dist/conformance/index.js"
+      },
+      "./conformance/vitest": {
+        "types": "./dist/conformance/vitest.d.ts",
+        "default": "./dist/conformance/vitest.js"
+      }
     }
   }
 }
