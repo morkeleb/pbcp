@@ -3,11 +3,11 @@
 
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import type { CallToolResult } from '@modelcontextprotocol/sdk/types.js';
-import { ClaimRefused, HeadClient, HeadHttpError } from '@pbcp/client';
-import { PbcpError, parseCardOrThrow } from '@pbcp/core';
+import { HeadClient, HeadHttpError } from '@pbcp/client';
+import { ClaimRefusal, PbcpError, parseCardOrThrow } from '@pbcp/core';
 import { z } from 'zod';
 
-export const VERSION = '0.4.0';
+export const VERSION = '0.5.0';
 
 export interface Config {
   baseUrl: string;
@@ -35,8 +35,8 @@ const result = (value: object): CallToolResult => ({
 /** Refusals come back as tool errors carrying the RFC status and code (§7.4), so the caller can fix the card. */
 function refusal(e: unknown): CallToolResult {
   const error =
-    e instanceof PbcpError ? { status: e.status, error: e.code, message: e.message }
-    : e instanceof ClaimRefused ? { status: e.status, error: e.code, message: e.message, order: e.order }
+    e instanceof ClaimRefusal ? { status: e.status, error: e.code, message: e.message, order: e.order }
+    : e instanceof PbcpError ? { status: e.status, error: e.code, message: e.message }
     : e instanceof HeadHttpError ? { status: e.status, error: 'http', message: e.message, body: e.body }
     : { error: 'failed', message: e instanceof Error ? e.message : String(e) };
   return { content: [{ type: 'text', text: JSON.stringify(error, null, 2) }], isError: true };
@@ -52,9 +52,9 @@ Returns { changes: [{ seq, card }], next }. A decided card has state "decided" a
 
 const CLAIM = `Claim an order, or renew a lease you hold (PBCP Appendix A.2). Pass the order id and lease_seconds (default 60). Renew at least every half lease while you work, and always just before an irreversible step (sending, paying, deleting): only proceed if the renewal succeeds.
 
-Returns the order with exec_state "claimed" and claim_seq; keep the latest claim_seq. When done, submit_card an outcome card in your own namespace (<you>:order:<ulid>:outcome, where ulid is the last segment of the order id) with references: [order id], thread: order id and "orders.claim_seq": the latest claim_seq; add "orders.result": "failed" if you could not do it.
+Returns the order with exec_state "claimed" and claim_seq. A renewal keeps claim_seq; a new claim (after a lease lapsed) gets a new one. When done, submit_card one outcome card for your claim, in your own namespace: id <you>:order:<ulid>:outcome-<claim_seq> (ulid is the last segment of the order id), references: [order id], thread: order id, "orders.claim_seq": your claim_seq, and "orders.result": "done" or "failed" (both are required).
 
-Errors: 409 lease_held — another executor has it; stand down. 410 order_terminal — the order is done, failed or cancelled; stop, never retry, and report what you did and did not do in the outcome card.`;
+Errors: 409 lease_held — another executor has it; stand down. 410 order_terminal — the order is done, failed or cancelled; stop, never retry, and report what you did and did not do in the outcome card. 400 invalid_lease — lease_seconds must be a positive integer.`;
 
 export function createServer(head: Pick<HeadClient, 'submit' | 'sync' | 'claim'>): McpServer {
   const server = new McpServer({ name: 'pbcp', version: VERSION });

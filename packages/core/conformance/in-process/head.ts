@@ -2,8 +2,8 @@
 // monotonic counter. It is the smallest thing that can run the fixtures, not a head.
 
 import {
-  acknowledge, applyOutcome, CARD_LIMIT_BYTES, checkSubmission, claim, decide, expireIfDue, isOrder, markSeen, mintOrder,
-  outcomeTarget, parseCardOrThrow, PbcpError, PROTOCOL, submit, ulid, visibleTo,
+  acknowledge, applyOutcome, CARD_LIMIT_BYTES, checkOutcome, checkSubmission, claim, ClaimRefusal, decide, expireIfDue, isOrder,
+  markSeen, mintOrder, parseCardOrThrow, PbcpError, PROTOCOL, submit, ulid, visibleTo,
   type Card, type Decision, type OrderCard, type Urgency,
 } from '../../src/index.js';
 import type { HeadUnderTest, Response } from '../types.js';
@@ -76,7 +76,7 @@ export function inProcessHead(opts: InProcessOptions = {}): HeadUnderTest {
     },
 
     async describe() {
-      return { status: 200, body: { protocol: PROTOCOL, owner, seq: counter, extensions: [], render: { mermaid: ['core', 'extended'] } } };
+      return { status: 200, body: { protocol: PROTOCOL, owner, seq: counter, extensions: ['orders'], render: { mermaid: ['core', 'extended'] } } };
     },
 
     async put(token, input) {
@@ -87,12 +87,12 @@ export function inProcessHead(opts: InProcessOptions = {}): HeadUnderTest {
         if (size > CARD_LIMIT_BYTES) throw new PbcpError('too_large', `card is ${size} bytes; this head accepts ${CARD_LIMIT_BYTES}`);
         const incoming = parseCardOrThrow(input);
         checkSubmission(incoming, { root, owner });
+        const ordered = checkOutcome(incoming);
         const target = incoming.supersedes === undefined ? null : (cards.get(incoming.supersedes) ?? null);
         const r = submit(cards.get(incoming.id) ?? null, incoming, now, target, ceiling);
         persist(r.changed);
         // A.3: a stored outcome moves its order's exec_state only if it comes from the current lease.
-        const target_ = r.changed.length > 0 ? outcomeTarget(incoming) : undefined;
-        const o = target_ === undefined ? undefined : order(target_);
+        const o = r.changed.length > 0 && ordered !== undefined ? order(ordered) : undefined;
         if (o) {
           const expiry = expireIfDue(o, now);
           persist(expiry.changed);
@@ -152,6 +152,7 @@ export function inProcessHead(opts: InProcessOptions = {}): HeadUnderTest {
         if (!o || !visibleTo(o, root, eligible.get(id))) throw new PbcpError('not_found', `no order ${id} for ${root}`);
         const r = claim(o, root, lease, now);
         persist(r.changed);
+        if (r.status !== 200) throw new ClaimRefusal(r.code, cards.get(id)!);
         return { status: r.status, body: cards.get(id) };
       });
     },

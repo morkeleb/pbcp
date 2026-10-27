@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { executor, runExecutor, Cancelled, type ExecCtx, type ExecutorOptions } from './executor.js';
 import { HeadClient } from './head.js';
 import { memoryStore } from './store.js';
@@ -49,8 +49,8 @@ describe('executor', () => {
     await ex.pass();
     await ex.idle();
     const k = o.id.split(':')[2];
-    expect(t.stub.cards.get(`hermes:order:${k}:progress-1`)).toMatchObject({ kind: 'signal', urgency: 'log', thread: o.id, references: [o.id], title: 'Called the clinic', to_person: 'morten' });
-    expect(t.stub.cards.get(`hermes:order:${k}:outcome`)).toMatchObject({ kind: 'signal', thread: o.id, references: [o.id], 'orders.claim_seq': 2, title: 'Booked Tuesday 09:00' });
+    expect(t.stub.cards.get(`hermes:order:${k}:progress-1-1`)).toMatchObject({ kind: 'signal', urgency: 'log', thread: o.id, references: [o.id], title: 'Called the clinic', to_person: 'morten' });
+    expect(t.stub.cards.get(`hermes:order:${k}:outcome-1`)).toMatchObject({ kind: 'signal', thread: o.id, references: [o.id], 'orders.claim_seq': 1, 'orders.result': 'done', title: 'Booked Tuesday 09:00' });
     expect(t.order(o.id)).toMatchObject({ exec_state: 'done' });
     expect(t.errors).toEqual([]);
   });
@@ -106,7 +106,7 @@ describe('executor', () => {
     }));
     await ex.pass();
     await ex.idle();
-    const out = t.stub.cards.get(`hermes:order:${o.id.split(':')[2]}:outcome`)!;
+    const out = t.stub.cards.get(`hermes:order:${o.id.split(':')[2]}:outcome-1`)!;
     expect(out).toMatchObject({ kind: 'signal', 'orders.result': 'failed', title: 'Stopped: Send the reminders' });
     expect(out.body).toMatch(/cancelled[\s\S]*- Sent to Anna[\s\S]*Not done/);
     expect(out.body).not.toMatch(/Bo/);
@@ -131,7 +131,7 @@ describe('executor', () => {
     await ex.idle();
     expect(reason).toBeInstanceOf(Cancelled);
     expect(reason).toMatchObject({ reason: 'lease-lost' });
-    expect(t.stub.cards.get(`hermes:order:${o.id.split(':')[2]}:outcome`)).toMatchObject({ 'orders.result': 'failed', 'orders.claim_seq': 2 });
+    expect(t.stub.cards.get(`hermes:order:${o.id.split(':')[2]}:outcome-1`)).toMatchObject({ 'orders.result': 'failed', 'orders.claim_seq': 1 });
     expect(t.order(o.id)).toMatchObject({ exec_state: 'claimed', claimed_by: 'cal', claim_seq: 2 });
   });
 
@@ -141,8 +141,9 @@ describe('executor', () => {
     const ex = executor(t.base({ leaseSeconds: 1, run: async () => (await new Promise((r) => setTimeout(r, 1300)), { kind: 'signal', title: 'ok', body: '' }) }));
     await ex.pass();
     await ex.idle();
-    const out = t.stub.cards.get(`hermes:order:${o.id.split(':')[2]}:outcome`)!;
-    expect(out['orders.claim_seq']).toBeGreaterThanOrEqual(3);
+    const out = t.stub.cards.get(`hermes:order:${o.id.split(':')[2]}:outcome-1`)!;
+    expect(out['orders.claim_seq']).toBe(1); // renewals keep claim_seq (A.2)
+    expect(t.stub.requests.filter((r) => r.url.endsWith('/claim')).length).toBeGreaterThanOrEqual(3);
     expect(t.order(o.id).exec_state).toBe('done');
   }, 5000);
 
@@ -159,7 +160,7 @@ describe('executor', () => {
     }));
     await ex.pass();
     await ex.idle();
-    const key = (o: OrderCard) => `hermes:order:${o.id.split(':')[2]}:outcome`;
+    const key = (o: OrderCard) => `hermes:order:${o.id.split(':')[2]}:outcome-1`;
     expect(t.stub.cards.get(key(a))).toMatchObject({ 'orders.result': 'failed', title: 'Failed: Charge the card' });
     expect(t.stub.cards.get(key(a))!.body).toMatch(/card declined/);
     expect(t.stub.cards.get(key(b))).toMatchObject({ kind: 'decision', actions: ['send', 'discard'] });
@@ -198,7 +199,7 @@ describe('executor', () => {
     await new Promise((r) => setTimeout(r, 20));
     await run.stop();
     expect(seen).toMatchObject({ reason: 'stopped' });
-    expect(t.stub.cards.get(`hermes:order:${o.id.split(':')[2]}:outcome`)).toBeUndefined();
+    expect(t.stub.cards.get(`hermes:order:${o.id.split(':')[2]}:outcome-1`)).toBeUndefined();
     expect(t.order(o.id).exec_state).toBe('claimed');
   });
 
@@ -209,6 +210,64 @@ describe('executor', () => {
     const ex = executor(t.base({ run: async (_order, ctx) => (await waitUntil(ctx, () => ++ticks >= 3), { kind: 'signal', title: 'ok', body: `${ticks}` }) }));
     await ex.pass();
     await ex.idle();
-    expect(t.order(o.id)).toMatchObject({ exec_state: 'done', claim_seq: 4 });
+    expect(t.order(o.id)).toMatchObject({ exec_state: 'done', claim_seq: 1 });
+  });
+
+  it('ctx.sleep resolves after its time, and rejects with the Cancelled as soon as the order is cancelled', async () => {
+    const t = setup();
+    const o = t.stub.order({ to_producer: 'hermes', title: 'Wait', body: '' });
+    let caught: unknown;
+    const ex = executor(t.base({
+      run: async (_order, ctx) => {
+        await ctx.sleep(5);
+        t.stub.decideHere(o.id, { decision: 'dismissed' });
+        const sleeping = ctx.sleep(60_000).catch((e) => (caught = e));
+        await ctx.checkpoint().catch(() => {});
+        await sleeping;
+        throw caught;
+      },
+    }));
+    const started = Date.now();
+    await ex.pass();
+    await ex.idle();
+    expect(Date.now() - started).toBeLessThan(2000);
+    expect(caught).toBeInstanceOf(Cancelled);
+    expect(caught).toMatchObject({ reason: 'cancelled' });
+  });
+
+  it('keeps ctx.state across a crash and re-claim, posts the re-run under its own claim_seq, and clears the state once accepted', async () => {
+    let clock = Date.parse('2026-10-26T12:00:00Z');
+    const t = setup({ now: () => new Date(clock).toISOString() });
+    const o = t.stub.order({ to_producer: 'hermes', title: 'Create the task', body: '' });
+    const store = memoryStore();
+    const created: string[] = [];
+    const run: ExecutorOptions['run'] = async (_order, ctx) => {
+      let task = await ctx.state.get<string>();
+      if (!task) {
+        task = `task-${created.length + 1}`;
+        created.push(task);
+        await ctx.state.set(task);
+        await ctx.progress(`Created ${task}`);
+      }
+      // the first run hangs until its process dies (here: until stop())
+      if (ctx.order.claim_seq === 1) return new Promise<never>((_, reject) => ctx.signal.addEventListener('abort', () => reject(ctx.signal.reason)));
+      return { kind: 'signal', title: `Done ${task}`, body: '' };
+    };
+    const first = executor(t.base({ store, run }));
+    await first.pass();
+    await vi.waitFor(() => expect(created).toEqual(['task-1']));
+    clock += 61_000; // the lease lapses; a new process starts from the same store
+    const cursor = memoryStore(); // a fresh cursor, the same order state
+    const second = executor(t.base({ store: { get: cursor.get, set: cursor.set, kv: store.kv }, run }));
+    await second.pass();
+    await second.idle();
+    const k = o.id.split(':')[2];
+    expect(created).toEqual(['task-1']);
+    expect(t.stub.cards.get(`hermes:order:${k}:progress-1-1`)).toMatchObject({ title: 'Created task-1' });
+    expect(t.stub.cards.get(`hermes:order:${k}:outcome-2`)).toMatchObject({ title: 'Done task-1', 'orders.claim_seq': 2 });
+    expect(t.order(o.id)).toMatchObject({ exec_state: 'done', claim_seq: 2 });
+    expect(await store.kv('orders').keys()).toEqual([]);
+    await first.stop();
   });
 });
+

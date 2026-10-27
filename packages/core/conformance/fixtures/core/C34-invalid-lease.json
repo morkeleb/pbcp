@@ -1,0 +1,142 @@
+{
+  "name": "C34 a claim whose lease_seconds is not a positive integer is 400 invalid_lease and changes nothing",
+  "rfc": [
+    "A.2",
+    "\u00a77.4"
+  ],
+  "extension": "orders",
+  "steps": [
+    {
+      "op": "clock",
+      "args": {
+        "set": "2026-10-07T09:00:00Z"
+      }
+    },
+    {
+      "op": "syncAll",
+      "args": {
+        "token": "hermes",
+        "executor": true,
+        "after": 0
+      },
+      "expect": {
+        "status": 200,
+        "body": {
+          "changes": {
+            "$len": 0
+          }
+        }
+      }
+    },
+    {
+      "op": "order",
+      "args": {
+        "to_producer": "*",
+        "title": "Book the dentist",
+        "body": "Any weekday morning."
+      },
+      "expect": {
+        "status": 201
+      },
+      "save": {
+        "o": "body.id"
+      }
+    },
+    {
+      "op": "claim",
+      "args": {
+        "token": "hermes",
+        "executor": true,
+        "id": {
+          "$var": "o"
+        },
+        "lease": 0
+      },
+      "expect": {
+        "status": 400,
+        "body": {
+          "error": "invalid_lease"
+        }
+      }
+    },
+    {
+      "op": "claim",
+      "args": {
+        "token": "hermes",
+        "executor": true,
+        "id": {
+          "$var": "o"
+        },
+        "lease": -60
+      },
+      "expect": {
+        "status": 400,
+        "body": {
+          "error": "invalid_lease"
+        }
+      }
+    },
+    {
+      "op": "claim",
+      "args": {
+        "token": "hermes",
+        "executor": true,
+        "id": {
+          "$var": "o"
+        },
+        "lease": 1.5
+      },
+      "expect": {
+        "status": 400,
+        "body": {
+          "error": "invalid_lease"
+        }
+      }
+    },
+    {
+      "op": "syncAll",
+      "args": {
+        "token": "hermes",
+        "executor": true,
+        "after": 0
+      },
+      "expect": {
+        "status": 200,
+        "body": {
+          "changes": {
+            "$contains": [
+              {
+                "card": {
+                  "id": {
+                    "$var": "o"
+                  },
+                  "exec_state": "open",
+                  "claim_seq": {
+                    "$absent": true
+                  }
+                }
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "op": "claim",
+      "args": {
+        "token": "hermes",
+        "executor": true,
+        "id": {
+          "$var": "o"
+        },
+        "lease": 60
+      },
+      "expect": {
+        "status": 200,
+        "body": {
+          "claim_seq": 1
+        }
+      }
+    }
+  ]
+}

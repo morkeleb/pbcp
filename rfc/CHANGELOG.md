@@ -1,5 +1,46 @@
 # RFC changelog
 
+## 0.5 (2026-10-26)
+
+Draft 0.5 writes the second implementation's findings into the text. The evidence is `rfc/OPEN.md` as of 0.4 plus orders (items 1–21, cited as OPEN #n), `morkeleb/pbcp-head` PR #2 (its fifteen §3.1 decisions, cited as H2-#n) and PR #3 (its Appendix A table and readings H-1 to H-6). Nothing new was added beyond what those findings required. In-process conformance: 40 → 43 cases.
+
+**Status.** Two independent implementations pass the full suite and agree on every fixture; open questions are in `rfc/OPEN.md`, and none affects interoperability.
+
+**Orders (Appendix A)**
+
+- **A.1, A.2, A.3, A.5 — a renewal keeps `claim_seq`.** It increments on a new claim only (the first, or one after a lease lapsed). Under 0.4 every renewal incremented it, so an outcome built while a renewal was in flight arrived stale and the head filed a correct result as late (OPEN #14; pbcp-head PR #3, row 14). C33 changes accordingly. A.5's "stale after cancel" becomes "ignored because the order is terminal" (OPEN #13).
+- **A.1, A.3 — `orders.result`.** A producer-owned field, `done` or `failed`, required on every outcome; an outcome lacking it, or `orders.claim_seq`, or an order in `references`, is `400 invalid_card`. It replaces 0.4's unstated success/failure (OPEN #11; head agrees, row 11). C18 gains the `400` step.
+- **A.2, A.5, §7.4 — claim refusals have codes.** `409 lease_held` and `410 order_terminal` are §7.4 error bodies that also carry the order, `{ error, message, order }`; a missing or non-positive-integer `lease_seconds` is `400 invalid_lease`. All three are in the §7.4 table, and `410` in the status table (OPEN #8, #10; head rows 8 and 10, which used `invalid_card` for want of a code). New fixture C34; C17, C32 and C33 check the new bodies.
+- **A.2 — claiming what you cannot read** is `404 not_found` (OPEN #9; head agrees).
+- **A.1, A.2, A.3 — a lease and wildcard eligibility belong to a root.** `claimed_by` is the holding root; any token under it may renew the lease and post its outcome. The eligibility snapshot lists roots (pbcp-head H-1, H-2; OPEN #12 and #19 restated per root). New fixture C35.
+- **A.2, A.3 — expiry and late results produce no cards.** A head SHOULD surface an expired lease or a late or duplicate outcome to the person in its own interface, and MUST NOT mint a card for it, since a head-minted card would move every producer's cursor. 0.4's "SHOULD emit a `signal` card" is withdrawn (pbcp-head H-3, H-4; OPEN #15).
+- **A.2 — expiry is lazy and normative.** The head applies it when it next reads or writes the order, and the order takes a new `change_seq` then (OPEN #15; head row 15).
+- **A.3 — what "the current lease" means.** After expiry is applied: the order is `claimed`, the outcome's root is `claimed_by`, and `orders.claim_seq` is the order's `claim_seq`. An applied outcome takes the lower `change_seq`, the order the higher (OPEN #12, #20; head rows 12 and 20).
+- **A.3, A.4 — outcome and progress ids are per claim.** `<root>:order:<ulid>:outcome-<claim_seq>` and `progress-<claim_seq>-<n>`, so a re-run after a lapsed lease writes beside the first run rather than replacing it (OPEN #18; head row 18). New fixture C36. The reference executor sketch is rewritten to match, failure included (`orders.result: failed`, no longer a decision card).
+- **A.1 — giving an order is the owner's action**, like decide: outside the producer protocol, exposed however the head likes (pbcp-head H-6).
+- **A.1 — the rest of the order card.** A named `to_producer` reaches that root whether or not it is an executor (OPEN #21); `producer: head`, `delivery` from `urgency` without a ceiling, no `thread` (OPEN #17; head row 17); a `done` or `failed` order can be dismissed and keeps its `exec_state`, and any other decision on an order is `400 invalid_decision` (OPEN #16); the eligibility set is head-private (OPEN #19); a `*` order minted with no eligible root reaches no one and a head SHOULD say so (pbcp-head H-5).
+
+**Core**
+
+- **§9, §4.2 — a producer with no ceiling set has the ceiling `brief`.** 0.4's SHOULD default left the in-process reference (no ceiling, no clamp) and pbcp-head (default `brief`) disagreeing on C28 step 6 (pbcp-head PR #3, part A). `delivery` changes only when the content is stored again; a head's interface may present a card differently (OPEN #7). C28 changes accordingly.
+- **§7.2 — parked changes.** Reporting is the producer's; it MAY tell the person with a card of its own; no head endpoint is defined (OPEN #1).
+- **§3 — typed extension fields in the file form.** An extension defines its fields' types, and a reader that implements it types them; the orders fields are listed (OPEN #2).
+- **§7.4 — owner-side codes.** The code table covers the owner's operations as well as the producer's; `not_acknowledgeable` stays (OPEN #4).
+- **§7.3 — owner actions** name giving an order (A.1) beside cancelling one.
+- **§14 — the conformance suite.** Fixtures may be marked with an extension or a condition (`prerender` for R07), declared by the adapter (OPEN #3); the adapter's clock may be set asynchronously (OPEN #6); `id_mismatch`, a transport check, is left to each head's tests, while `wrong_person` and `404` on presenting and acknowledging are now covered by C13 and C03 (OPEN #5).
+
+**Rendering (§3.1)**
+
+- **`config:` in a fence's front matter** is stripped like a URL-loading `%%{init}%%`; `title:` is kept (H2-#1). R04 gains a step.
+- **A `%%{ … }%%` directive spanning lines** is one directive (H2-#2). R04 gains a step.
+- **Fences after the eighth** are collapsed and drawn only when the person expands them (H2-#4).
+- **The fallback image** is the first thing in the paragraph after the fence; text after it stays; a fallback image that cannot be shown leaves the fallback block in place (H2-#5).
+- **Links and unsafe schemes.** Only `http:`, `https:` and `mailto:` are linked; `javascript:`, `data:` and any other scheme are shown as text. A `data:` image other than PNG or SVG is not shown (H2-#6).
+- **Parser messages** are the renderer's own and not part of the profile; R03 asserts that a message is shown, not its wording (H2-#7).
+- **The source behind the disclosure** is the sanitised source (H2-#10).
+- **Choice-option bodies** (§4.4) are rendered under the same profile (H2-#11).
+- Left to each head as presentation or deployment detail, not protocol: drawing Other-tier types (H2-#3, already MAY), the 16 KiB fallback text (H2-#8), captions without a title (H2-#9), whether a fallback block counts as a visual (H2-#12), image proxy limits (H2-#13), serving diagrams without a session (H2-#14). How `RenderResult.text` treats fence sources and captions (H2-#15) is defined in the conformance README, not here.
+
 ## 0.4 (2026-10-26)
 
 Draft 0.4 resolves what the first head over HTTP (`morkeleb/pbcp-head` PR #1, "Probable RFC bugs" and "Conformance suite and packaging issues") and the first tooling (`morkeleb/pbcp` PRs #2 and #3) found. Nothing else changed.

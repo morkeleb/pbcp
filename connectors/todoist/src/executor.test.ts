@@ -1,5 +1,5 @@
 import { fileURLToPath } from 'node:url';
-import { executor, HeadClient, memoryStore, type ExecutorOptions } from '@pbcp/client';
+import { executor, HeadClient, memoryStore, type ExecutorOptions, type StateStore } from '@pbcp/client';
 import { stubHead } from '@pbcp/client/testing';
 import type { OrderCard } from '@pbcp/core';
 import { describe, expect, it } from 'vitest';
@@ -13,15 +13,15 @@ function setup() {
   const stub = stubHead({ now: () => new Date(clock).toISOString() });
   const src = fixtureSource(FIX);
   const errors: unknown[] = [];
-  const opts = (): ExecutorOptions => ({
+  const opts = (store: StateStore = memoryStore()): ExecutorOptions => ({
     head: new HeadClient({ baseUrl: 'https://head.test', token: 'todoist', fetch: stub.fetch }),
-    store: memoryStore(), producer: 'todoist', leaseSeconds: 1, concurrency: 50,
+    store, producer: 'todoist', leaseSeconds: 1, concurrency: 50,
     onError: (e) => void errors.push(e),
     run: todoistRun(src, { pollMs: 5, onError: (e) => void errors.push(e) }),
   });
   const ex = executor(opts());
   const order = (id: string) => stub.cards.get(id) as unknown as OrderCard;
-  const outcome = (o: OrderCard) => stub.cards.get(`todoist:order:${o.id.split(':')[2]}:outcome`);
+  const outcome = (o: OrderCard, claimSeq = 1) => stub.cards.get(`todoist:order:${o.id.split(':')[2]}:outcome-${claimSeq}`);
   const until = async (check: () => boolean) => { for (let i = 0; !check(); i++) { if (i > 400) throw new Error('timed out'); await new Promise((r) => setTimeout(r, 5)); } };
   return { stub, src, errors, opts, ex, order, outcome, until, tick: (ms: number) => void (clock += ms) };
 }
@@ -40,32 +40,54 @@ describe('todoist executor', () => {
     await t.until(() => t.src.created.length === 1);
     const id = t.src.created[0]!;
     expect(t.src.raw.get(id)).toMatchObject({ content: 'Book the dentist', description: `Any weekday morning.\n\npbcp: ${o.id}`, due: { string: '2026-11-02' }, labels: ['pbcp'] });
-    expect(t.stub.cards.get(`todoist:order:${o.id.split(':')[2]}:progress-1`)).toMatchObject({ title: 'Added to Todoist: Book the dentist', urgency: 'log' });
+    expect(t.stub.cards.get(`todoist:order:${o.id.split(':')[2]}:progress-1-1`)).toMatchObject({ title: 'Added to Todoist: Book the dentist', urgency: 'log' });
     t.src.complete(id);
     await t.ex.idle();
     const out = t.outcome(o)!;
     expect(out).toMatchObject({ kind: 'signal', title: 'Done: Book the dentist', references: [o.id], thread: o.id });
     expect(out.body).toMatch(/Completed in Todoist at 2026-10-27/);
-    expect(out['orders.result']).toBeUndefined();
-    expect(out['orders.claim_seq']).toBe(t.order(o.id).claim_seq);
+    expect(out['orders.result']).toBe('done');
+    expect(out['orders.claim_seq']).toBe(1);
     expect(t.order(o.id).exec_state).toBe('done');
     expect(t.errors).toEqual([]);
   });
 
-  it('finds the task an earlier run created when the order is claimed again, and creates no second one', async () => {
+  it('finds a task completed while the executor was down through ctx.state, and posts Done without a second task', async () => {
     const t = setup();
+    const shared = memoryStore();
+    const first = executor(t.opts(shared));
     const o = t.stub.order({ to_producer: 'todoist', title: 'Water the plants', body: '' });
+    await first.pass();
+    await t.until(() => t.src.created.length === 1);
+    await first.stop(); // a crash: no outcome, the lease lapses
+    expect(t.outcome(o)).toBeUndefined();
+    t.src.complete(t.src.created[0]!); // the person completes it meanwhile: the marker search no longer sees it
+    t.tick(2000);
+    const cursor = memoryStore(); // a fresh cursor, the same order state
+    const again = executor(t.opts({ get: cursor.get, set: cursor.set, kv: shared.kv }));
+    await again.pass();
+    await again.idle();
+    expect(t.src.created).toHaveLength(1);
+    expect(t.outcome(o, 2)).toMatchObject({ title: 'Done: Water the plants', 'orders.result': 'done', 'orders.claim_seq': 2 });
+    expect(t.order(o.id)).toMatchObject({ exec_state: 'done', claim_seq: 2 });
+    expect(await shared.kv('orders').get(o.id)).toBeUndefined(); // dropped once the outcome is accepted
+    expect(t.errors).toEqual([]);
+  });
+
+  it('falls back to the marker search when the order state is lost, while the task is still open', async () => {
+    const t = setup();
+    const o = t.stub.order({ to_producer: 'todoist', title: 'Feed the cat', body: '' });
     await t.ex.pass();
     await t.until(() => t.src.created.length === 1);
-    await t.ex.stop(); // a crash: no outcome, the lease lapses
-    expect(t.outcome(o)).toBeUndefined();
+    await t.ex.stop();
     t.tick(2000);
-    const again = executor(t.opts());
+    const again = executor(t.opts()); // a new, empty store
     await again.pass();
-    expect(t.order(o.id)).toMatchObject({ exec_state: 'claimed', claim_seq: expect.any(Number) });
+    expect(t.order(o.id)).toMatchObject({ exec_state: 'claimed', claim_seq: 2 });
     t.src.complete(t.src.created[0]!);
     await again.idle();
     expect(t.src.created).toHaveLength(1);
+    expect(t.outcome(o, 2)).toMatchObject({ 'orders.result': 'done' });
     expect(t.order(o.id).exec_state).toBe('done');
   });
 

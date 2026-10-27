@@ -1,5 +1,5 @@
 {
-  "name": "C28 a ceiling clamps delivery; urgency is stored and returned as sent",
+  "name": "C28 a ceiling clamps delivery; urgency is stored and returned as sent; a producer with no ceiling set has the ceiling brief",
   "rfc": [
     "\u00a74.1",
     "\u00a74.2",
@@ -154,6 +154,31 @@
           "kind": "signal",
           "to_person": "morten",
           "producer": "cal",
+          "title": "Card cal:event:e1",
+          "body": "Body.",
+          "emitted_at": "2026-10-07T06:00:00Z",
+          "urgency": "immediate"
+        }
+      },
+      "expect": {
+        "status": 201,
+        "body": {
+          "urgency": "immediate",
+          "delivery": "brief"
+        }
+      }
+    },
+    {
+      "op": "put",
+      "args": {
+        "token": "ops",
+        "ceiling": "immediate",
+        "card": {
+          "protocol": "pbcp/1",
+          "id": "ops:alerts:p1",
+          "kind": "signal",
+          "to_person": "morten",
+          "producer": "ops",
           "title": "Card cal:event:e1",
           "body": "Body.",
           "emitted_at": "2026-10-07T06:00:00Z",

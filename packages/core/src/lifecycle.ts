@@ -71,9 +71,10 @@ export function clampUrgency(urgency: Urgency | undefined, ceiling?: Urgency): U
  * §5 submission table. `stored` is the card at `incoming.id`; `target` is the card named
  * by `incoming.supersedes`, loaded by the head (pass null if absent). Refusals throw PbcpError;
  * a locked card with different content is a 409 *result*, carrying the stored card.
- * `ceiling` is the producer's urgency ceiling (§9), absent for none; it sets `delivery` on the stored content.
+ * `ceiling` is the producer's urgency ceiling (§9); a producer with none set has the ceiling `brief`. It sets
+ * `delivery` on the stored content.
  */
-export function submit(stored: Card | null, incoming: ProducerCard, now: string, target: Card | null = null, ceiling?: Urgency): SubmitResult {
+export function submit(stored: Card | null, incoming: ProducerCard, now: string, target: Card | null = null, ceiling: Urgency = 'brief'): SubmitResult {
   if (stored !== null) {
     const same = equal(producerPart(stored), incoming);
     if (stored.state !== 'open') return same ? { status: 200, card: stored, changed: [] } : { status: 409, card: stored, changed: [] };

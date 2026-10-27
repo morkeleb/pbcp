@@ -1,6 +1,6 @@
 # RFC: Personal Brief Card Protocol
 
-Oct 26, 2026 · @Morten Nielsen · Draft 0.4
+Oct 26, 2026 · @Morten Nielsen · Draft 0.5
 
 ## Abstract
 
@@ -8,7 +8,7 @@ This document specifies a protocol for crossing the authority boundary between a
 
 The core protocol is deliberately small: three operations, one document, one state machine in the core (extensions may add their own lifecycle). A conforming producer can be written in an afternoon with an HTTP client and a string template. It is the mailbox model (SMTP, IMAP) rather than the collaboration model (Google Wave): one writer per card and no concurrent editing. A card may be replaced by its producer while open; once decided it is locked, and change requires a new card. Giving work back to agents — orders, claims, delegation — is specified as an extension (Appendix A) on top of the same card primitive, so a head or producer that only needs the decision flow can ignore it.
 
-**Status:** Draft 0.4, for discussion. The core protocol is implemented as a library, a conformance suite, a client, a command line, an MCP adapter and several producers, and one head implements it end to end over HTTP. Draft 0.4 resolves what that head and that tooling found: the clamped urgency is a head-owned `delivery` field, decide is the owner's operation and refuses producer tokens, a malformed sync cursor has its own error code, and paths are relative to the head's base URL. `rfc/CHANGELOG.md` lists every change against 0.3.
+**Status:** Draft 0.5, for discussion. Two independent implementations, the in-process reference in `@pbcp/core` and the `pbcp-head` service, pass the full conformance suite, the orders extension included, and agree on every fixture call for call. Draft 0.5 writes into the text what that second implementation had to decide: the remaining rendering rules, how leases, renewals and outcomes work in the orders extension, the codes for claim refusals, and the default urgency ceiling. The questions still open are listed in `rfc/OPEN.md`; none of them affects interoperability. `rfc/CHANGELOG.md` lists every change against 0.4.
 
 ## 1. Motivation
 
@@ -144,7 +144,7 @@ actions:
 
 **File form boundaries.** The header is the text between a first line `---` and the next line `---`. The body is everything after that second line, less one blank separator line if present; a writer emits that blank line. The header MUST NOT contain `body`.
 
-**Typed fields in the file form.** Only the fields this document defines, and those of an extension the head implements, are typed after parsing. Any other field read from a file is a string. A field whose value is not a string, a list of strings, or a mapping as described above has no file form; a producer that uses such extension fields sends the wire form. Converting a card to the file form writes numbers and booleans as strings.
+**Typed fields in the file form.** Only the fields this document defines, and those of an extension the reader implements, are typed after parsing; an extension defines the types of its own fields (the orders extension: `orders.claim_seq` an integer, `orders.result` an enum, A.1). Any other field read from a file is a string. A field whose value is not a string, a list of strings, or a mapping as described above has no file form; a producer that uses such extension fields with a reader that does not implement the extension sends the wire form. Converting a card to the file form writes numbers and booleans as strings.
 
 **Body.** The body is CommonMark plus GitHub-style tables and fenced code. Diagrams and charts are embedded as `mermaid` fences, which the head renders. No other embedding (HTML, iframes, remote widgets) is permitted in this version; a head MUST strip raw HTML. Richer content is linked through `source.url`.
 
@@ -152,11 +152,13 @@ actions:
 
 A producer that draws a chart needs to know it will be drawn, on every head, on every device. This profile is the contract: what a card body may contain, what a head MUST render, and what happens to the rest. It is normative for heads and advisory for producers.
 
-**Markdown.** CommonMark plus GFM tables, task lists and fenced code. A head MUST render these. Raw HTML is stripped (§12): the tags are removed and their text kept, except that `<script>`, `<style>` and `<iframe>` elements are removed with their contents.
+**Markdown.** CommonMark plus GFM tables, task lists and fenced code. A head MUST render these. Raw HTML is stripped (§12): the tags are removed and their text kept, except that `<script>`, `<style>` and `<iframe>` elements are removed with their contents. This profile applies to a card's body and to the `body` of each choice option (§4.4), diagrams included.
 
-**Images.** `![alt](url)` is rendered when `url` is `https:` (subject to the head's image policy; a head SHOULD proxy or size-limit remote images and MUST NOT send cookies when fetching them) or an inline `data:image/png;base64,…` or `data:image/svg+xml;base64,…` URI. Inline images count toward the 64 KiB card limit, which is the only size control a producer needs. Inline SVG is sanitised before display: `<script>`, event attributes, `<foreignObject>`, external `href`s and `<use>` of remote documents are removed. Any other scheme is shown as the alt text, linked.
+**Links.** A link is followed only when its URL is `http:`, `https:` or `mailto:`. Any other scheme (`javascript:`, `data:`, `file:`, anything unknown) is shown as the link's text and not linked.
 
-**Image fallback for a diagram.** An image whose alt text is exactly `fallback`, placed immediately after a `mermaid` fence with nothing between but blank lines, belongs to that fence: a head that rendered the fence MUST NOT show the image, and a head that could not (unsupported type, parse error, no renderer) MUST show the image in place of the fallback code block. A producer that needs a chart to appear on every head pre-renders it and attaches it this way; the fence remains the source of truth and the image is never shown alongside it.
+**Images.** `![alt](url)` is rendered when `url` is `https:` (subject to the head's image policy; a head SHOULD proxy or size-limit remote images and MUST NOT send cookies when fetching them) or an inline `data:image/png;base64,…` or `data:image/svg+xml;base64,…` URI. Inline images count toward the 64 KiB card limit, which is the only size control a producer needs. Inline SVG is sanitised before display: `<script>`, event attributes, `<foreignObject>`, external `href`s and `<use>` of remote documents are removed. A `data:` image of any other type, and an image with any other scheme, is not shown: its alt text appears in its place, linked only if the URL is one a link may have (`http:`, `https:`, `mailto:`).
+
+**Image fallback for a diagram.** An image whose alt text is exactly `fallback`, placed immediately after a `mermaid` fence with nothing between but blank lines (so it is the first thing in the next paragraph; text after it in that paragraph stays), belongs to that fence: a head that rendered the fence MUST NOT show the image, and a head that could not (unsupported type, parse error, no renderer) MUST show the image in place of the fallback code block. If the fallback image itself cannot be shown (an `http:` URL, say), the fallback block stays and the image is treated as Images says. A producer that needs a chart to appear on every head pre-renders it and attaches it this way; the fence remains the source of truth and the image is never shown alongside it.
 
 **Mermaid.** A fence tagged `mermaid` is a diagram. Support is in two tiers so producers can tell what is safe to send:
 
@@ -168,17 +170,17 @@ A producer that draws a chart needs to know it will be drawn, on every head, on 
 
 Type names are matched exactly as listed; an alias (mermaid's `graph` for `flowchart`) falls in the Other tier, so a producer writes the listed name. A producer that wants a chart to appear everywhere uses the core tier. The nightly brief, agendas and digests are expected to fit in `gantt`, `timeline`, `pie` and `xychart-beta`.
 
-**Fallback.** A fence a head cannot render is shown as a code block with its type label and a one-line note ("diagram not supported"), never dropped and never shown as an error that hides the rest of the card. A fence that fails to parse is shown the same way with the parser's message. In both cases the card's text, tables and other diagrams still render.
+**Fallback.** A fence a head cannot render is shown as a code block with its type label and a one-line note ("diagram not supported"), never dropped and never shown as an error that hides the rest of the card. A fence that fails to parse is shown the same way with the parser's message; that message is the renderer's own, its wording differs between renderers and versions, and it is not part of this profile. In both cases the card's text, tables and other diagrams still render.
 
-**Declarative only.** Rendering a mermaid fence MUST NOT cause network access, script execution, or navigation. `click` directives, `%%{init}%%` directives that reference a URL (`http:`, `https:`, `url(`, `@import`) or set `htmlLabels`, and `htmlLabels` itself are stripped before rendering; other `init` directives MAY be kept. A head MAY pre-render fences to SVG server-side and serve the SVG; a producer MUST NOT depend on client-side rendering.
+**Declarative only.** Rendering a mermaid fence MUST NOT cause network access, script execution, or navigation. `click` directives, `%%{init}%%` directives that reference a URL (`http:`, `https:`, `url(`, `@import`) or set `htmlLabels`, and `htmlLabels` itself are stripped before rendering; a directive that spans several lines, from `%%{` to `}%%`, is one directive. A `config:` key in the fence's own front matter (between `---` lines at its top) is a second way to set the same options and is stripped likewise; `title:` there is kept. Other `init` directives MAY be kept. A head MAY pre-render fences to SVG server-side and serve the SVG; a producer MUST NOT depend on client-side rendering.
 
-**Presentation.** Every diagram and image is shown in two sizes, and producers design for the first. *In the card*, a head MUST show each visual as a thumbnail fitted to the card's width (assume 360 px on a phone, about 600 px on the web), in reading order, never cropped, with the fence's title or the image's alt text as a caption. *On tap or click*, the head MUST open the visual full-screen with zoom and pan, at its native size, and SHOULD offer the fence source behind a disclosure. A head MAY lazy-render thumbnails and MUST NOT require the full-screen view to read the card's text.
+**Presentation.** Every diagram and image is shown in two sizes, and producers design for the first. *In the card*, a head MUST show each visual as a thumbnail fitted to the card's width (assume 360 px on a phone, about 600 px on the web), in reading order, never cropped, with the fence's title or the image's alt text as a caption. *On tap or click*, the head MUST open the visual full-screen with zoom and pan, at its native size, and SHOULD offer the fence source behind a disclosure: the source as sanitised, which is what was drawn. A head MAY lazy-render thumbnails and MUST NOT require the full-screen view to read the card's text.
 
 In a folded brief or a thread summary, a head MAY show only the first visual of a card, or none; it MUST NOT reflow a card's text to fit around visuals it has hidden. Producers therefore put the one chart that matters first.
 
 What this means for a producer: a visual is legible at 360 px wide or it is not read. Put the point in the title, keep to roughly 20 nodes or 30 data points, label axes in the fence, and prefer two small diagrams to one large one. Anything denser belongs in a `source.url` the person can open.
 
-**Limits.** A head MUST render up to 8 fences per card and MAY collapse the rest behind a disclosure; a fence beyond the eighth is rendered or collapsed, never dropped. A single fence over 16 KiB MAY be treated as unsupported. Rendered diagrams are scaled to the viewport width; producers SHOULD keep diagrams under roughly 20 nodes or 30 data points, since the brief is read on a phone.
+**Limits.** A head MUST render up to 8 fences per card. A fence beyond the eighth is collapsed behind a disclosure and drawn only when the person expands it; it is never dropped. A single fence over 16 KiB MAY be treated as unsupported. Rendered diagrams are scaled to the viewport width; producers SHOULD keep diagrams under roughly 20 nodes or 30 data points, since the brief is read on a phone.
 
 **Determinism.** Given the same fence, a head SHOULD produce the same diagram on every view; a head that pre-renders MUST cache by content hash of the fence so a re-PUT of an identical card does not redraw.
 
@@ -220,7 +222,7 @@ Set only by the head. A producer MUST NOT include them on submission; a head MUS
 | `state` | enum | `open`, `decided`, `superseded`. |
 | `change_seq` | integer | Monotonic sequence number, assigned anew on every head-side change to this card, including the owner-side fields below (`seen_at`, `acknowledged_at`, `snoozed_until`). The sync cursor, see §7.2. |
 | `received_at` | timestamp | When the head accepted the card (head clock). |
-| `delivery` | enum | `immediate`, `brief` or `log`: where the card lands. Set whenever the head stores the producer's content (`201`, or `200` with a replacement) to the card's `urgency` (default `brief`) clamped to the producer's ceiling (§9). |
+| `delivery` | enum | `immediate`, `brief` or `log`: where the card lands. Set whenever the head stores the producer's content (`201`, or `200` with a replacement) to the card's `urgency` (default `brief`) clamped to the producer's ceiling (§9). It changes only when the content is stored again. |
 | `changed_at` | timestamp | When any head-owned field last changed (head clock). |
 | `seen_at` | timestamp | Implementation-defined evidence that the head presented the card to its owner. A head MUST NOT set it merely because the card was synced or folded into a generated brief. |
 | `acknowledged_at` | timestamp | For `artifact` and `signal` cards: when the person acknowledged the card through whatever explicit acknowledgement the head's interface offers. Inclusion in a generated brief MUST NOT by itself set it, and a head MUST NOT set it on a `decision` card. The head's record that the person explicitly acknowledged the card; a producer observes it through sync. Acknowledging an acknowledged card changes nothing. |
@@ -389,7 +391,7 @@ cursor = resp.next         # advance only after processing succeeded
 
 A producer sees the same change more than once: a `200` or `409` on submit returns a card it will also receive through sync, and a pass that fails part-way is repeated. Processing is therefore idempotent, as §5 requires.
 
-**Parking.** A change whose processing keeps failing (a mailbox that no longer exists, a record deleted upstream) would hold the cursor back for good. A producer MAY park such a change after repeated failed attempts: it records the change as parked, treats it as processed, and advances its cursor past it. A producer that parks MUST report every parked change, at least by logging the card id, its `seq` and the failure; it MUST NOT park a change it has not attempted to process. A head MAY offer a way to surface parked changes to the person; this version defines none.
+**Parking.** A change whose processing keeps failing (a mailbox that no longer exists, a record deleted upstream) would hold the cursor back for good. A producer MAY park such a change after repeated failed attempts: it records the change as parked, treats it as processed, and advances its cursor past it. A producer that parks MUST report every parked change, at least by logging the card id, its `seq` and the failure; it MUST NOT park a change it has not attempted to process. Reporting is the producer's: it MAY also tell the person with a card of its own (a `signal` in the parked card's thread), and the protocol defines no head endpoint for parked changes.
 
 ### 7.3 Decide
 
@@ -401,7 +403,7 @@ Authorization: <the owner's credential>
 { "decision": "edited", "edited_proposal": "...", "comment": "..." }
 ```
 
-The owner's operation: the head's own interface calls it on behalf of the person, never a producer. It is performed with the head owner's credential, which the protocol does not define (a session, a passkey assertion, a local socket); a head exposes it however it likes, at this path or another. A producer token MUST be refused with `401`, before the request is otherwise examined. (Appendix A uses decide for the person to cancel an order; an executor's claim is a separate operation, A.2.) `decision` MUST be one of the card's `actions` other than `edit`, or one of the built-in values `dismissed`, `delegated` (with `delegated_to`), `edited` (with `edited_proposal`); `edited` is accepted on every decision card (§4.4). `edited_proposal` and `delegated_to` appear with their decision and with no other; `comment` may accompany any. The protocol defines no credentials for human interfaces: who may decide on behalf of the owner is entirely the head's responsibility.
+The owner's operation: the head's own interface calls it on behalf of the person, never a producer. It is performed with the head owner's credential, which the protocol does not define (a session, a passkey assertion, a local socket); a head exposes it however it likes, at this path or another. A producer token MUST be refused with `401`, before the request is otherwise examined. (Appendix A uses decide for the person to cancel an order; giving an order is another owner action of the same kind, A.1; an executor's claim is a producer operation, A.2.) `decision` MUST be one of the card's `actions` other than `edit`, or one of the built-in values `dismissed`, `delegated` (with `delegated_to`), `edited` (with `edited_proposal`); `edited` is accepted on every decision card (§4.4). `edited_proposal` and `delegated_to` appear with their decision and with no other; `comment` may accompany any. The protocol defines no credentials for human interfaces: who may decide on behalf of the owner is entirely the head's responsibility.
 
 Responses: `200` with the decided card; `401` for a missing or invalid owner credential, a producer token included; `400` for a value not allowed above, or for a card that is not `kind: decision`; `404` for an id the head does not hold; `409` with the stored card when the card is already `decided` or `superseded`.
 
@@ -415,23 +417,25 @@ Responses: `200` with the decided card; `401` for a missing or invalid owner cre
 | `401` | Missing or invalid credential: a producer token on submit or sync, the owner's credential on decide |
 | `403` | Id or supersede target outside the producer's namespace, or a card for another person |
 | `404` | No card with this id |
-| `409` | Card is locked and the content differs, or a supersede target is already superseded |
+| `409` | Card is locked and the content differs, or a supersede target is already superseded, or (orders) another root holds the lease |
+| `410` | (orders) The order is done, failed or cancelled |
 | `413` | Card too large |
 | `429` | Producer rate-limited; `Retry-After` set |
 
-**Error bodies.** Every refusal that does not return a card (§7.1, §7.3) carries `{ "error": "<code>", "message": "<text>" }`. `code` is one of the values below for its status, and a client MAY rely on it; `message` is for people and says nothing a client should parse. A head MUST NOT send a code under a status other than its own.
+**Error bodies.** Every refusal that does not return a card (§7.1, §7.3, A.2) carries `{ "error": "<code>", "message": "<text>" }`; a refused claim adds the order as it stands, `"order": { … }` (A.2, A.5). `code` is one of the values below for its status, and a client MAY rely on it; `message` is for people and says nothing a client should parse. A head MUST NOT send a code under a status other than its own.
 
 | Status | `error` codes |
 | --- | --- |
-| `400` | `malformed_json`, `malformed_front_matter`, `yaml_outside_subset`, `invalid_card`, `invalid_id`, `producer_mismatch`, `head_owned_field`, `unsupported_protocol`, `unsupported_kind`, `duplicate_action`, `multiple_defaults`, `id_mismatch`, `supersede_self`, `supersede_target_missing`, `invalid_cursor`, `invalid_decision`, `not_decidable`, `not_acknowledgeable` |
+| `400` | `malformed_json`, `malformed_front_matter`, `yaml_outside_subset`, `invalid_card`, `invalid_id`, `producer_mismatch`, `head_owned_field`, `unsupported_protocol`, `unsupported_kind`, `duplicate_action`, `multiple_defaults`, `id_mismatch`, `supersede_self`, `supersede_target_missing`, `invalid_cursor`, `invalid_lease`, `invalid_decision`, `not_decidable`, `not_acknowledgeable` |
 | `401` | `unauthorized` |
 | `403` | `outside_root`, `wrong_person`, `cross_namespace_supersede` |
 | `404` | `not_found` |
-| `409` | `already_superseded` |
+| `409` | `already_superseded`, `lease_held` |
+| `410` | `order_terminal` |
 | `413` | `too_large` |
 | `429` | `rate_limited` |
 
-`unauthorized` covers every missing or invalid credential, producer or owner. `invalid_cursor` is a missing or malformed `after` on sync (§7.2). `not_acknowledgeable` is for a head's own interface, which refuses to acknowledge a decision card (§4.2). Extensions define their own statuses and codes; the orders extension uses `409` and `410` for claims (A.2, A.5). A `429` carries `Retry-After` in seconds; a producer SHOULD NOT send another request to that head before it has elapsed.
+`unauthorized` covers every missing or invalid credential, producer or owner. `invalid_cursor` is a missing or malformed `after` on sync (§7.2). The table covers the owner's operations as well as the producer's: `not_acknowledgeable` is for the owner's acknowledgement, which a head exposes through its own interface (§4.2), and a head that exposes owner operations over HTTP uses these codes for them. `invalid_lease`, `lease_held` and `order_terminal` belong to the orders extension (A.2, A.5). A `429` carries `Retry-After` in seconds; a producer SHOULD NOT send another request to that head before it has elapsed.
 
 ### 7.5 Describe
 
@@ -468,7 +472,7 @@ Folding is the head's job: turning a day of cards into one readable brief, colla
 
 A `kind: decision` card remains open until decided, whatever its `delivery`. How a head keeps it in view (pinned, badged, listed) is the head's choice; that it stays reachable is the protocol's.
 
-**Ceilings.** Urgency is a producer's request, not a right. A head MUST let the person set a per-producer ceiling. When it stores a card's content it sets `delivery` to the card's `urgency` (absent is `brief`), lowered to the ceiling if above it, in the order `log` < `brief` < `immediate`; it MUST NOT alter `urgency` itself, which stays as the producer sent it for equality (§5) and is returned unchanged. Sync returns both, so a producer can see that it was clamped. Changing a ceiling does not revisit cards already stored. A new producer SHOULD default to a ceiling of `brief` until the person raises it. This is the only defence against a noisy producer short of revoking its token.
+**Ceilings.** Urgency is a producer's request, not a right. A head MUST let the person set a per-producer ceiling. When it stores a card's content it sets `delivery` to the card's `urgency` (absent is `brief`), lowered to the ceiling if above it, in the order `log` < `brief` < `immediate`; it MUST NOT alter `urgency` itself, which stays as the producer sent it for equality (§5) and is returned unchanged. Sync returns both, so a producer can see that it was clamped. Changing a ceiling does not revisit cards already stored. A producer whose ceiling the person has not set has the ceiling `brief`. A head's interface may present a card however it likes, but `delivery` as stored and synced changes only when the card's content is stored. This is the only defence against a noisy producer short of revoking its token.
 
 ## 10. Addressee
 
@@ -498,10 +502,10 @@ A mail reader is the canonical minimal producer: IMAP message id → `id` (perce
 Everything in 11.1, plus:
 
 - [ ] Syncs for `kind: order` cards addressed to it (or `*`)
-- [ ] Claims with a lease before starting; renews while running; stands down on `409`
+- [ ] Claims with a lease before starting; renews at least every half lease and before each irreversible step; stands down on `409`; stops on `410` and never retries it
 - [ ] Makes external side effects idempotent on the order id
-- [ ] Reports progress and outcome as new cards in the order's thread
-- [ ] Reports failure as an outcome card, never silently
+- [ ] Reports progress and outcome as new cards in the order's thread, with ids per claim (`<root>:order:<ulid>:outcome-<claim_seq>`)
+- [ ] Reports failure as an outcome card with `orders.result: failed`, never silently
 
 ### 11.3 A head
 
@@ -546,7 +550,7 @@ Sources: [Wave Federation Protocol](https://en.wikipedia.org/wiki/Google_Wave_Fe
 
 ## 14. Open questions
 
-**Conformance suite.** Conformance is tested with fixtures: language-neutral JSON files, published with the reference implementation, that a head runs through an adapter. Protocol fixtures drive a head through describe, submit and sync, through decide with the owner's credential, and through two more actions its owner would take (presenting a card, which sets `seen_at`, and acknowledging one); they also check that a missing or invalid producer token and a producer token on decide are refused; the head under test is owned by `morten`, and paging is exercised by syncing until `next` stops moving, whatever page size the head chooses. A fixture marked `SHOULD` checks a recommendation and may fail without breaking conformance. Rendering conformance (§3.1) is tested from card bodies rather than over HTTP: each fixture gives a body and the expected classification of every fence (`render`, `fallback`, `collapsed`), what was stripped (raw HTML, `click`, URL-loading `init`, `htmlLabels`), and how each image is shown; for `fallback`, the surrounding text must still appear. A head passes by rendering the fixture and matching the classification; pixel output is not compared. Producer obligations (cursor handling, parking) are tested in the client library, not against a head.
+**Conformance suite.** Conformance is tested with fixtures: language-neutral JSON files, published with the reference implementation, that a head runs through an adapter. Protocol fixtures drive a head through describe, submit and sync, through decide with the owner's credential, and through two more actions its owner would take (presenting a card, which sets `seen_at`, and acknowledging one); they also check that a missing or invalid producer token and a producer token on decide are refused; the head under test is owned by `morten`, and paging is exercised by syncing until `next` stops moving, whatever page size the head chooses. A fixture marked `SHOULD` checks a recommendation and may fail without breaking conformance. A fixture marked with an extension (`orders`) runs only for a head that implements it, and one marked with a condition runs only for a head the condition describes (`prerender`: R07, for a head that draws diagrams before serving them); the head's adapter declares both. The adapter's test clock may be set asynchronously. A refusal that exists only in a transport (the URL id against the card id, `id_mismatch`) is left to each head's own tests. Rendering conformance (§3.1) is tested from card bodies rather than over HTTP: each fixture gives a body and the expected classification of every fence (`render`, `fallback`, `collapsed`), what was stripped (raw HTML, `click`, URL-loading `init` or front-matter `config`, `htmlLabels`), and how each image is shown; for `fallback`, that a parser message is shown (not its wording) and that the surrounding text still appears. A head passes by rendering the fixture and matching the classification; pixel output is not compared. Producer obligations (cursor handling, parking) are tested in the client library, not against a head.
 
 - [ ] **Last-visit cursor.** The brief is defined by one global "since last visit" cursor. Per-producer cursors would let a person catch up on one producer without clearing the rest. Global is simpler; undecided.
 - [ ] **Withdraw.** There is no delete. Superseding with a signal is the workaround; is a first-class withdraw worth an operation?
@@ -563,28 +567,37 @@ The core protocol carries work *to* a person. This extension carries work *from*
 
 An order is a card of `kind: order`, minted by the head under `head:order:<ulid>`. Its body is the person's instruction, immutable from the moment it is minted.
 
-**Schema overrides.** A producer never submits a `kind: order` card; the head mints them, and rejects a submitted one with `400`. This extension changes three core rules, and only for `kind: order`: it adds `order` to the `kind` enum; `to_person` MUST be absent and `to_producer` MUST be present; and the sync operation (§7.2) returns, in addition to the caller's own namespace, every order whose `to_producer` names the caller or is `*`. That last rule is recipient authorisation — what a producer may *read* — alongside the core's namespace authorisation — what it may *write*. The head acts as the producer of order cards and owns the `head:` namespace root; no token is issued for it. For every other kind the core rules stand unchanged.
+**Giving an order is the owner's action.** Like decide (§7.3), it is outside the producer protocol: the person gives an order through the head's own interface, with the owner's credential, and the head exposes that however it likes. No producer operation creates an order.
 
-**Wildcard eligibility is fixed at creation.** When the head mints an order with `to_producer: *`, it records the set of executors eligible at that moment, and only those executors receive it on sync. An executor that becomes eligible later does not receive earlier wildcard orders. This keeps the sync cursor sound: a sequence an executor has advanced past can never later contain a card it was entitled to see.
+**Schema overrides.** A producer never submits a `kind: order` card; the head mints them, and rejects a submitted one with `400`. This extension changes three core rules, and only for `kind: order`: it adds `order` to the `kind` enum; `to_person` MUST be absent and `to_producer` MUST be present; and the sync operation (§7.2) returns, in addition to the caller's own namespace, every order whose `to_producer` names the caller's root, or is `*` and lists that root as eligible (below). That last rule is recipient authorisation — what a producer may *read* — alongside the core's namespace authorisation — what it may *write*. A named `to_producer` reaches that root whether or not the head counts it as an executor; only `*` depends on executor status. The head acts as the producer of order cards and owns the `head:` namespace root; no token is issued for it. For every other kind the core rules stand unchanged.
 
-**Addressing.** `to_producer` is one producer name, or `*` for any executor the head trusts. The set of eligible executors for `*` is head policy and is not discoverable through the protocol.
+**The order card's other fields.** `producer` is `head`; `title` and `body` are the person's; `urgency` is optional, and `delivery` is set from it as for any card but without a ceiling, since the owner is the author. An order has no `thread`: the executor's cards set `thread` to the order id (A.3).
 
-**Order fields.** The extension adds head-owned fields to the order card; a producer MUST NOT submit them.
+**Wildcard eligibility is fixed at creation, per root.** When the head mints an order with `to_producer: *`, it records the set of producer roots eligible at that moment, and only those roots receive it on sync, through any of their tokens. A root that becomes eligible later does not receive earlier wildcard orders. This keeps the sync cursor sound: a sequence a producer has advanced past can never later contain a card it was entitled to see. The set is head policy: the head keeps it where no producer can read it, and it is not discoverable through the protocol. A `*` order minted when no root is eligible reaches no one; a head SHOULD say so to the person when it is given.
+
+**Addressing.** `to_producer` is one producer root, or `*` for any executor the head trusts.
+
+**Order fields.** The extension adds head-owned fields to the order card, which a producer MUST NOT submit, and two producer-owned fields to the outcome card (A.3).
 
 | Field | On | Owner | Required | Type | Meaning |
 | --- | --- | --- | --- | --- | --- |
-| `to_producer` | order | head | yes | string | Recipient producer name, or `*`. Replaces `to_person`. |
+| `to_producer` | order | head | yes | string | Recipient producer root, or `*`. Replaces `to_person`. |
 | `exec_state` | order | head | yes | enum | `open`, `claimed`, `done`, `failed`, `cancelled`. Independent of core `state`. |
-| `claimed_by` | order | head | no | string | Authenticated producer principal holding the current lease; cleared on expiry. |
+| `claimed_by` | order | head | no | string | The producer root holding the current lease. Any token under that root may renew it and post its outcome. Cleared when the lease ends. |
 | `claim_expires_at` | order | head | no | timestamp | When the lease lapses unless renewed. |
-| `claim_seq` | order | head | no | integer | Starts at 1 on the first claim and increments by one on every later claim or renewal. Returned to the executor in the claim response. |
-| `orders.claim_seq` | outcome | producer | yes | integer | The `claim_seq` the executor held when it produced the outcome. The head uses it to detect stale outcomes. |
+| `claim_seq` | order | head | no | integer | Starts at 1 on the first claim and increments by one on every later claim. A renewal keeps it. Returned in the claim response. |
+| `orders.claim_seq` | outcome | producer | yes | integer | The `claim_seq` of the claim the outcome reports on. |
+| `orders.result` | outcome | producer | yes | enum | `done` or `failed`: whether the order was carried out. |
 
-The two lifecycles are orthogonal. `state` describes the order as a card; `exec_state` describes execution of the instruction. Execution reaching `done`, `failed` or `cancelled` never creates a core decision and never changes `state`; the outcome is a separate card. The one coupling runs the other way: a human decision of `dismissed` on an order (the only decision an order accepts) MUST atomically set `exec_state` to `cancelled` if it is `open` or `claimed`, releasing any lease, and moves `state` to `decided` as for any card. That is how a person cancels an order — through the core decision operation, not a fourth operation — and a cancelled order MUST NOT be claimed again. `decision` is otherwise meaningful only for cards that require human resolution.
+The two lifecycles are orthogonal. `state` describes the order as a card; `exec_state` describes execution of the instruction. Execution reaching `done`, `failed` or `cancelled` never creates a core decision and never changes `state`; the outcome is a separate card. The one coupling runs the other way: a human decision of `dismissed` on an order (the only decision an order accepts; any other is `400 invalid_decision`) MUST atomically set `exec_state` to `cancelled` if it is `open` or `claimed`, releasing any lease, and moves `state` to `decided` as for any card. A `done` or `failed` order can be dismissed too; its `exec_state` stays as it was. That is how a person cancels an order — through the core decision operation, not a fourth operation — and a cancelled order MUST NOT be claimed again. `decision` is otherwise meaningful only for cards that require human resolution.
 
 ### A.2 Claims are leases, not decisions
 
-An executor claims an order with `POST /cards/{id}/claim`, carrying `{ "lease_seconds": N }`. This is the one producer-side write to a card it did not mint, and it is deliberately *not* a decision: a human decision is permanent, an execution claim is temporary. The head records `claimed_by`, `claim_expires_at` and sets the order's execution state to `claimed`. A second claim while the lease holds returns `409` and that executor MUST stand down. An executor MAY renew with the same call before expiry. The head owns the lease clock: a claim or renewal MUST evaluate expiry atomically with the claim itself, and a lease whose `claim_expires_at` is at or before the head's current time is expired. If the lease expires with no outcome, the order returns to `open` and any executor may claim it; the head SHOULD emit a `signal` card to the person when that happens, since it usually means a worker died. Orders therefore have at-least-once delivery; exactly-once execution of any side effect is the executor's problem (A.4).
+An executor claims an order with `POST /cards/{id}/claim`, carrying `{ "lease_seconds": N }`, where N is a positive integer; anything else is refused with `400 invalid_lease`, and a head MAY cap N. This is the one producer-side write to a card it did not mint, and it is deliberately *not* a decision: a human decision is permanent, an execution claim is temporary. A claim on an order the caller's root cannot read (A.1), or on a card that is not an order, is `404 not_found`.
+
+A lease belongs to a root. The head records `claimed_by`, `claim_expires_at` and sets the order's execution state to `claimed`, and answers `200` with the order. A claim while another root's lease holds is refused with `409 lease_held`, and that executor MUST stand down. A claim by the holding root before expiry renews the lease: it moves `claim_expires_at` and keeps `claim_seq`. Both refusals of this extension carry the error body of §7.4 with the order as it stands, `{ "error": "lease_held", "message": "…", "order": { … } }`.
+
+The head owns the lease clock. A claim or renewal MUST evaluate expiry atomically with the claim itself, and a lease whose `claim_expires_at` is at or before the head's current time is expired. If the lease expires with no outcome, the order returns to `open` and any eligible root may claim it, which increments `claim_seq`. Expiry is lazy: the head applies it when it next reads or writes the order (a sync, a claim, an outcome), and the order takes a new `change_seq` then. A head SHOULD surface an expired lease to the person, since it usually means a worker died, in its own interface: it MUST NOT mint a card for it, because a head-minted card would take a `change_seq` and move every producer's cursor. Orders therefore have at-least-once delivery; exactly-once execution of any side effect is the executor's problem (A.4).
 
 ### A.3 Thread shape
 
@@ -592,25 +605,25 @@ An order is a thread with a known shape. The executor writes under its own names
 
 1. the order card, whose content is immutable and whose execution claim is leased;
 2. zero or more progress cards, `kind: signal`, `urgency: log`;
-3. one outcome card that closes the thread, with `references` naming the order. The outcome is often itself a `kind: decision` card ("here is the draft, approve?").
+3. one outcome card per claim, with `references` naming the order, `orders.claim_seq` and `orders.result`. The outcome is often itself a `kind: decision` card ("here is the draft, approve?"), with `orders.result: done`.
 
-Progress and outcome are always new cards. An executor MUST NOT re-PUT the order. The execution lifecycle:
+Progress and outcome are always new cards. An executor MUST NOT re-PUT the order. A card that carries `orders.claim_seq` or `orders.result` is an outcome: it MUST carry both, with `orders.claim_seq` a positive integer and `orders.result` `done` or `failed`, and MUST name an order in `references`; a head refuses anything else with `400 invalid_card`. The execution lifecycle:
 
 | From | Event | To |
 | --- | --- | --- |
-| `open` | claim | `claimed` |
-| `claimed` | renew before expiry | `claimed` (`claim_seq` + 1) |
-| `claimed` | outcome card arrives, success | `done` |
-| `claimed` | outcome card arrives, failure | `failed` |
-| `claimed` | lease expires, no outcome | `open` (head SHOULD signal the person) |
+| `open` | claim | `claimed` (`claim_seq` + 1) |
+| `claimed` | renew before expiry | `claimed` (`claim_seq` unchanged) |
+| `claimed` | outcome from the current lease, `orders.result: done` | `done` |
+| `claimed` | outcome from the current lease, `orders.result: failed` | `failed` |
+| `claimed` | lease expires, no outcome | `open` (the head SHOULD surface it to the person, A.2) |
 | `open` or `claimed` | person cancels | `cancelled` (lease released) |
 | `done`, `failed`, `cancelled` | anything | unchanged — terminal |
 
-Only the currently valid lease can move execution state. An outcome card MUST carry `references` naming the order and the extension field `orders.claim_seq`. If that value does not match the order's current `claim_seq` — the lease expired and another executor claimed — or the order is already `cancelled`, the outcome is still stored in the thread as information but MUST NOT change `exec_state` — a terminal order never becomes non-terminal — and the head SHOULD surface it to the person as a late or duplicate result. Cancellation prevents further execution where observed; it does not undo a side effect the executor has already begun, so an executor MUST check `exec_state` before each irreversible step.
+Only the current lease can move execution state. An outcome comes from it when, after expiry has been applied, the order is `claimed`, the outcome's producer root is `claimed_by`, and its `orders.claim_seq` is the order's `claim_seq`. Any other outcome — the lease lapsed, another root claimed since, or the order is already terminal — is still stored in the thread as information but MUST NOT change `exec_state`: a terminal order never becomes non-terminal. A head SHOULD surface such a late or duplicate result to the person in its own interface, and MUST NOT mint a card for it. When an outcome does move `exec_state`, the outcome card takes the lower `change_seq` and the order the higher. Cancellation prevents further execution where observed; it does not undo a side effect the executor has already begun, so an executor MUST check `exec_state` before each irreversible step.
 
 ### A.4 Executors
 
-**Side effects.** The protocol delivers an order at least once. An executor that performs an external side effect (sending mail, charging a card, pushing a commit) MUST make that effect idempotent on its own side, keyed on the order id, so a crash between acting and reporting does not act twice on re-claim.
+**Side effects.** The protocol delivers an order at least once. An executor that performs an external side effect (sending mail, charging a card, pushing a commit) MUST make that effect idempotent on its own side, keyed on the order id, so a crash between acting and reporting does not act twice on re-claim. It keeps what it needs for that — the task it created, the message it sent — itself, as §3.1 says of any producer state.
 
 **To-do tools are executors.** A connector to a task manager (Todoist, Things, Reminders) treats an order addressed to it as a task to create, and posts the outcome card when the person completes the task there. The head's list of open orders is thereby a to-do list without the head implementing to-dos: an order to a person and an order to an agent look identical.
 
@@ -622,17 +635,18 @@ loop every N seconds:
   for ch in resp.changes:
     o = ch.card
     if o.kind != 'order' or o.exec_state != 'open': continue
-    lease = claim(o, lease_seconds=600)          # returns claim_seq, or 409
+    lease = claim(o, lease_seconds=600)          # returns the order with claim_seq, or 409 / 410
     if lease:
       k = ulid_of(o.id)                          # the ulid segment: valid as upstream-id
+      s = lease.claim_seq
       run o in a sub-process or sub-agent, renewing the lease while it runs
-      on progress: PUT me:order:<k>:progress-<n>   (signal, log, thread=o.id)
-      on finish:   PUT me:order:<k>:outcome        (references o, orders.claim_seq=lease.claim_seq)
-      on failure:  PUT me:order:<k>:outcome        (decision card: retry / abandon?)
+      on progress: PUT me:order:<k>:progress-<s>-<n>   (signal, log, thread=o.id)
+      on finish:   PUT me:order:<k>:outcome-<s>        (references o, orders.claim_seq=s, orders.result=done)
+      on failure:  PUT me:order:<k>:outcome-<s>        (references o, orders.claim_seq=s, orders.result=failed)
   cursor = resp.next                             # only after the loop body succeeded
 ```
 
-`ulid_of` is an implementation helper, not a protocol operation: k is the ULID segment of the order id. The executor's card ids use that ULID as `upstream-id`, never the order's full id, which contains colons and would not conform to the grammar in §5.
+`ulid_of` is an implementation helper, not a protocol operation: k is the ULID segment of the order id. The executor's card ids use that ULID as `upstream-id`, never the order's full id, which contains colons and would not conform to the grammar in §5. The outcome and progress ids carry the claim's `claim_seq`, so a re-run after a lapsed lease writes new cards beside the first run's rather than replacing them.
 
 ### A.5 Handling cancellation
 
@@ -640,14 +654,14 @@ The head never calls an executor, so cancellation reaches it the same way everyt
 
 **Head rules.**
 
-- A renewal on an order whose `exec_state` is `cancelled` (or any terminal state) MUST be refused with `410 Gone`, and the body MUST carry the order with its current `exec_state`.
-- A claim on a cancelled order MUST likewise be refused with `410`.
-- A successful claim or renewal response MUST include the order's current `exec_state`, so the executor never has to make a separate read.
+- A renewal on an order whose `exec_state` is `cancelled` (or any terminal state) MUST be refused with `410 order_terminal`, and the body MUST carry the order with its current `exec_state`.
+- A claim on a cancelled order MUST likewise be refused with `410 order_terminal`.
+- A successful claim or renewal response MUST be the order with its current `exec_state`, so the executor never has to make a separate read.
 
 **Executor rules.**
 
 - Choose a lease short enough that the person's cancel takes effect in acceptable time, and renew at no more than half the lease length. A lease of 60 seconds renewed every 30 means a cancel is honoured within 30 seconds.
-- Treat `410` on renewal as a stop signal: cease work, roll back what can be rolled back, and post an outcome card that says what was and was not done (`orders.claim_seq` will be stale, so it is stored as information and surfaces to the person as the executor's final report).
+- Treat `410` on renewal as a stop signal: cease work, roll back what can be rolled back, and post an outcome card (`orders.result: failed`) that says what was and was not done. The head stores it as information and ignores it for `exec_state`, because the order is terminal (A.3); the person reads it as the executor's final report.
 - Before any irreversible step (sending, charging, pushing, deleting), renew first and proceed only on success. The renewal is the check; the executor MUST NOT rely on a cached `exec_state` older than its last renewal.
 - Never retry a `410`.
 

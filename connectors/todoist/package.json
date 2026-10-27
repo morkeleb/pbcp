@@ -1,6 +1,6 @@
 {
   "name": "@pbcp/connector-todoist",
-  "version": "0.4.0",
+  "version": "0.5.0",
   "private": true,
   "description": "Example executor: an order becomes a Todoist task; completing it there closes the order.",
   "license": "MIT",

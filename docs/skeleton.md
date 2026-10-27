@@ -1,6 +1,6 @@
 # PBCP Reference Implementation — Repo Skeleton
 
-Oct 26, 2026 · @Morten Nielsen · Companion to RFC Draft 0.4
+Oct 26, 2026 · @Morten Nielsen · Companion to RFC Draft 0.5
 
 ## Layout
 
@@ -99,8 +99,8 @@ export const mintOrder: (input: { to_producer; title; body }, ctx: { ulid; now; 
   { order: OrderCard; eligible: readonly string[] | null };             // A.1: wildcard snapshot, head-private
 export const visibleTo: (order: OrderCard, root: string, eligible?) => boolean;   // A.1 recipient rule, for sync
 export const claim: (order: OrderCard, by: string, leaseSeconds: number, now: string) =>
-  | { status: 200; card: OrderCard }      // claim_seq incremented (from 1), expiry set; a holder's claim renews
-  | { status: 409 | 410; card: OrderCard };  // held by another live lease / terminal
+  | { status: 200; card: OrderCard }      // a new claim increments claim_seq (from 1); the holding root's claim renews and keeps it
+  | { status: 409 | 410; code: 'lease_held' | 'order_terminal'; card: OrderCard };  // the head answers ClaimRefusal { error, message, order }
 export const renew = claim;
 export const expireIfDue: (order: OrderCard, now: string) => { card: OrderCard };   // lazy expiry, A.2: `<=` now is expired
 export const applyOutcome: (order: OrderCard, outcome: ProducerCard, now: string) =>
@@ -179,7 +179,7 @@ export type Outcome =
   | { kind: 'signal'; title: string; body: string }                       // done, nothing to decide
   | { kind: 'decision'; title: string; body: string; actions?: string[] }  // done, needs approval
   | { kind: 'failed'; title: string; body: string };
-// runExecutor mints me:order:<ulid>:outcome with references=[order.id] and orders.claim_seq from the lease;
+// runExecutor mints me:order:<ulid>:outcome-<claim_seq> with references=[order.id], orders.claim_seq and orders.result;
 // a Cancelled thrown from run() becomes a 'failed' outcome describing what was and was not done.
 
 // Card construction helpers, so connectors never hand-write ids
@@ -310,7 +310,10 @@ Each fixture is `{ name, steps: [{ op, args, expect }] }`. The first release car
 | C30 | Producer token on decide → 401 | §7.3 |
 | C31 | `GET /` `seq` is the highest `change_seq`; sync from it sees only later changes | §7.5 |
 | C32 | Order: renewal on a cancelled order → 410 with the order's `exec_state` in the body | A.5 |
-| C33 | Order: `claim_seq` across claim → renew → expiry → re-claim | A.1–A.3 |
+| C33 | Order: `claim_seq` counts claims, not renewals, across expiry | A.1–A.3 |
+| C34 | Order: bad `lease_seconds` → 400 `invalid_lease` | A.2 |
+| C35 | Order: a second token under the holding root renews and posts the outcome | A.1–A.3 |
+| C36 | Order: outcome ids per claim; only the current claim's outcome moves `exec_state` | A.3, A.4 |
 
 Rendering is tested from fixture bodies rather than over HTTP (RFC §3.1): the runner takes a `render(body) → classified fences + text` adapter and checks classification, not pixels.
 

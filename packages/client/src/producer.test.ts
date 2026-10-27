@@ -248,6 +248,24 @@ describe('onSubmitted and ordering', () => {
   });
 });
 
+describe('a 409 on submit', () => {
+  it('stops sending the same content for as long as the loop runs, but sends a changed card', async () => {
+    const t = setup();
+    await t.head.submit(mk('a'));
+    t.stub.decideHere('mail:acct:a', { decision: 'approve' });
+    const attempts = new Map<string, number>();
+    let title = 'Changed';
+    const submitted: number[] = [];
+    const opts = { ...t, store: memoryStore(100), produce: () => [mk('a', title)], onSubmitted: (_c: ProducerCard, r: { status: number }) => void submitted.push(r.status) };
+    for (let pass = 0; pass < 3; pass++) await producerPass(opts, undefined, attempts);
+    expect(submitted).toEqual([409]);
+    expect(t.stub.requests.filter((r) => r.method === 'PUT')).toHaveLength(2);
+    title = 'Changed again';
+    await producerPass(opts, undefined, attempts);
+    expect(submitted).toEqual([409, 409]);
+  });
+});
+
 describe('parking on the submit path (§7.2)', () => {
   it('parks a card the head keeps refusing with a 4xx, reports it, and stops sending it', async () => {
     const t = setup();

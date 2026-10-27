@@ -2,10 +2,10 @@
 // lease renewed at half its length, run the worker, and close the thread with one outcome card. Cancellation
 // arrives as a 410 on renewal; the loop turns it into an abort signal and a final outcome saying what was done.
 
-import { isOrder, OUTCOME_CLAIM_SEQ, OUTCOME_RESULT, ulidOf, type OrderCard, type ProducerCard } from '@pbcp/core';
+import { ClaimRefusal, isOrder, OUTCOME_CLAIM_SEQ, OUTCOME_RESULT, ulidOf, type OrderCard, type ProducerCard } from '@pbcp/core';
 import { card } from './card.js';
-import { ClaimRefused, type HeadClient } from './head.js';
-import type { CursorStore } from './store.js';
+import type { HeadClient } from './head.js';
+import type { StateStore } from './store.js';
 
 /** Why a run stopped early: the person cancelled (410), the lease went to another executor (409), or the loop stopped. */
 export class Cancelled extends Error {
@@ -18,12 +18,24 @@ export class Cancelled extends Error {
 export interface ExecCtx {
   /** Renews the lease now. Call before each irreversible step; throws Cancelled if the order was cancelled or the lease lost. */
   checkpoint(): Promise<void>;
-  /** PUTs `<producer>:order:<ulid>:progress-<n>`: a `signal` at `urgency: log` in the order's thread. */
+  /** PUTs `<producer>:order:<ulid>:progress-<claim_seq>-<n>`: a `signal` at `urgency: log` in the order's thread. */
   progress(note: string): Promise<void>;
   /** Aborted on cancel, lease loss or stop, with a Cancelled as its reason; for long awaits. */
   signal: AbortSignal;
+  /** Waits `ms`; rejects with the Cancelled at once if the run is cancelled, loses its lease or is stopped. */
+  sleep(ms: number): Promise<void>;
+  /**
+   * State kept for this order across claims, in the executor's store: what a run did, so a re-claim after a crash
+   * can find it (the task it created, the message it sent). Deleted once the order's outcome is accepted.
+   */
+  state: OrderState;
   /** The order as of the latest claim or renewal. */
   readonly order: OrderCard;
+}
+
+export interface OrderState {
+  get<T>(): Promise<T | undefined>;
+  set<T>(value: T): Promise<void>;
 }
 
 export type Outcome =
@@ -31,12 +43,13 @@ export type Outcome =
   | { kind: 'signal'; title: string; body: string }
   /** Done, and the result needs the person's approval ("here is the draft"). */
   | { kind: 'decision'; title: string; body: string; actions?: string[] }
-  /** Not done. Posted as a signal with `orders.result: failed` (OPEN, Orders). */
+  /** Not done. Posted as a signal with `orders.result: failed`; the others carry `orders.result: done` (A.3). */
   | { kind: 'failed'; title: string; body: string };
 
 export interface ExecutorOptions {
   head: Pick<HeadClient, 'sync' | 'submit' | 'claim' | 'describe'>;
-  store: CursorStore;
+  /** The cursor and, in namespace `orders`, each running order's state (`ctx.state`). */
+  store: StateStore;
   /** This executor's producer root: it claims orders to this name or `*`, and writes `<producer>:order:<ulid>:…`. */
   producer: string;
   /** Where outcome and progress cards are addressed; default the head's owner from `GET /`. */
@@ -75,6 +88,7 @@ export function executor(opts: ExecutorOptions): Executor {
   const report = opts.onError ?? ((e: unknown) => console.error(e));
   const lease = opts.leaseSeconds ?? 60;
   const jobs = new Map<string, Job>();
+  const states = opts.store.kv<unknown>('orders');
   let toPerson = opts.toPerson;
   let stopped = false;
 
@@ -82,6 +96,8 @@ export function executor(opts: ExecutorOptions): Executor {
     const ac = new AbortController();
     const k = ulidOf(claimed.id);
     let current = claimed;
+    /** This run's claim: renewals keep it (A.2), and a refusal's order may belong to another root's claim. */
+    const seq = claimed.claim_seq!;
     let n = 0;
     const notes: string[] = [];
     let renewal: Promise<void> = Promise.resolve();
@@ -89,16 +105,16 @@ export function executor(opts: ExecutorOptions): Executor {
     const abort = (reason: Cancelled) => {
       if (!ac.signal.aborted) ac.abort(reason);
     };
-    /** Renewals are serialised: the timer and checkpoint() never race, and claim_seq is always the latest. */
+    /** Renewals are serialised, so the timer and checkpoint() never race and `current` is the latest answer. */
     const renew = () =>
       (renewal = renewal.then(async () => {
         if (ac.signal.aborted) return;
         try {
           current = await opts.head.claim(current.id, lease);
         } catch (e) {
-          if (e instanceof ClaimRefused) {
-            current = e.order;
-            abort(new Cancelled(e.status === 410 ? 'cancelled' : 'lease-lost', e.message));
+          if (e instanceof ClaimRefusal) {
+            current = e.order as OrderCard;
+            abort(new Cancelled(e.code === 'order_terminal' ? 'cancelled' : 'lease-lost', e.message));
           } else report(e);
         }
       }));
@@ -120,7 +136,19 @@ export function executor(opts: ExecutorOptions): Executor {
         n += 1;
         notes.push(note);
         opts.onProgress?.(current, note);
-        await opts.head.submit(own(`progress-${n}`, { kind: 'signal', urgency: 'log', title: firstLine(note, `Progress ${n}`), body: note }));
+        // Per claim, so a re-run's progress never collides with the first run's (A.4).
+        await opts.head.submit(own(`progress-${seq}-${n}`, { kind: 'signal', urgency: 'log', title: firstLine(note, `Progress ${n}`), body: note }));
+      },
+      sleep: (ms) =>
+        new Promise<void>((resolve, reject) => {
+          if (ac.signal.aborted) return reject(ac.signal.reason as Cancelled);
+          const t = setTimeout(() => (ac.signal.removeEventListener('abort', stop), resolve()), ms);
+          const stop = () => (clearTimeout(t), reject(ac.signal.reason as Cancelled));
+          ac.signal.addEventListener('abort', stop, { once: true });
+        }),
+      state: {
+        get: async <T>() => (await states.get(claimed.id)) as T | undefined,
+        set: async <T>(value: T) => states.set(claimed.id, value),
       },
     };
 
@@ -145,17 +173,18 @@ export function executor(opts: ExecutorOptions): Executor {
         const outcome = await outcomeOf();
         if (!outcome) return;
         await renewal;
-        const result = outcome.kind === 'failed' ? { kind: 'signal' as const, [OUTCOME_RESULT]: 'failed' } : { kind: outcome.kind };
-        // A.3: the outcome carries the claim_seq of the latest renewal; after a cancel or a lost lease it is stale by design.
-        await opts.head.submit(
-          own('outcome', {
+        const result = outcome.kind === 'failed' ? { kind: 'signal' as const, [OUTCOME_RESULT]: 'failed' } : { kind: outcome.kind, [OUTCOME_RESULT]: 'done' };
+        // A.3, A.4: one outcome per claim, carrying that claim's claim_seq. After a cancel the head ignores it: the order is terminal.
+        const res = await opts.head.submit(
+          own(`outcome-${seq}`, {
             ...result,
             title: firstLine(outcome.title, 'Outcome'),
             body: outcome.body,
             ...(outcome.kind === 'decision' && outcome.actions ? { actions: outcome.actions } : {}),
-            [OUTCOME_CLAIM_SEQ]: current.claim_seq,
+            [OUTCOME_CLAIM_SEQ]: seq,
           }),
         );
+        if (res.status !== 409) await states.delete(claimed.id);
       } catch (e) {
         report(e);
       } finally {
@@ -183,7 +212,7 @@ export function executor(opts: ExecutorOptions): Executor {
           try {
             jobs.set(o.id, start(await opts.head.claim(o.id, lease)));
           } catch (e) {
-            if (!(e instanceof ClaimRefused)) throw e; // 409 another executor has it; 410 it ended: stand down either way
+            if (!(e instanceof ClaimRefusal)) throw e; // 409 another root has it; 410 it ended: stand down either way
           }
         }
         if (page.next === after) return;

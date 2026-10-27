@@ -1,0 +1,164 @@
+{
+  "name": "C35 a lease belongs to the root: another token under the holder's root renews it and posts the outcome",
+  "rfc": [
+    "A.1",
+    "A.2",
+    "A.3"
+  ],
+  "extension": "orders",
+  "steps": [
+    {
+      "op": "clock",
+      "args": {
+        "set": "2026-10-07T09:00:00Z"
+      }
+    },
+    {
+      "op": "syncAll",
+      "args": {
+        "token": "hermes",
+        "executor": true,
+        "after": 0
+      },
+      "expect": {
+        "status": 200,
+        "body": {
+          "changes": {
+            "$len": 0
+          }
+        }
+      }
+    },
+    {
+      "op": "syncAll",
+      "args": {
+        "token": "hermes",
+        "executor": true,
+        "instance": "second",
+        "after": 0
+      },
+      "expect": {
+        "status": 200,
+        "body": {
+          "changes": {
+            "$len": 0
+          }
+        }
+      }
+    },
+    {
+      "op": "order",
+      "args": {
+        "to_producer": "*",
+        "title": "Book the dentist",
+        "body": "Any weekday morning."
+      },
+      "expect": {
+        "status": 201
+      },
+      "save": {
+        "o": "body.id"
+      }
+    },
+    {
+      "op": "claim",
+      "args": {
+        "token": "hermes",
+        "executor": true,
+        "id": {
+          "$var": "o"
+        },
+        "lease": 60
+      },
+      "expect": {
+        "status": 200,
+        "body": {
+          "claim_seq": 1,
+          "claimed_by": "hermes"
+        }
+      }
+    },
+    {
+      "op": "clock",
+      "args": {
+        "set": "2026-10-07T09:00:30Z"
+      }
+    },
+    {
+      "op": "claim",
+      "args": {
+        "token": "hermes",
+        "executor": true,
+        "instance": "second",
+        "id": {
+          "$var": "o"
+        },
+        "lease": 60
+      },
+      "expect": {
+        "status": 200,
+        "body": {
+          "claim_seq": 1,
+          "claimed_by": "hermes",
+          "claim_expires_at": "2026-10-07T09:01:30Z"
+        }
+      }
+    },
+    {
+      "op": "put",
+      "args": {
+        "token": "hermes",
+        "executor": true,
+        "instance": "second",
+        "card": {
+          "protocol": "pbcp/1",
+          "id": "hermes:order:o1:outcome-1",
+          "kind": "signal",
+          "to_person": "morten",
+          "producer": "hermes",
+          "title": "Done",
+          "body": "Booked for Tuesday.",
+          "emitted_at": "2026-10-07T09:00:00Z",
+          "thread": {
+            "$var": "o"
+          },
+          "references": [
+            {
+              "$var": "o"
+            }
+          ],
+          "orders.claim_seq": 1,
+          "orders.result": "done"
+        }
+      },
+      "expect": {
+        "status": 201
+      }
+    },
+    {
+      "op": "syncAll",
+      "args": {
+        "token": "hermes",
+        "executor": true,
+        "after": 0
+      },
+      "expect": {
+        "status": 200,
+        "body": {
+          "changes": {
+            "$contains": [
+              {
+                "card": {
+                  "id": {
+                    "$var": "o"
+                  },
+                  "exec_state": "done"
+                }
+              }
+            ]
+          }
+        }
+      }
+    }
+  ]
+}

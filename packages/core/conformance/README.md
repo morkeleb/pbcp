@@ -15,7 +15,9 @@ The fixtures in `fixtures/` are the protocol's executable definition. They are p
 - C01–C24 check error responses by status only. From C25 on, fixtures also check the error code, which §7.4 makes normative.
 - A fixture with `"extension": "orders"` tests the orders extension (Appendix A) and runs only for a head that implements it (`conformanceSuite({ extensions: ['orders'] })`). Executor tokens are minted with `"executor": true` beside `"token"`; a fixture uses the same flag on every call for that root.
 - A fixture with `"level": "SHOULD"` checks a recommendation, not a requirement. A head may fail it and still conform; runners report it separately (`conformanceSuite({ should: false })` skips them).
-- R07 applies to heads that pre-render diagrams (RFC §3.1 "Determinism"); a head that renders on the client skips it.
+- A fixture with `"condition": "prerender"` (R07) applies only to heads that draw diagrams before serving them (RFC §3.1 "Determinism"); `conformanceSuite({ prerender: false })` skips it.
+- `HeadUnderTest.clock.set()` may return a promise; the runner awaits it before the next step.
+- `"instance": "second"` beside `"token"` mints a further token under the same root, for fixtures that act as two installations of one producer (C35).
 
 ## Fixture shape
 
@@ -43,7 +45,7 @@ Each step runs its `op` with `args`, checks the result against `expect`, then ev
 | `syncAll` | `token`, `after` | runner composite: calls `changes` until `next` stops moving. `{ status, body: { changes, next, pages, ascending } }` where `changes` is every entry across pages in order and `ascending` is true iff seqs strictly increase |
 | `decide` | `id`, `decision` (`{ decision, edited_proposal?, comment?, delegated_to? }`) | `{ status, body }` — as the owner; 404 for an unknown id |
 | `order` | `to_producer`, `title`, `body` | `{ status, body }` — the owner gives an order; body is the minted order (orders extension) |
-| `claim` | `token`, `executor`?, `id`, `lease` | `{ status, body }` — `POST /cards/{id}/claim` with `{ lease_seconds }`; body is the order on 200, 409 and 410 (orders extension) |
+| `claim` | `token`, `executor`?, `instance`?, `id`, `lease` | `{ status, body }` — `POST /cards/{id}/claim` with `{ lease_seconds }`; the order on 200, `{ error, message, order }` on 409 `lease_held` and 410 `order_terminal`, an error body on 400 `invalid_lease` (orders extension) |
 | `decideWithToken` | `token`, `id`, `decision` | `{ status, body }` — the same request with a producer token instead of the owner's credential |
 | `seen` | `id` | `{ status, body }` — the head presents the card to its owner (sets `seen_at`) |
 | `acknowledge` | `id` | `{ status, body }` — the owner explicitly acknowledges an artifact or signal |
@@ -58,7 +60,7 @@ Each step runs its `op` with `args`, checks the result against `expect`, then ev
 
 ```ts
 interface RenderResult {
-  text: string;                       // the visible prose, markup removed; used with $includes / $excludes
+  text: string;                       // the visible prose, markup removed; excludes fence sources, may include captions
   stripped: string[];                 // what was removed: 'html', 'click', 'init', 'htmlLabels'
   fences: Array<{                     // mermaid fences only, in reading order
     type: string;                     // diagram type label, e.g. 'pie', 'futurechart-beta'
@@ -115,7 +117,7 @@ Dot-separated: `body.change_seq`, `body.changes.0.seq`. A segment `[k=v]` select
 | --- | --- | --- |
 | C01 | Identical re-PUT → 200, same `change_seq` | §5 |
 | C02 | Changed open PUT → 200, replaced, `seen_at` cleared, `change_seq` bumped | §5 |
-| C03 | Decide, then identical PUT → 200 with decision in body; deciding an unknown id → 404 | §5, §7.3 |
+| C03 | Decide, then identical PUT → 200 with decision in body; deciding, presenting or acknowledging an unknown id → 404 | §5, §7.3 |
 | C04 | Decide, then changed PUT → 409 with decision in body | §5 |
 | C05 | Supersede open card: both visible atomically, two consecutive `change_seq` | §8 |
 | C06 | Supersede decided card: predecessor keeps its decision | §8 |
@@ -125,12 +127,12 @@ Dot-separated: `body.change_seq`, `body.changes.0.seq`. A segment `[k=v]` select
 | C10 | Sync pagination: `next` advances across pages, nothing skipped | §7.2 |
 | C11 | Artifact acknowledgement sets `acknowledged_at`, state stays `open`; an artifact with `actions` → 400; a decision card is never acknowledged | §4.1, §4.2 |
 | C12 | Front-matter PUT with YAML outside the subset → 400; choice objects as a sequence of one-level mappings → 201 | §3, §4.4 |
-| C13 | Id outside token root → 403; `producer` ≠ id root → 400 | §5, §12 |
+| C13 | Id outside token root → 403; `producer` ≠ id root → 400; a card for another person → 403 `wrong_person` | §5, §10, §12 |
 | C14 | Head-owned field on PUT (core and orders-extension fields) → 400; unknown fields accepted | §3.1, §4.2, A.1 |
 | C15 | `protocol: pbcp/2`, `pbcp/1.1`, or no `protocol` → 400 | §2 |
 | C16 | Orders: a `*` order reaches executors only; a named order reaches the producer it names | A.1 |
 | C17 | Orders: second claim during a live lease → 409; at expiry (`<=` now) another claim → 200, `claim_seq` 2 | A.2 |
-| C18 | Orders: an outcome with a stale `orders.claim_seq` is stored, `exec_state` unchanged; the current lease's outcome → `done`; terminal never changes | A.3 |
+| C18 | Orders: an outcome with a stale `orders.claim_seq` is stored, `exec_state` unchanged; one without `orders.result` → 400; the current claim's outcome → `done`; terminal never changes | A.3 |
 | C19 | Orders: `dismissed` → `exec_state` cancelled, lease released; renewal and claim → 410; other decisions → 400 | A.1, A.5 |
 | C20 | Orders: a `*` order minted before an executor was eligible is never returned to it, and its claim is 404 | A.1 |
 | C21 | Choice list with two defaults, a duplicate id, or a protocol decision as an id → 400; `edit` is never a decision, `edited` always is | §4.4, §7.3 |
@@ -139,19 +141,22 @@ Dot-separated: `body.change_seq`, `body.changes.0.seq`. A segment `[k=v]` select
 | C25 | `GET /` describes the head: `protocol`, `owner`, `seq`, `extensions`, `render.mermaid` | §7.5 |
 | C26 | Missing or invalid producer token → 401 `unauthorized` on PUT and sync | §7.1, §7.2, §7.4 |
 | C27 | A 64 KiB card is accepted; one over 1 MiB → 413 `too_large` | §3.1, §7.1 |
-| C28 | A ceiling clamps `delivery`; `urgency` is stored and returned unchanged | §4.2, §9 |
+| C28 | A ceiling clamps `delivery`; `urgency` is stored and returned unchanged; a producer with no ceiling set has the ceiling `brief` | §4.2, §9 |
 | C29 | Malformed `after` → 400 `invalid_cursor` | §7.2, §7.4 |
 | C30 | A producer token on decide → 401 `unauthorized`; the card stays open | §7.3 |
 | C31 | `GET /` `seq` is the highest `change_seq`; syncing from it returns only later changes | §7.5, §7.2 |
-| C32 | Orders: renewing a cancelled order → 410 with the order and `exec_state: cancelled` in the body | A.5 |
-| C33 | Orders: `claim_seq` counts claims and renewals across expiry (1, 2, re-claim 3, 4) | A.1–A.3 |
+| C32 | Orders: renewing a cancelled order → 410 `order_terminal` with the order (`exec_state: cancelled`) in the body | A.5 |
+| C33 | Orders: `claim_seq` counts claims, not renewals (claim 1, renew 1, re-claim after expiry 2, renew 2) | A.1–A.3 |
+| C34 | Orders: `lease_seconds` that is not a positive integer → 400 `invalid_lease`; nothing changes | A.2, §7.4 |
+| C35 | Orders: a lease belongs to the root; a second token under it renews and posts the outcome | A.1–A.3 |
+| C36 | Orders: outcome ids are per claim; a re-run's outcome is a new card and only the current claim's moves `exec_state` | A.3, A.4 |
 | R01 | Each core-tier type renders; the text around it is intact | §3.1 |
 | R02 | An unknown diagram type falls back with its label; text intact | §3.1 |
-| R03 | A fence with a parse error falls back with the message; the other fences still render | §3.1 |
-| R04 | `click` and URL-loading `init` directives are stripped before rendering | §3.1, §12 |
+| R03 | A fence with a parse error falls back with a parser message (shown, its wording the renderer's); the other fences still render | §3.1 |
+| R04 | `click`, URL-loading `init` directives (also spanning lines) and front-matter `config:` are stripped before rendering; `title:` is kept | §3.1, §12 |
 | R05 | Raw HTML stripped; `http:` image shown as link; `https:` and `data:image/png` as images; inline SVG sanitised | §3.1 |
 | R06 | Ninth fence is collapsed, not dropped | §3.1 |
-| R07 | Identical fence in two cards yields one cached render | §3.1 |
+| R07 | Identical fence in two cards yields one cached render (condition `prerender`) | §3.1 |
 | R08 | Image with alt `fallback` after a rendered fence is hidden; after an unrenderable fence it replaces the fallback block | §3.1 |
 
 C23 (a parked change advances the cursor and is reported, RFC §7.2) is a producer obligation, so it is a client test in `packages/client`, not a head fixture.

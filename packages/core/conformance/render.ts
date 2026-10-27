@@ -44,25 +44,61 @@ function splitFences(body: string): Block[] {
   return blocks;
 }
 
-/** §3.1 "Declarative only": strip click, URL-loading or htmlLabels init directives, htmlLabels. */
+const UNSAFE_INIT = /https?:|url\(|@import|htmlLabels/i;
+
+/** A fence's own front matter (`---` … `---` before the diagram): `title:` is kept, `config:` and everything under it go. */
+function sanitiseFrontMatter(lines: string[], stripped: Set<string>): string[] {
+  const start = lines.findIndex((l) => l.trim() !== '');
+  if (start < 0 || lines[start]!.trim() !== '---') return lines;
+  const end = lines.findIndex((l, i) => i > start && l.trim() === '---');
+  if (end < 0) return lines;
+  const kept: string[] = [];
+  let inConfig = false;
+  for (const line of lines.slice(start + 1, end)) {
+    if (/^\S/.test(line)) inConfig = /^config\s*:/.test(line);
+    if (inConfig) {
+      // §3.1: front-matter config is a second way to set what %%{init}%% sets, and is stripped like it.
+      stripped.add('init');
+      if (/htmlLabels/.test(line)) stripped.add('htmlLabels');
+      continue;
+    }
+    kept.push(line);
+  }
+  const head = kept.some((l) => l.trim() !== '') ? ['---', ...kept, '---'] : [];
+  return [...lines.slice(0, start), ...head, ...lines.slice(end + 1)];
+}
+
+/** §3.1 "Declarative only": strip click, URL-loading or htmlLabels init directives (one directive may span lines), config front matter. */
 function sanitiseFence(src: string, stripped: Set<string>): string {
-  return src
-    .split('\n')
-    .filter((line) => {
-      if (/^\s*click\s/.test(line)) { stripped.add('click'); return false; }
-      if (/^\s*%%\{\s*init/.test(line)) {
-        if (/htmlLabels/.test(line)) stripped.add('htmlLabels');
-        if (/https?:|url\(|@import|htmlLabels/i.test(line)) { stripped.add('init'); return false; }
+  const lines = sanitiseFrontMatter(src.split('\n'), stripped);
+  const out: string[] = [];
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i]!;
+    if (/^\s*click\s/.test(line)) { stripped.add('click'); continue; }
+    if (/^\s*%%\{/.test(line)) {
+      let end = i;
+      while (end < lines.length - 1 && !/\}%%/.test(lines[end]!)) end++;
+      const directive = lines.slice(i, end + 1).join('\n');
+      if (/^\s*%%\{\s*init/.test(directive)) {
+        if (/htmlLabels/.test(directive)) stripped.add('htmlLabels');
+        if (UNSAFE_INIT.test(directive)) { stripped.add('init'); i = end; continue; }
       }
-      return true;
-    })
-    .join('\n');
+      out.push(...lines.slice(i, end + 1));
+      i = end;
+      continue;
+    }
+    out.push(line);
+  }
+  return out.join('\n');
 }
 
 function diagramType(src: string): string {
+  let inFrontMatter = false;
+  let seen = false;
   for (const line of src.split('\n')) {
     const t = line.trim();
-    if (t === '' || t.startsWith('%%')) continue;
+    if (t === '---' && (!seen || inFrontMatter)) { inFrontMatter = !inFrontMatter; seen = true; continue; }
+    if (inFrontMatter || t === '' || t.startsWith('%%')) continue;
     return t.split(/\s+/)[0]!;
   }
   return '';

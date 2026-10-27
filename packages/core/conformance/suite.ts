@@ -12,9 +12,12 @@ export function conformanceSuite(opts: {
   should?: boolean;
   /** Extensions the head implements, e.g. `['orders']`; fixtures for other extensions are skipped (default none). */
   extensions?: string[];
+  /** The head draws diagrams before serving them (§3.1 "Determinism"), so R07 applies (default true). */
+  prerender?: boolean;
 }): void {
   const pick = (f: Fixture) =>
     (!opts.only || opts.only.test(f.name)) &&
+    (f.condition !== 'prerender' || opts.prerender !== false) &&
     (opts.should !== false || f.level !== 'SHOULD') &&
     (f.extension === undefined || (opts.extensions ?? []).includes(f.extension));
   const head = opts.head;

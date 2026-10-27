@@ -93,12 +93,15 @@
       "expect": {
         "status": 409,
         "body": {
-          "id": {
-            "$var": "o"
-          },
-          "exec_state": "claimed",
-          "claimed_by": "hermes",
-          "claim_seq": 1
+          "error": "lease_held",
+          "order": {
+            "id": {
+              "$var": "o"
+            },
+            "exec_state": "claimed",
+            "claimed_by": "hermes",
+            "claim_seq": 1
+          }
         }
       }
     },

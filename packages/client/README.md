@@ -22,15 +22,17 @@ Paths are relative to `baseUrl`, so a head mounted under a prefix is `baseUrl: '
 ```ts
 const run = runExecutor({ head, store: fileStore('exec.json'), producer: 'todoist', concurrency: 50,
   run: async (order, ctx) => {
-    await ctx.progress('Created the task');      // PUT todoist:order:<ulid>:progress-1 (signal, log)
+    await ctx.progress('Created the task');      // PUT todoist:order:<ulid>:progress-<claim_seq>-1 (signal, log)
     await ctx.checkpoint();                       // renews; throws Cancelled if the person cancelled (410)
+    await ctx.sleep(60_000);                      // rejects with the Cancelled at once on cancel
+    await ctx.state.set({ task: 'abc' });         // kept across a crash and re-claim; ctx.state.get() on the next run
     return { kind: 'signal', title: 'Done', body: '…' };
   } });
 ```
 
-Each pass syncs and claims the orders addressed to `producer` or `*` that are `open`, up to `concurrency` at once, with a lease (default 60 s) renewed every half lease. A started run continues in the background; the cursor advances once every open order on a page has been claimed or refused. When `run` returns, the executor PUTs `<producer>:order:<ulid>:outcome` with `thread` and `references` naming the order and `orders.claim_seq` from the latest renewal (A.3). A `failed` outcome, a thrown error, or a `Cancelled` (410 on renewal, or the lease lost to another executor, 409) becomes an outcome with `orders.result: "failed"` that lists the progress notes as what was done (A.5). `stop()` aborts runs without an outcome, so their leases lapse and the orders are claimed again. `executor(opts)` gives the same loop without its timer (`pass()`, `idle()`).
+Each pass syncs and claims the orders addressed to `producer` or `*` that are `open`, up to `concurrency` at once, with a lease (default 60 s) renewed every half lease. A started run continues in the background; the cursor advances once every open order on a page has been claimed or refused. When `run` returns, the executor PUTs one outcome for its claim, `<producer>:order:<ulid>:outcome-<claim_seq>`, with `thread` and `references` naming the order, `orders.claim_seq` and `orders.result: "done"` (A.3, A.4). A `failed` outcome, a thrown error, or a `Cancelled` (410 on renewal, or the lease lost to another root, 409) becomes an outcome with `orders.result: "failed"` that lists the progress notes as what was done (A.5). A renewal keeps `claim_seq`; a re-claim after a lapsed lease gets a new one, so a re-run's progress and outcome are new cards beside the first run's. `ctx.state` keeps per-order state in the store (`store.kv('orders')`, keyed by order id) until the outcome is accepted, so a re-claim after a crash can find what the first run did; `store` is therefore a `StateStore`. `stop()` aborts runs without an outcome, so their leases lapse and the orders are claimed again. `executor(opts)` gives the same loop without its timer (`pass()`, `idle()`).
 
-`HeadClient.claim(id, leaseSeconds)` claims or renews and returns the order; a `409` or `410` throws `ClaimRefused` with `code` `lease_held` or `order_terminal` and the order. The test stub mints orders with `stub.order({ to_producer, title, body })`; `stubHead({ executors })` lists the roots that receive `*` orders.
+`HeadClient.claim(id, leaseSeconds)` claims or renews and returns the order; a `409 lease_held` or `410 order_terminal` throws `ClaimRefusal` (from `@pbcp/core`, a `PbcpError` carrying the `order`), and a bad lease is `400 invalid_lease`. The test stub mints orders with `stub.order({ to_producer, title, body })`; `stubHead({ executors })` lists the roots that receive `*` orders.
 
 ## OwnerClient
 
@@ -60,6 +62,7 @@ Each pass runs in this order, so `onDecision` never runs while `produce()` is su
 `onDecision` must be idempotent: the same decision can arrive twice (from submit and from sync, or after a failed pass). Passes run `intervalMs` apart (default 60 s) and never overlap. Failures go to `onError`; a pass never throws.
 
 - **Parking (§7.2).** A sync change whose `onDecision` fails is retried on later passes; after `maxAttempts` (default 5) failures it is parked: `onParked({ from: 'sync', seq, card }, error)` is called and the cursor moves past it. A card the head refuses with a 4xx that resending cannot fix (anything but 401, 408 and 429) is parked the same way, `onParked({ from: 'submit', card }, error)`, and not sent again while its content is unchanged. If `onParked` throws, nothing is parked. Attempt counts and parked submits live in memory for the life of one `runProducer`. Failures of `onDecision` for submit results are reported but not counted, because the same change also arrives through sync. The default `onParked` logs with `console.error`.
+- **409 results.** A `409` with the card is the head's last word on that content (§5): `onSubmitted` sees it once, and the same content (id and fields, `emitted_at` aside) is not submitted again while the loop runs. A changed card is submitted as usual. Like parking, this is kept in memory.
 - **Retry-After (§7.4).** A 429 with `Retry-After` from submit or sync ends the pass, and the next pass waits for the longer of `intervalMs` and the requested delay.
 - **`next` lower than `after`** is reported through `onError`; the pass ends and the cursor does not move.
 
@@ -85,6 +88,14 @@ Writes to one store are applied in the order they are made, through a temp file 
 ## Testing
 
 `@pbcp/client/testing` exports `stubHead()`, an in-memory head behind a `fetch` function, for testing producers and tools without a server. Its rules are `@pbcp/core`'s own transitions (submit, supersession, decide, acknowledge), so a connector sees the protocol's answers. Producer tokens are any `Bearer` value; the owner endpoints take `Session owner` (or `ownerCredential`). `stub.decideHere(id, decision)` decides as the owner without HTTP, `stub.script(status, body)` scripts the next response, and `stub.requests` records every request.
+
+## Migrating from 0.4
+
+- `ClaimRefused` is gone: catch `ClaimRefusal` from `@pbcp/core` (`code` `lease_held` or `order_terminal`, `order`). The head's 409 and 410 are now `{ error, message, order }`.
+- Executor ids are per claim: `outcome-<claim_seq>` and `progress-<claim_seq>-<n>`; every outcome carries `orders.result`. A renewal keeps `claim_seq`.
+- `ExecutorOptions.store` is a `StateStore` (for `ctx.state`). New: `ctx.sleep(ms)`, `ctx.state`.
+- After a 409 on submit, the loop stops resubmitting that content while it runs.
+- The test stub's default ceiling is `brief` (§9): pass `ceilings: { root: 'immediate' }` to deliver `immediate` cards as such.
 
 ## Migrating from 0.3
 

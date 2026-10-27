@@ -1,5 +1,5 @@
 {
-  "name": "C32 renewing a cancelled order is 410 and the body carries the order with exec_state cancelled",
+  "name": "C32 renewing a cancelled order is 410 order_terminal and the body carries the order with exec_state cancelled",
   "rfc": [
     "A.5"
   ],
@@ -82,12 +82,15 @@
       "expect": {
         "status": 410,
         "body": {
-          "id": {
-            "$var": "o"
-          },
-          "kind": "order",
-          "exec_state": "cancelled",
-          "state": "decided"
+          "error": "order_terminal",
+          "order": {
+            "id": {
+              "$var": "o"
+            },
+            "kind": "order",
+            "exec_state": "cancelled",
+            "state": "decided"
+          }
         }
       }
     }

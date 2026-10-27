@@ -1,6 +1,5 @@
 // RFC A.4 "To-do tools are executors": an order becomes a Todoist task, and the person completing it there is the outcome.
 
-import { setTimeout as wait } from 'node:timers/promises';
 import { Cancelled, type ExecCtx, type Outcome } from '@pbcp/client';
 import type { OrderCard } from '@pbcp/core';
 import type { NewTask, TodoistSource } from './source.js';
@@ -18,13 +17,15 @@ export function taskFor(order: OrderCard): NewTask {
 
 export function todoistRun(src: TodoistSource, opts: { pollMs?: number; onError?: (e: unknown) => void } = {}) {
   return async (order: OrderCard, ctx: ExecCtx): Promise<Outcome> => {
-    // A re-claim after a crash finds the task the earlier run created, instead of creating a second.
-    let task = await src.find(marker(order.id));
+    // A.4: a re-claim finds the earlier run's task in ctx.state, completed or not; failing that, by its marker while open.
+    const known = await ctx.state.get<{ task: string }>();
+    let task = known ? await src.get(known.task) : await src.find(marker(order.id));
     if (!task) {
       await ctx.checkpoint(); // A.5: renew before the irreversible step
       task = await src.create(taskFor(order));
+      await ctx.state.set({ task: task.id });
       await ctx.progress(`Added to Todoist: ${task.content}`);
-    }
+    } else if (!known) await ctx.state.set({ task: task.id });
     try {
       for (;;) {
         await ctx.checkpoint(); // the lease renewal, and the cancellation check
@@ -32,11 +33,10 @@ export function todoistRun(src: TodoistSource, opts: { pollMs?: number; onError?
         const now = await src.get(task.id).catch((e) => void (opts.onError ?? console.error)(e));
         if (now?.state === 'done') return { kind: 'signal', title: `Done: ${now.content}`, body: `Completed in Todoist${now.completedAt ? ` at ${now.completedAt}` : ''}.` };
         if (now?.state === 'deleted') return { kind: 'failed', title: `Not done: ${order.title}`, body: `The Todoist task "${task.content}" was deleted without being completed.` };
-        await wait(opts.pollMs ?? 60_000, undefined, { signal: ctx.signal });
+        await ctx.sleep(opts.pollMs ?? 60_000);
       }
     } catch (e) {
-      const stop = e instanceof Cancelled ? e : ctx.signal.aborted ? ctx.signal.reason : e;
-      if (!(stop instanceof Cancelled && stop.reason === 'cancelled')) throw stop; // shutdown or a lost lease: leave the task
+      if (!(e instanceof Cancelled && e.reason === 'cancelled')) throw e; // shutdown or a lost lease: leave the task
       await src.delete(task.id); // A.5 roll back: the person cancelled, so the task goes rather than showing as completed
       return { kind: 'failed', title: `Stopped: ${order.title}`, body: `The order was cancelled, so the Todoist task "${task.content}" was deleted.` };
     }

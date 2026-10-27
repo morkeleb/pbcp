@@ -32,7 +32,8 @@ export interface HeadUnderTest {
   order?(input: { to_producer: string; title: string; body: string }): Promise<Response>;
   /** Orders extension: `POST /cards/{id}/claim` with `{ lease_seconds }` as the producer holding `token` (A.2). */
   claim?(token: string, cardId: string, lease: number): Promise<Response>;
-  clock: { set(iso: string): void };
+  /** The head clock. An HTTP adapter may return a promise; the runner awaits it before the next step. */
+  clock: { set(iso: string): void | Promise<void> };
 }
 
 export interface RenderedFence {
@@ -79,5 +80,7 @@ export interface Fixture {
   level?: 'MUST' | 'SHOULD';
   /** The extension the fixture tests (`orders`); only heads that implement it run it. Absent means core. */
   extension?: string;
+  /** A condition on the head: `prerender` fixtures (R07) apply only to heads that draw diagrams before serving them. */
+  condition?: 'prerender';
   steps: Step[];
 }

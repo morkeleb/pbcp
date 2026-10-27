@@ -1,9 +1,10 @@
 {
-  "name": "C13 id outside the token root returns 403; producer field not matching the id root returns 400",
+  "name": "C13 id outside the token root returns 403; producer field not matching the id root returns 400; a card for another person returns 403 wrong_person",
   "rfc": [
-    "§5",
-    "§12",
-    "§4.1"
+    "\u00a75",
+    "\u00a712",
+    "\u00a74.1",
+    "\u00a710"
   ],
   "steps": [
     {
@@ -97,6 +98,29 @@
         "body": {
           "id": "goalpath:item:4421",
           "producer": "goalpath"
+        }
+      }
+    },
+    {
+      "op": "put",
+      "args": {
+        "token": "goalpath",
+        "card": {
+          "protocol": "pbcp/1",
+          "id": "goalpath:item:4422",
+          "kind": "decision",
+          "to_person": "anna",
+          "producer": "goalpath",
+          "title": "Approve shipping item 4421 Friday",
+          "body": "Tests are green.\n\n## Proposal\n\nShip on Friday.",
+          "emitted_at": "2026-10-07T06:05:00Z",
+          "thread": "item:4421"
+        }
+      },
+      "expect": {
+        "status": 403,
+        "body": {
+          "error": "wrong_person"
         }
       }
     }
