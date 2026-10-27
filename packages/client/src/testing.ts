@@ -1,11 +1,11 @@
 // `@pbcp/client/testing`: an in-memory head behind a fetch function, for testing producers and tools without a
-// server. Its rules are @pbcp/core's own transitions (submit, supersession, decide, acknowledge), so a connector
+// server. Its rules are @pbcp/core's own transitions (submit, supersession, decide, acknowledge, snooze), so a connector
 // under test sees the protocol's answers. It is not a head: one owner, no persistence, no limits, no ceilings
 // unless given, any producer token accepted (its root is the card's `producer`). It implements the orders
 // extension (Appendix A) with @pbcp/core's orders.ts; a token's root for sync and claim is `roots[token] ?? token`.
 
 import {
-  acknowledge, applyOutcome, checkOutcome, checkSubmission, claim, ClaimRefusal, decide, expireIfDue, isOrder, markSeen, mintOrder,
+  acknowledge, applyOutcome, checkOutcome, checkSubmission, claim, ClaimRefusal, decide, expireIfDue, isOrder, markSeen, mintOrder, snooze, unsnooze,
   parseCardOrThrow, PbcpError, PROTOCOL, submit, ulid, visibleTo,
   type Card, type Decision, type OrderCard, type OrderInput, type Urgency,
 } from '@pbcp/core';
@@ -92,7 +92,7 @@ export function stubHead(opts: StubOptions = {}): Stub {
   const route = (method: string, url: URL, auth: string | undefined, body: unknown): Response => {
     const path = url.pathname;
     const id = (m: RegExpExecArray) => decodeURIComponent(m[1]!);
-    const asOwner = /^\/cards\/[^/]+\/(decision|seen|acknowledge)$/.test(path);
+    const asOwner = /^\/cards\/[^/]+\/(decision|seen|acknowledge|snooze)$/.test(path);
     if (asOwner ? auth !== ownerCredential : !auth?.startsWith('Bearer ')) throw new PbcpError('unauthorized', 'missing or invalid credential');
 
     if (method === 'GET' && path === '/') return json(200, { protocol: PROTOCOL, owner, seq, extensions: [], render: { mermaid: ['core'] } });
@@ -140,9 +140,16 @@ export function stubHead(opts: StubOptions = {}): Stub {
       return json(r.status, cards.get(o.id));
     }
 
-    const owned = method === 'POST' && /^\/cards\/([^/]+)\/(decision|seen|acknowledge)$/.exec(path);
+    const owned = method === 'POST' && /^\/cards\/([^/]+)\/(decision|seen|acknowledge|snooze)$/.exec(path);
     if (owned) {
-      const op = owned[2] === 'decision' ? (c: Card) => decide(c, body as Decision, now()) : owned[2] === 'seen' ? (c: Card) => markSeen(c, now()) : (c: Card) => acknowledge(c, now());
+      const until = (body as { until?: string | null } | undefined)?.until ?? null;
+      const ops: Record<string, (c: Card) => { status: number; card: Card; changed: Card[] }> = {
+        decision: (c) => decide(c, body as Decision, now()),
+        seen: (c) => markSeen(c, now()),
+        acknowledge: (c) => acknowledge(c, now()),
+        snooze: (c) => (until === null ? unsnooze(c, now()) : snooze(c, until, now())),
+      };
+      const op = ops[owned[2]!]!;
       const r = ownerOp(id(owned), op);
       return json(r.status, r.card);
     }
