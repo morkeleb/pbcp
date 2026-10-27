@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { parseCardOrThrow } from '../src/card.js';
 import { inProcessHead } from './in-process/head.js';
 import { referenceRenderer } from './in-process/render.js';
 import { getPath, match } from './match.js';
@@ -149,6 +150,16 @@ describe('the fixtures catch broken heads', () => {
       const r = await h.put(t, prev ? { ...card, labels: prev.labels } : c);
       if (r.status === 201) stored.set(card.id, c);
       return r;
+    };
+    await fails(core.C41, { head: sabotage(h, { put }) });
+  });
+
+  it('C41: comparing labels as an ordered list', async () => {
+    const h = inProcessHead();
+    // A head that lets label order count sees a reordered re-PUT as changed. Simulated by carrying the order in a field.
+    const put: HeadUnderTest['put'] = async (t, c) => {
+      const card = (typeof c === 'string' ? parseCardOrThrow(c) : c) as { labels?: string[] };
+      return h.put(t, card.labels ? { ...card, 'x-label-order': card.labels.join(',') } : card);
     };
     await fails(core.C41, { head: sabotage(h, { put }) });
   });

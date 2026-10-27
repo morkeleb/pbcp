@@ -1,5 +1,5 @@
 {
-  "name": "C41 labels round-trip in both forms and count for equality: order matters, an absent list equals [], and a change is a 409 once decided",
+  "name": "C41 labels round-trip in both forms and compare as a set: the same labels in another order are identical (200, no new change_seq, the producer's first order kept), a different set replaces an open card and is a 409 once decided, and an absent list equals []",
   "rfc": [
     "§3",
     "§4.1",
@@ -128,8 +128,48 @@
         "status": 200,
         "body": {
           "labels": [
+            "billing-revamp",
+            "nordic-supply"
+          ],
+          "state": "open",
+          "change_seq": {
+            "$var": "seq1"
+          }
+        }
+      }
+    },
+    {
+      "op": "put",
+      "args": {
+        "token": "hermes",
+        "card": {
+          "protocol": "pbcp/1",
+          "id": "hermes:gmail:19e0a1b2c3d4",
+          "kind": "decision",
+          "to_person": "morten",
+          "producer": "hermes",
+          "title": "Reply to Anna re invoice timing",
+          "body": "Anna asks to pay the September invoice on the 20th.",
+          "emitted_at": "2026-10-07T13:02:11Z",
+          "labels": [
+            "billing-revamp",
             "nordic-supply",
-            "billing-revamp"
+            "q4-2026"
+          ],
+          "actions": [
+            "approve",
+            "reject"
+          ],
+          "thread": "gmail:19e0a1b2c3d4"
+        }
+      },
+      "expect": {
+        "status": 200,
+        "body": {
+          "labels": [
+            "billing-revamp",
+            "nordic-supply",
+            "q4-2026"
           ],
           "state": "open",
           "change_seq": {
@@ -138,6 +178,9 @@
             }
           }
         }
+      },
+      "save": {
+        "seq2": "body.change_seq"
       }
     },
     {
@@ -154,8 +197,9 @@
               "card": {
                 "id": "hermes:gmail:19e0a1b2c3d4",
                 "labels": [
+                  "billing-revamp",
                   "nordic-supply",
-                  "billing-revamp"
+                  "q4-2026"
                 ]
               }
             }
@@ -176,8 +220,9 @@
         "body": {
           "state": "decided",
           "labels": [
+            "billing-revamp",
             "nordic-supply",
-            "billing-revamp"
+            "q4-2026"
           ]
         }
       }
@@ -211,8 +256,9 @@
           "state": "decided",
           "decision": "approve",
           "labels": [
+            "billing-revamp",
             "nordic-supply",
-            "billing-revamp"
+            "q4-2026"
           ]
         }
       }
@@ -231,6 +277,7 @@
           "body": "Anna asks to pay the September invoice on the 20th.",
           "emitted_at": "2026-10-07T13:02:11Z",
           "labels": [
+            "q4-2026",
             "nordic-supply",
             "billing-revamp"
           ],
@@ -245,9 +292,11 @@
         "status": 200,
         "body": {
           "state": "decided",
+          "decision": "approve",
           "labels": [
+            "billing-revamp",
             "nordic-supply",
-            "billing-revamp"
+            "q4-2026"
           ]
         }
       }

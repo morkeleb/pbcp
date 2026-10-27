@@ -220,7 +220,7 @@ Set by the producer at submission. The head MUST NOT alter them.
 | `body` | yes | string | Markdown, see §3. |
 | `urgency` | no | enum | `immediate`, `brief` (default), `log`. The producer's request; the head never alters it. Where the card lands is the head-owned `delivery` (§4.2, §9). |
 | `thread` | no | string | Grouping key within the producer. Not empty. |
-| `labels` | no | list | The producer's categories for the card — a project, a client, a mailbox — for a head to show and filter by. Each entry follows the `intent` grammar of §5 in lowercase only (`a`–`z`, digits and `-`, so `billing-revamp`) and is 1 to 32 characters long; a card has at most 8 entries and no duplicates. A card that breaks any of these is rejected with `400 invalid_card`. A head MUST show a card's labels on the card and SHOULD let the owner filter the brief by label; it MAY apply ceilings per label (§9). Labels the owner gives cards, if a head offers that, are head-owned state and never written to the card. |
+| `labels` | no | list | The producer's categories for the card — a project, a client, a mailbox — for a head to show and filter by. Each entry follows the `intent` grammar of §5 in lowercase only (`a`–`z`, digits and `-`, so `billing-revamp`) and is 1 to 32 characters long; a card has at most 8 entries and no duplicates. A card that breaks any of these is rejected with `400 invalid_card`. Labels are a set: their order carries no meaning and does not count for equality (§5), and a head keeps them in the order the producer sent. A head MUST show a card's labels on the card and SHOULD let the owner filter the brief by label; it MAY apply ceilings per label (§9). Labels the owner gives cards, if a head offers that, are head-owned state and never written to the card. |
 | `about` | no | date | The local day the card concerns, when that differs from when it was sent: tomorrow's agenda, a meeting moved to Friday, prices for a day. An ISO 8601 calendar date, `YYYY-MM-DD`, that exists; anything else is rejected with `400 invalid_card`. It is not a timestamp and carries no time zone: it is the day as the producer means it. A head uses it to place the card in its timeline and in briefs (§8). |
 | `references` | no | list | Ids of related cards, any producer. |
 | `supersedes` | no | string | Id of an earlier card this one replaces; same namespace only. |
@@ -320,7 +320,7 @@ The `producer` segment is the producer's namespace root. A producer MUST only su
 - an absent `urgency` equals `brief`, an absent `references` or `labels` equals `[]`, and an absent `actions` on a decision card equals `[approve, reject]`;
 - in `actions`, a string entry equals an object with that `id` and nothing else, and `default: false` equals no `default`;
 - trailing whitespace at the end of `body` is not significant;
-- member order in objects is not significant; order in lists, `references` and `labels` included, is;
+- member order in objects is not significant; order in lists, `references` included, is, except in `labels`, which compare as a set: `[a, b]` equals `[b, a]`;
 - every other field, unknown and extension fields included, compares by value.
 
 | Stored card | Incoming card | Result |

@@ -199,7 +199,7 @@ describe('equal (§5)', () => {
     expect(equal(base, { ...base, source: { url: 'https://a' } })).toBe(false);
     expect(equal(base, { ...base, references: ['a:b:c'] })).toBe(false);
     expect(equal(base, { ...base, labels: ['billing-revamp'] })).toBe(false);
-    expect(equal({ ...base, labels: ['a', 'b'] }, { ...base, labels: ['b', 'a'] })).toBe(false);
+    expect(equal({ ...base, labels: ['a', 'b'] }, { ...base, labels: ['a', 'c'] })).toBe(false);
     expect(equal(base, { ...base, about: '2026-10-08' })).toBe(false);
     expect(equal({ ...base, about: '2026-10-08' }, { ...base, about: '2026-10-09' })).toBe(false);
   });
@@ -210,6 +210,9 @@ describe('equal (§5)', () => {
     expect(equal(base, { ...base, urgency: 'brief' })).toBe(true);
     expect(equal(base, { ...base, references: [] })).toBe(true);
     expect(equal(base, { ...base, labels: [] })).toBe(true);
+    expect(equal({ ...base, labels: ['a', 'b'] }, { ...base, labels: ['b', 'a'] })).toBe(true);
+    expect(toJSON({ ...base, labels: ['b', 'a'] })).toContain('"labels":["b","a"]');
+    expect(toFrontMatter({ ...base, labels: ['b', 'a'] })).toContain('labels: [b, a]\n');
     expect(equal(base, { ...base, actions: ['approve', 'reject'] })).toBe(true);
     expect(equal(base, { ...base, actions: [{ id: 'approve' }, 'reject'] })).toBe(true);
     expect(equal(base, { ...base, actions: ['reject', 'approve'] })).toBe(false);

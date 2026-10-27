@@ -20,7 +20,7 @@ Draft 0.7 adds two producer-owned fields that producers were already putting in 
 - **Rules:** a `YYYY-MM-DD` date that exists; anything else, a timestamp included, is `400 invalid_card`. It is not a timestamp and has no time zone: it is the day as the producer means it.
 - **Equality:** it counts for equality. New fixture C44.
 
-**§5 — equality.** An absent `labels` equals `[]`, as an absent `references` does. Order in `labels` is significant, as in every list.
+**§5 — equality.** An absent `labels` equals `[]`, as an absent `references` does. `labels` compare as a set: order is not significant, so `[a, b]` and `[b, a]` are the same card, and a head keeps the order the producer sent. It is the one list whose order does not count.
 
 **§8 — a card's day.** A head places each card on one day in its timeline and briefs:
 - **With `about`:** that day, taken as written and never converted between zones.

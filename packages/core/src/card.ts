@@ -285,7 +285,7 @@ export function producerPart(c: Card): ProducerCard {
  * §5: every producer-owned field except `emitted_at`, compared on parsed values.
  * Defaults are applied before comparing (urgency `brief`, references and labels `[]`, decision
  * actions `[approve, reject]`), a bare action string equals `{ id }`, `default: false`
- * equals no default, and trailing whitespace at the end of the body is not significant.
+ * equals no default, labels compare as a set, and trailing whitespace at the end of the body is not significant.
  */
 export function equal(a: ProducerCard, b: ProducerCard): boolean {
   return canonical(normalise(a)) === canonical(normalise(b));
@@ -299,7 +299,7 @@ function normalise(c: ProducerCard): Record<string, unknown> {
   }
   out.urgency = c.urgency ?? 'brief';
   out.references = c.references ?? [];
-  out.labels = c.labels ?? [];
+  out.labels = [...(c.labels ?? [])].sort(); // §5: a set; the card itself keeps the producer's order
   out.body = c.body.replace(/\s+$/, '');
   out.actions = effectiveActions(c).map((a) => {
     const o: Record<string, unknown> = typeof a === 'string' ? { id: a } : { ...a };
