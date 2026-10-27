@@ -481,7 +481,7 @@ Producers emit flat cards; the head does the arranging. Three producer-set field
 
 Folding is the head's job: turning a day of cards into one readable brief, collapsing a thread of progress cards into a single line, rendering `mermaid`. A head MAY use a language model to write the brief. It MUST NOT alter card bodies or decisions while doing so, and MUST keep every card reachable in its original form.
 
-**What a brief contains.** A brief the head generates (a `head:` card such as `head:daily:<date>`, or a view the head assembles) MUST include, for every open decision card, its title and its lead (§3.1), and SHOULD include, for each of the previous day's artifact and signal threads, the title and lead of the thread's newest card. Each entry MUST link to its card. Counts, charts and other aggregates MAY be added; they are never the brief on their own. Titles and leads are what make a brief readable without a language model, and a brief folded mechanically from them is complete.
+**What a brief contains.** A brief the head generates (a `head:` card such as `head:daily:<date>`, or a view the head assembles) MUST include, for every open decision card that is not snoozed (§4.2), its title and its lead (§3.1), and SHOULD include, for each of the previous day's artifact and signal threads, the title and lead of the thread's newest card that is not snoozed (§4.2); a thread whose cards are all snoozed is left out. Each entry MUST link to its card. A brief MAY state how many open decision cards are snoozed, and MUST NOT list them or their leads until their `snoozed_until` has passed. Counts, charts and other aggregates MAY be added; they are never the brief on their own. Titles and leads are what make a brief readable without a language model, and a brief folded mechanically from them is complete.
 
 ## 9. Urgency and producer trust
 
@@ -541,7 +541,7 @@ Everything in 11.1, plus:
 - [ ] Renders markdown; strips raw HTML
 - [ ] Shows `summary` as text, never as markdown; shows each card's lead (§3.1) in lists and briefs and does not hide it on the card
 - [ ] Presents decision cards as §4.5 requires: the actions as controls in order, the `default` as primary and, with no default, no option styled or placed as primary, `dismissed` always available, the lead and the proposal visible, no required comment, and a confirmation once recorded
-- [ ] Puts every open decision card's title and lead, linked to the card, in any brief it generates (§8)
+- [ ] Puts every open decision card's title and lead, linked to the card, in any brief it generates, except snoozed cards, which it does not list (nor their leads) until `snoozed_until` has passed and MAY only count (§4.2, §8)
 - [ ] Lets the person set per-producer urgency ceilings, and records the clamped value as `delivery` without altering `urgency`
 - [ ] For the `orders` extension: mints orders, implements claim leases and lease expiry
 
