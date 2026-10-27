@@ -1,7 +1,7 @@
 import { createHash } from 'node:crypto';
 import { isId } from '@pbcp/core';
 import { describe, expect, it } from 'vitest';
-import { namespaceOf, readable, successor, summaryOf, toCard, zoneOf, type Open } from './mail.js';
+import { namespaceOf, readable, sourceOf, successor, summaryOf, toCard, zoneOf, type Open } from './mail.js';
 
 const raw = (headers: Record<string, string>, body: string) =>
   `${Object.entries(headers).map(([k, v]) => `${k}: ${v}`).join('\r\n')}\r\nContent-Type: text/plain; charset=utf-8\r\n\r\n${body}`;
@@ -106,6 +106,31 @@ describe('IMAP_TZ', () => {
     expect(zoneOf('')).toBeUndefined();
     expect(zoneOf('Europe/Copenhagen')).toBe('Europe/Copenhagen');
     expect(() => zoneOf('Mars/Base')).toThrow(RangeError);
+  });
+});
+
+describe('IMAP_SOURCE_URL (§4.1, §11.1)', () => {
+  const gmail = { url: 'https://mail.google.com/mail/u/0/#search/rfc822msgid:{message_id}', label: 'Open in mail' };
+
+  it('links every card to its message when set: the Message-ID without brackets, percent-encoded', async () => {
+    const inbox = (await toCard({ mailbox: 'INBOX', uid: 42, source: anna }, { ...cfg, source: gmail })).card;
+    expect(inbox.source).toEqual({ url: 'https://mail.google.com/mail/u/0/#search/rfc822msgid:CA%2Babc%3Ddef%40mail.example.com', label: 'Open in mail' });
+    const other = (await toCard({ mailbox: 'Lists', uid: 7, source: anna }, { ...cfg, source: gmail })).card;
+    expect(other.kind).toBe('artifact');
+    expect(other.source).toEqual(inbox.source);
+  });
+
+  it('fills {uid}, takes the label as given, and leaves the card without source when unset', async () => {
+    expect(sourceOf({ url: 'https://mail.example/#uid={uid}&id={message_id}', label: 'Webmail' }, '<a b@x>', 42)).toEqual({ url: 'https://mail.example/#uid=42&id=a%20b%40x', label: 'Webmail' });
+    expect(sourceOf(undefined, '<a@x>', 1)).toBeUndefined();
+    expect('source' in (await toCard({ mailbox: 'INBOX', uid: 42, source: anna }, cfg)).card).toBe(false);
+  });
+
+  it('gives no source when the template needs a Message-ID the message lacks', async () => {
+    const bare = 'From: a@b\r\n\r\n';
+    expect('source' in (await toCard({ mailbox: 'INBOX', uid: 9, source: bare }, { ...cfg, source: gmail })).card).toBe(false);
+    expect((await toCard({ mailbox: 'INBOX', uid: 9, source: bare }, { ...cfg, source: { url: 'https://mail.example/#uid={uid}', label: 'Webmail' } })).card.source)
+      .toEqual({ url: 'https://mail.example/#uid=9', label: 'Webmail' });
   });
 });
 

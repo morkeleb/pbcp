@@ -38,13 +38,14 @@ export interface OrderState {
   set<T>(value: T): Promise<void>;
 }
 
-export type Outcome =
+export type Outcome = (
   /** Done, nothing to decide. */
   | { kind: 'signal'; title: string; body: string }
   /** Done, and the result needs the person's approval ("here is the draft"). */
   | { kind: 'decision'; title: string; body: string; actions?: string[] }
   /** Not done. Posted as a signal with `orders.result: failed`; the others carry `orders.result: done` (A.3). */
-  | { kind: 'failed'; title: string; body: string };
+  | { kind: 'failed'; title: string; body: string }
+) & { /** §4.1: the thing the outcome is about, such as the task the executor made. */ source?: { url: string; label?: string } };
 
 export interface ExecutorOptions {
   head: Pick<HeadClient, 'sync' | 'submit' | 'claim' | 'describe'>;
@@ -181,6 +182,7 @@ export function executor(opts: ExecutorOptions): Executor {
             title: firstLine(outcome.title, 'Outcome'),
             body: outcome.body,
             ...(outcome.kind === 'decision' && outcome.actions ? { actions: outcome.actions } : {}),
+            ...(outcome.source ? { source: outcome.source } : {}),
             [OUTCOME_CLAIM_SEQ]: seq,
           }),
         );

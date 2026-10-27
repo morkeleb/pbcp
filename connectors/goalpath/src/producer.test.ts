@@ -4,7 +4,7 @@ import { stubHead } from '@pbcp/client/testing';
 import { isId, type ProducerCard } from '@pbcp/core';
 import { describe, expect, it } from 'vitest';
 import { fixtureSource, loadFixtures } from './fixture-source.js';
-import { approvalId, ganttTitle, goalpathProducer, NAMESPACE } from './producer.js';
+import { answeredCard, approvalId, ganttTitle, goalpathProducer, NAMESPACE } from './producer.js';
 
 const FIX = fileURLToPath(new URL('../fixtures', import.meta.url));
 const M = (n: number) => `7a1e0c2e-4d4b-4c51-9b1a-00000000000${n}`;
@@ -176,6 +176,15 @@ describe('goalpath producer', () => {
     }
   });
 
+  it('links the answered card to the item through the round, once the item has left your list', () => {
+    const a = { card: APPROVAL, round: 1, label: 'GP-12 Export invoices as CSV', thread: M(4), url: 'https://goalpath.example/i/12' };
+    const cfg = { toPerson: 'morten', projectId: 'p-demo', tz: 'UTC' };
+    const c = answeredCard(a, undefined, cfg, new Date('2026-10-26T12:00:00Z'));
+    expect(c.source).toEqual({ url: 'https://goalpath.example/i/12', label: 'GoalPath item' });
+    expect(c.body).toContain('it is no longer assigned to you');
+    expect('source' in answeredCard({ ...a, url: undefined }, undefined, cfg, new Date('2026-10-26T12:00:00Z'))).toBe(false);
+  });
+
   it('supersedes an open approval answered in GoalPath first, and then ignores a late head decision', async () => {
     const { pass, stub, gp, item } = setup();
     await pass();
@@ -183,6 +192,7 @@ describe('goalpath producer', () => {
     const [answered] = (await pass()).filter((c) => c.id.startsWith('goalpath:approval:'));
     expect(answered).toMatchObject({ id: `${APPROVAL}:answered`, kind: 'signal', supersedes: APPROVAL, thread: M(4), title: 'GP-12 Export invoices as CSV: answered in GoalPath' });
     expect(answered!.body).toContain('it is now Accepted');
+    expect(answered!.source).toEqual({ url: 'https://goalpath.example/i/12', label: 'GoalPath item' });
     // The head marked the approval superseded, so a decision can no longer land on it (§8): it answers with the card as is.
     expect(stub.decideHere(APPROVAL, { decision: 'reject' })).toMatchObject({ state: 'superseded' });
     expect(stub.cards.get(APPROVAL)).not.toHaveProperty('decision');

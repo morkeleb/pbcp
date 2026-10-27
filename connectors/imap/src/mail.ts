@@ -4,7 +4,7 @@ import type { ProducerCard } from '@pbcp/core';
 import { simpleParser } from 'mailparser';
 
 export interface Fetched { mailbox: string; uid: number; threadId?: string; source: Buffer | string }
-export interface MailConfig { account: string; toPerson: string; inbox?: string; timeZone?: string }
+export interface MailConfig { account: string; toPerson: string; inbox?: string; timeZone?: string; source?: { url: string; label: string } }
 /** Where a card's message lives: producer state, never fields on the card (OPEN #41). */
 export interface MailRef { mailbox: string; uid: number; messageId?: string }
 /** A thread's open decision card, as far as this reader knows, and the messages it covers (`card`: the id each was sent as). */
@@ -25,6 +25,8 @@ export function successor(c: ProducerCard, ref: MailRef, open?: Open): { card: P
   const refs = [...(open?.refs ?? []), { ...ref, card: c.id }];
   return open ? { card: { ...c, supersedes: open.id }, open: { id: c.id, supersedes: open.id, refs } } : { card: c, open: { id: c.id, refs } };
 }
+/** §4.1 `source` from `IMAP_SOURCE_URL`: `{message_id}` (no angle brackets, percent-encoded) and `{uid}` filled in; none if it needs an absent Message-ID. */
+export const sourceOf = (s: MailConfig['source'], messageId: string | undefined, uid: number) => (s && (messageId || !s.url.includes('{message_id}')) ? { url: s.url.replaceAll('{message_id}', encodeURIComponent((messageId ?? '').replace(/^<|>$/g, ''))).replaceAll('{uid}', String(uid)), label: s.label } : undefined);
 /** One unseen message → one card (§11.1): headers and first lines, never a draft; `summary` is the unquoted opening text, ≤ 200 chars. */
 export async function toCard(m: Fetched, cfg: MailConfig, maxLines = 12): Promise<{ card: ProducerCard; ref: MailRef }> {
   const mail = await simpleParser(m.source);
@@ -35,12 +37,10 @@ export async function toCard(m: Fetched, cfg: MailConfig, maxLines = 12): Promis
   const c = card({
     producer: 'mail', namespace: cfg.account, upstream: hash(messageId), kind: inbox ? 'decision' : 'artifact', to_person: cfg.toPerson,
     thread: m.threadId ? `thr-${m.threadId}` : `ref-${hash(refs[0] ?? mail.inReplyTo ?? messageId)}`,
-    title: (mail.subject ?? '').replace(/\s+/g, ' ').trim() || '(no subject)',
-    summary: summaryOf(mail.text ?? ''),
+    title: (mail.subject ?? '').replace(/\s+/g, ' ').trim() || '(no subject)', summary: summaryOf(mail.text ?? ''), source: sourceOf(cfg.source, mail.messageId, m.uid),
     body: [`- **From:** ${mail.from?.text ?? 'unknown'}`, `- **Date:** ${mail.date ? readable(mail.date, cfg.timeZone) : 'unknown'}`]
       .concat(excerpt ? ['', excerpt.replace(/^/gm, '> ')] : [])
-      .concat(mail.messageId ? [] : ['', '_This message has no Message-ID; its card id is not stable across moves._'])
-      .join('\n'),
+      .concat(mail.messageId ? [] : ['', '_This message has no Message-ID; its card id is not stable across moves._']).join('\n'),
     actions: inbox ? [{ id: 'archive', default: true }, 'keep'] : undefined, // §11.1: a bare approve archives
   });
   return { card: c, ref: { mailbox: m.mailbox, uid: m.uid, messageId: mail.messageId } };

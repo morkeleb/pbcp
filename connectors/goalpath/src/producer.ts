@@ -3,8 +3,9 @@ import { encodeUpstream as enc, type Card, type ProducerCard } from '@pbcp/core'
 import type { Check, CodeLink, Edge, GoalPathSource, Item, Milestone, Week } from './source.js';
 
 export interface Config { toPerson: string; projectId: string; tz: string; digestAt?: string; approvalStatus?: string; milestones?: string[]; trendWeeks?: number }
-/** One mirrored approval round. `card` is its id; `left` is set once the item was seen out of the queue after the round closed. */
-export interface Approval { card: string; round: number; label: string; thread: string; prev?: string; submitted?: boolean; decided?: boolean; answered?: boolean; left?: boolean }
+/** One mirrored approval round. `card` is its id; `left` is set once the item was seen out of the queue after the round closed; `url` is the
+ *  item's, kept so the answered card can link to it after the item leaves your list. */
+export interface Approval { card: string; round: number; label: string; thread: string; prev?: string; url?: string; submitted?: boolean; decided?: boolean; answered?: boolean; left?: boolean }
 /** The current card of a milestone's risk chain. */
 export interface Risk { card: string; projected: string; slipping: boolean }
 
@@ -77,7 +78,7 @@ export function answeredCard(a: Approval, item: Item | undefined, cfg: Config, n
   const where = item ? `it is now ${item.status}` : 'it is no longer assigned to you';
   return card({
     ...base(cfg, now), namespace: 'approval', upstream: a.card.slice('goalpath:approval:'.length), intent: 'answered', kind: 'signal', urgency: 'brief', thread: a.thread, supersedes: a.card,
-    title: `${a.label}: answered in GoalPath`, summary: summary(`${a.label} left the acceptance queue in GoalPath; ${where}.`), body: `**${a.label}** left the acceptance queue in GoalPath; ${where}. Nothing to decide here.`,
+    title: `${a.label}: answered in GoalPath`, ...source(item?.url ?? a.url, 'GoalPath item'), summary: summary(`${a.label} left the acceptance queue in GoalPath; ${where}.`), body: `**${a.label}** left the acceptance queue in GoalPath; ${where}. Nothing to decide here.`,
   });
 }
 
@@ -154,7 +155,7 @@ export function goalpathProducer(gp: GoalPathSource, store: StateStore, cfg: Con
         if (a && closed(a) && !a.left) continue;
         if (!a || closed(a)) {
           const round = (a?.round ?? 0) + 1;
-          a = { card: approvalId(i.id, round), round, label: label(i), thread: i.milestoneId ?? cfg.projectId, prev: a?.card };
+          a = { card: approvalId(i.id, round), round, label: label(i), thread: i.milestoneId ?? cfg.projectId, prev: a?.card, ...(i.url ? { url: i.url } : {}) };
           await setApproval(i.id, a);
         }
         if (a.submitted) continue;

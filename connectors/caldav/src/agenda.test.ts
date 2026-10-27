@@ -127,6 +127,15 @@ describe('plan', () => {
     expect(moved.body).toBe('**Standup** now starts at 09:20–Tue 27 Oct 00:30 (was Sun 25 Oct 09:15).');
   });
 
+  it('links the moved card to the event when it has a web URL, and not otherwise', () => {
+    const moved = (o: Occurrence) => plan([o], prev, cfg, nine).cards[0]!;
+    expect(moved({ ...at('2026-10-26T08:20:00Z'), url: 'https://cal.example.com/event/standup' }).source).toEqual({ url: 'https://cal.example.com/event/standup', label: 'Calendar event' });
+    expect('source' in moved(at('2026-10-26T08:20:00Z'))).toBe(false);
+    const parsed = (url: string) => occurrences([vcal(vevent({ UID: 'u', DTSTART: '20261026T080000Z', DTEND: '20261026T090000Z', SUMMARY: 'S', URL: url }))], from, to)[0]!.url;
+    expect(parsed('https://cal.example.com/e/1')).toBe('https://cal.example.com/e/1');
+    expect(parsed('mailto:x@y')).toBeUndefined();
+  });
+
   it('ignores a move further out, a first sighting and a past start', () => {
     expect(plan([at('2026-10-26T10:00:00Z')], prev, cfg, nine).cards).toEqual([]);
     expect(plan([at('2026-10-26T08:20:00Z')], { ...prev, seen: {} }, cfg, nine).cards).toEqual([]);

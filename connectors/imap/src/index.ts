@@ -6,8 +6,8 @@ import { namespaceOf, successor, toCard, zoneOf, type Fetched, type Open } from 
 const env = (name: string, fallback?: string): string => process.env[name] || fallback || (() => { throw new Error(`${name} is required`); })();
 const [user, mailboxes, timeZone] = [env('IMAP_USER'), env('IMAP_MAILBOXES', 'INBOX').split(',').map((s) => s.trim()), zoneOf(process.env.IMAP_TZ)];
 const account = namespaceOf(env('PBCP_MAIL_ACCOUNT', user));
-const store = fileStore(env('PBCP_STORE', env('PBCP_CURSOR', 'pbcp-imap.store.json')));
-const threads = store.kv<Open>('thread');
+const store = fileStore(env('PBCP_STORE', env('PBCP_CURSOR', 'pbcp-imap.store.json'))), threads = store.kv<Open>('thread');
+const source = process.env.IMAP_SOURCE_URL ? { url: process.env.IMAP_SOURCE_URL, label: env('IMAP_SOURCE_LABEL', 'Open in mail') } : undefined;
 let pending: [string, string, Open] | undefined; // card id, thread and its open card, recorded once the head answers
 const head = new HeadClient({ baseUrl: env('PBCP_HEAD_URL'), token: env('PBCP_TOKEN') });
 const toPerson = process.env.PBCP_TO_PERSON || (await head.describe()).owner;
@@ -21,7 +21,7 @@ async function* produce() {
   for (const mailbox of mailboxes) {
     for (const m of await withImap(mailbox, async (c): Promise<Fetched[]> =>
       (await c.fetchAll({ seen: false }, { uid: true, threadId: true, source: { maxLength: 256 * 1024 } }, { uid: true })).map((m) => ({ mailbox, uid: m.uid, threadId: m.threadId, source: m.source ?? '' })))) {
-      const { card, ref } = await toCard(m, { account, toPerson, timeZone });
+      const { card, ref } = await toCard(m, { account, toPerson, timeZone, source });
       const next = card.kind === 'decision' ? successor(card, ref, await threads.get(card.thread!)) : { card, open: undefined };
       pending = next?.open && [card.id, card.thread!, next.open];
       if (next) yield next.card;

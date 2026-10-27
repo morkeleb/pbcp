@@ -1,6 +1,6 @@
 // The Todoist facts the executor needs, normalised from the API's task JSON (unified API v1; README, Status).
 
-export interface Task { id: string; content: string; description: string; state: 'open' | 'done' | 'deleted'; completedAt?: string }
+export interface Task { id: string; content: string; description: string; state: 'open' | 'done' | 'deleted'; completedAt?: string; url?: string }
 export interface NewTask { content: string; description: string; due_string?: string }
 
 export interface TodoistSource {
@@ -15,11 +15,13 @@ export interface TodoistSource {
 type Obj = Record<string, unknown>;
 const str = (v: unknown) => (typeof v === 'string' ? v : typeof v === 'number' ? String(v) : '');
 
-/** One raw task. v1 says `checked` and `is_deleted`; REST v2 said `is_completed`. */
+/** One raw task. v1 says `checked` and `is_deleted`; REST v2 said `is_completed`. `url` is the API's when it gives one, else the web
+ *  app's task link formed from the id (README, API); a deleted task has none. */
 export function task(raw: unknown, id = ''): Task {
   const t = (raw ?? { id, is_deleted: true }) as Obj;
   const state = t.is_deleted === true ? 'deleted' : t.checked === true || t.is_completed === true ? 'done' : 'open';
-  return { id: str(t.id), content: str(t.content), description: str(t.description), state, ...(t.completed_at ? { completedAt: str(t.completed_at) } : {}) };
+  const url = state === 'deleted' ? '' : str(t.url) || (str(t.id) && `https://app.todoist.com/app/task/${encodeURIComponent(str(t.id))}`);
+  return { id: str(t.id), content: str(t.content), description: str(t.description), state, ...(t.completed_at ? { completedAt: str(t.completed_at) } : {}), ...(url ? { url } : {}) };
 }
 
 /** A page of tasks: v1 wraps them in `{ results, next_cursor }`; v2 returned a bare array. */
