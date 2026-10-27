@@ -1,0 +1,49 @@
+---
+import '../styles/global.css';
+import { REPO_URL, href } from '../config';
+
+interface Props { title: string; description: string; path: string }
+const { title, description, path } = Astro.props;
+
+const nav = [
+  { path: '/', label: 'Protocol' },
+  { path: '/rfc/', label: 'RFC' },
+  { path: '/producers/', label: 'Producers' },
+  { path: '/connectors/', label: 'Connectors' },
+  { path: '/heads/', label: 'Heads' },
+];
+const full = path === '/' ? 'Personal Brief Card Protocol' : `${title} · Personal Brief Card Protocol`;
+---
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>{full}</title>
+    <meta name="description" content={description} />
+    <link rel="icon" href={href('/favicon.svg')} type="image/svg+xml" />
+    <link rel="alternate" type="text/markdown" href={href('/rfc.md')} title="The current draft, as markdown" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Newsreader:opsz,wght@6..72,500;6..72,600&display=swap" />
+  </head>
+  <body>
+    <header class="masthead">
+      <div class="column">
+        <a class="name" href={href('/')}>Personal Brief Card Protocol</a>
+        <nav aria-label="Site">
+          {nav.map((n) => <a href={href(n.path)} aria-current={n.path === path ? 'page' : undefined}>{n.label}</a>)}
+        </nav>
+      </div>
+    </header>
+    <main><div class="column"><slot /></div></main>
+    <footer>
+      <div class="column">
+        <a href={REPO_URL}>Repository</a>
+        <a href={href('/changelog/')}>Changelog</a>
+        <a href={href('/llms.txt')}>llms.txt</a>
+        <span>MIT licence</span>
+      </div>
+    </footer>
+  </body>
+</html>

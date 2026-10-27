@@ -1,0 +1,18 @@
+---
+import Base from '../../layouts/Base.astro';
+import Toc from '../../components/Toc.astro';
+import { REPO_URL, RFC_FILE, href } from '../../config';
+import { readRepo, render } from '../../lib/markdown';
+
+const { html, toc } = render(readRepo(RFC_FILE.path), { sectionsOn: '' });
+---
+<Base title={`RFC, draft ${RFC_FILE.version}`} path="/rfc/" description={`The Personal Brief Card Protocol specification, draft ${RFC_FILE.version}.`}>
+  <p class="muted">
+    Rendered from <a href={`${REPO_URL}/blob/main/rfc/${RFC_FILE.name}`}><code>rfc/{RFC_FILE.name}</code></a> ·
+    <a href={href('/rfc.md')}>Markdown</a> ·
+    <a href={href('/changelog/')}>Changelog</a> ·
+    <a href={`${REPO_URL}/blob/main/rfc/OPEN.md`}>Open questions</a>
+  </p>
+  <Toc entries={toc} />
+  <article set:html={html} />
+</Base>

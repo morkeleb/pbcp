@@ -1,0 +1,27 @@
+---
+import Base from '../layouts/Base.astro';
+import { REPO_URL } from '../config';
+import { connectors } from '../lib/connectors';
+
+const rows = connectors();
+---
+<Base title="Connectors" path="/connectors/" description="The example connectors in the repository: what each produces and how it is configured.">
+  <h1>Connectors</h1>
+  <p class="lede">
+    The example producers and executors in <a href={`${REPO_URL}/tree/main/connectors`}><code>connectors/</code></a>,
+    each built on <code>@pbcp/client</code>. This table is generated from their READMEs when the site is built.
+  </p>
+  <table class="stack">
+    <thead><tr><th>Connector</th><th>What it produces</th><th>Settings</th></tr></thead>
+    <tbody>
+      {rows.map((c) => (
+        <tr>
+          <td data-label="Connector"><a href={c.url}><code>{c.dir}</code></a></td>
+          <td data-label="What it produces" set:html={c.produces} />
+          <td data-label="Settings">{c.settings.length ? c.settings.map((v, i) => <>{i ? ', ' : ''}<code>{v}</code></>) : <span class="muted">none</span>}</td>
+        </tr>
+      ))}
+    </tbody>
+  </table>
+  <p class="muted">Each README has the full configuration, the ids it mints, and what it does with decisions.</p>
+</Base>

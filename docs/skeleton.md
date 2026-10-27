@@ -8,7 +8,7 @@ Two repos, split on the licence line. `pbcp` (MIT) holds the RFC, the packages, 
 
 ## Repo 1 — `pbcp` (MIT)
 
-The protocol and everything that speaks it. No head, no UI, nothing to deploy. Publishes three npm packages under one version.
+The protocol and everything that speaks it. No head and no app UI; the only thing deployed from it is the documentation site. Publishes three npm packages under one version.
 
 ```
 pbcp/
@@ -32,13 +32,16 @@ pbcp/
 │   │       └── index.ts
 │   ├── cli/                   @pbcp/cli — `pbcp` command over HeadClient: describe, submit, sync, decide
 │   └── mcp/                   @pbcp/mcp — MCP server adapter over HeadClient
-└── connectors/                examples, each < 100 lines on @pbcp/client
-    ├── imap/                  mailbox → decision cards
-    ├── caldav/                day agenda → artifact card
-    ├── obsidian-daily/        yesterday's note → log card
-    ├── n8n/                   n8n-nodes-pbcp: trigger + two action nodes
-    ├── hermes/                Hermes Agent plugin: mcp.json + two skills
-    └── goalpath/              project tracker → head: risk signals, approvals; orders → reprioritise
+├── connectors/                examples, each < 100 lines on @pbcp/client
+│   ├── imap/                  mailbox → decision cards
+│   ├── caldav/                day agenda → artifact card
+│   ├── obsidian-daily/        yesterday's note → log card
+│   ├── n8n/                   n8n-nodes-pbcp: trigger + two action nodes
+│   ├── hermes/                Hermes Agent plugin: mcp.json + two skills
+│   └── goalpath/              project tracker → head: risk signals, approvals; orders → reprioritise
+└── site/                      the documentation site; not a package and not in the pnpm workspace (own lockfile).
+                               Astro, renders rfc/ and the connector READMEs at build time; built to site/dist and
+                               published with GitHub Pages by .github/workflows/pages.yml, the repo's only workflow
 ```
 
 Publishing: `@pbcp/core` and `@pbcp/client` to npm under one version; the head is deployed from `apps/head` to Vercel and runnable locally with `docker compose up` (Postgres only). `@pbcp/mcp` is optional and tiny; it exists so Hermes, Claude Code and friends get the three operations as tools without each writing an HTTP wrapper.

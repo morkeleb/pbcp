@@ -1,0 +1,19 @@
+{
+  "name": "pbcp-site",
+  "private": true,
+  "type": "module",
+  "description": "The protocol's documentation site, built to site/dist and published with GitHub Pages. Not a package.",
+  "scripts": {
+    "dev": "astro dev",
+    "build": "astro build",
+    "preview": "astro preview"
+  },
+  "dependencies": {
+    "astro": "7.4.2",
+    "marked": "18.1.2"
+  },
+  "packageManager": "pnpm@10.34.9",
+  "engines": {
+    "node": ">=22.23.4"
+  }
+}
