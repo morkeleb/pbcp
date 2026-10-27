@@ -33,6 +33,8 @@ describe('todoist executor', () => {
     expect(readable('2026-10-26T15:00:00Z', now, 'Europe/Copenhagen')).toBe('Mon 26 Oct 16:00');
     expect(readable('2026-10-26T23:30:00Z', now, 'UTC')).toBe('Mon 26 Oct 23:30');
     expect(readable('2026-10-26T23:30:00Z', now, 'Europe/Copenhagen')).toBe('today 00:30');
+    expect(readable('2026-10-27T08:12:00Z', now)).toBe('today 08:12 UTC');
+    expect(readable('2026-10-26T15:00:00Z', now)).toBe('Mon 26 Oct 15:00 UTC');
     expect(readable('soon', now)).toBe('soon');
   });
 

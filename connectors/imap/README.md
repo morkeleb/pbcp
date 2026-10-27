@@ -5,7 +5,7 @@ An example producer on `@pbcp/client`: it turns unseen IMAP mail into cards (RFC
 - Unseen messages in `INBOX` become `decision` cards with the actions `archive` (the default, so a bare approve archives) and `keep` (RFC §11.1).
 - A new message in a thread whose card is still open supersedes that card (§8): a thread is decided once, on its latest message, and the decision applies to every message the card covers.
 - Unseen messages in any other listed mailbox become `artifact` cards.
-- The card body is the sender, the date as a local time (`Mon 26 Oct 16:00`, in the process's `TZ`) and the first lines of the plain text, quoted. The date never says `today`: an open card is produced again on later days, and its content must not change.
+- The card body is the sender, the date in UTC with the zone named (`Mon 26 Oct 15:00 UTC`), since the connector has no time zone setting and the first lines of the plain text, quoted. The date never says `today`: an open card is produced again on later days, and its content must not change.
 - `summary` (RFC §4.1) is the opening plain text with quoted lines (`>`) left out and whitespace collapsed, cut at a word to at most 200 characters, ending in `…` when cut. A message with no text has no `summary`.
 - On a decision, `archive` moves the card's messages to the archive folder and `keep` marks them `\Seen`. A message that is already gone is not an error. Nothing else is done to the mailbox.
 

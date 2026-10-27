@@ -87,6 +87,7 @@ describe('readable', () => {
     expect(readable(new Date('2026-10-26T15:00:00Z'), 'Europe/Copenhagen')).toBe('Mon 26 Oct 16:00');
     expect(readable(new Date('2026-10-27T09:05:00Z'), 'UTC')).toBe('Tue 27 Oct 09:05');
     expect(readable(new Date('2026-10-26T23:30:00Z'), 'Europe/Copenhagen')).toBe('Tue 27 Oct 00:30');
+    expect(readable(new Date('2026-10-26T15:00:00Z'))).toBe('Mon 26 Oct 15:00 UTC');
   });
 });
 

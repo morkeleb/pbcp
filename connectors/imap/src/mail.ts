@@ -14,9 +14,9 @@ const hash = (s: string) => createHash('sha256').update(s).digest('hex').slice(0
 export const namespaceOf = (account: string) => account.toLowerCase().replace(/[^a-z0-9-]+/g, '-').replace(/^-+|-+$/g, '');
 export const summaryOf = (text: string, max = 200) => ((s: string, cut = s.slice(0, max).replace(/\s+\S*$/, '')) => (s.length <= max ? s : `${cut.length < max ? cut : s.slice(0, max - 1)}…`) || undefined)(text.split(/\r?\n/).filter((l) => !/^\s*>/.test(l)).join(' ').replace(/\s+/g, ' ').trim());
 
-/** `Mon 26 Oct 16:00` in `timeZone`; absolute, not `today`, since an open card is produced again on later days. */
-export const readable = (d: Date, timeZone?: string) => ((p: Record<string, string>) => `${p.weekday} ${p.day} ${p.month} ${p.hour}:${p.minute}`)(Object.fromEntries(
-  new Intl.DateTimeFormat('en-GB', { timeZone, weekday: 'short', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit', hourCycle: 'h23' }).formatToParts(d).map((x) => [x.type, x.value])));
+/** `Mon 26 Oct 16:00` in `timeZone`, else `Mon 26 Oct 15:00 UTC`; never `today`, since an open card is produced again on later days. */
+export const readable = (d: Date, timeZone?: string) => ((p: Record<string, string>) => `${p.weekday} ${p.day} ${p.month} ${p.hour}:${p.minute}${timeZone ? '' : ' UTC'}`)(Object.fromEntries(
+  new Intl.DateTimeFormat('en-GB', { timeZone: timeZone ?? 'UTC', weekday: 'short', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit', hourCycle: 'h23' }).formatToParts(d).map((x) => [x.type, x.value])));
 /** §11.1: a new message in a thread with an open card supersedes it (§8); a message the open card already covers is skipped. */
 export function successor(c: ProducerCard, ref: MailRef, open?: Open): { card: ProducerCard; open: Open } | undefined {
   if (open?.id === c.id) return { card: open.supersedes ? { ...c, supersedes: open.supersedes } : c, open };

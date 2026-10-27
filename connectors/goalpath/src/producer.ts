@@ -111,7 +111,8 @@ export function digestCard(date: string, items: Item[], ms: Milestone[], trend: 
   ].join('\n');
   return card({
     ...base(cfg, now), namespace: 'digest', upstream: date, kind: 'artifact', urgency: 'brief', thread: cfg.projectId,
-    title: `GoalPath ${short(date)}: ${counts}`, summary: summary(`${counts}.`), body,
+    title: `GoalPath ${short(date)}: ${counts}`, body,
+    summary: summary(`${done.length} done, ${blocked.length} blocked and ${lateCount} milestone${lateCount === 1 ? '' : 's'} late in GoalPath on ${short(date)}.`),
   });
 }
 
