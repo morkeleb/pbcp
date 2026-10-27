@@ -1,0 +1,44 @@
+{
+  "name": "C40 summary sent in the file form is stored and synced like any producer field",
+  "rfc": [
+    "\u00a73",
+    "\u00a74.1"
+  ],
+  "steps": [
+    {
+      "op": "put",
+      "args": {
+        "token": "hermes",
+        "card": "---\nprotocol: pbcp/1\nid: hermes:gmail:19d2b6a1f0c6\nkind: artifact\nto_person: morten\nproducer: hermes\nurgency: log\ntitle: Newsletter from Nordic Supply\nsummary: \"The quarterly newsletter from Nordic Supply: prices hold, and delivery moves to Tuesdays.\"\nemitted_at: \"2026-10-07T13:02:11Z\"\n---\n\nQuarterly update; no action needed.\n"
+      },
+      "expect": {
+        "status": 201,
+        "body": {
+          "id": "hermes:gmail:19d2b6a1f0c6",
+          "summary": "The quarterly newsletter from Nordic Supply: prices hold, and delivery moves to Tuesdays.",
+          "state": "open"
+        }
+      }
+    },
+    {
+      "op": "syncAll",
+      "args": {
+        "token": "hermes",
+        "after": 0
+      },
+      "expect": {
+        "status": 200,
+        "body": {
+          "changes": [
+            {
+              "card": {
+                "id": "hermes:gmail:19d2b6a1f0c6",
+                "summary": "The quarterly newsletter from Nordic Supply: prices hold, and delivery moves to Tuesdays."
+              }
+            }
+          ]
+        }
+      }
+    }
+  ]
+}

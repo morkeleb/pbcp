@@ -52,6 +52,8 @@ export const ProducerCardSchema = z.looseObject({
   to_person: NonEmpty,
   producer: NonEmpty,
   title: z.string().min(1).refine((s) => !/[\r\n]/.test(s), 'must be one line'),
+  /** §4.1: plain text, never markdown; whether it is markdown is a rendering rule and not checked here. */
+  summary: z.string().min(1).refine((s) => !/[\r\n]/.test(s), 'must be one line').optional(),
   body: z.string(),
   urgency: z.enum(URGENCIES).optional(),
   thread: NonEmpty.optional(),
@@ -202,7 +204,7 @@ function typedFromYaml(doc: YamlDoc): Record<string, unknown> {
 }
 
 const FIELD_ORDER = [
-  'protocol', 'id', 'kind', 'to_person', 'producer', 'thread', 'urgency', 'title', 'actions',
+  'protocol', 'id', 'kind', 'to_person', 'producer', 'thread', 'urgency', 'title', 'summary', 'actions',
   'references', 'supersedes', 'emitted_at', 'source',
 ];
 

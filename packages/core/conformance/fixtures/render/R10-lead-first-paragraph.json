@@ -1,0 +1,38 @@
+{
+  "name": "R10 without a summary the lead is the body's first paragraph, after any leading heading",
+  "rfc": [
+    "\u00a73.1"
+  ],
+  "steps": [
+    {
+      "op": "lead",
+      "args": {
+        "card": {
+          "body": "Lars (Fjord Systems) asks whether the support contract can be renewed.\nHe wants the current price.\n\n## Proposed reply\n\n> Yes, one more year."
+        }
+      },
+      "expect": {
+        "status": 200,
+        "body": {
+          "text": "Lars (Fjord Systems) asks whether the support contract can be renewed.\nHe wants the current price.",
+          "source": "body"
+        }
+      }
+    },
+    {
+      "op": "lead",
+      "args": {
+        "card": {
+          "body": "## Evidence\n\nM4 slipped two days after **three** failed builds.\n\n## Proposal\n\nMove the review to Monday."
+        }
+      },
+      "expect": {
+        "status": 200,
+        "body": {
+          "text": "M4 slipped two days after **three** failed builds.",
+          "source": "body"
+        }
+      }
+    }
+  ]
+}

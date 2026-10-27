@@ -3,6 +3,7 @@
 // syntax-checked; images and raw HTML are classified. Its "parser" is deliberately shallow
 // (a header check plus `pie` data lines). A real head brings a real renderer.
 
+import { leadOf } from '../src/index.js';
 import type { RenderResult, RenderUnderTest, RenderedFence, RenderedImage } from './types.js';
 
 const CORE = ['flowchart', 'sequenceDiagram', 'stateDiagram-v2', 'gantt', 'timeline', 'pie', 'xychart-beta'];
@@ -156,6 +157,9 @@ export function referenceRenderer(): RenderUnderTest {
     },
     async draws() {
       return draws;
+    },
+    async lead(card) {
+      return leadOf(card);
     },
     async render(body) {
       const stripped = new Set<string>();

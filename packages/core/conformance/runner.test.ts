@@ -111,6 +111,41 @@ describe('the fixtures catch broken heads', () => {
     await fails(render.R08, { render: broken });
   });
 
+  it('C38: leaving summary out of equality', async () => {
+    const h = inProcessHead();
+    const stored = new Map<string, unknown>();
+    // A head that compares without summary answers a changed summary as identical: 200 and the stored card.
+    const put: HeadUnderTest['put'] = async (t, c) => {
+      const card = c as { id: string; summary?: string };
+      const prev = stored.get(card.id) as { summary?: string } | undefined;
+      const r = await h.put(t, prev && typeof c === 'object' ? { ...card, summary: prev.summary } : c);
+      if (r.status === 201) stored.set(card.id, c);
+      return r;
+    };
+    await fails(core.C38, { head: sabotage(h, { put }) });
+  });
+
+  it('C39: accepting a summary with a line break', async () => {
+    const h = inProcessHead();
+    const put: HeadUnderTest['put'] = async (t, c) =>
+      h.put(t, typeof c === 'object' && c !== null && 'summary' in c ? { ...c, summary: String((c as { summary: string }).summary).replace(/[\r\n]/g, ' ') || 'x' } : c);
+    await fails(core.C39, { head: sabotage(h, { put }) });
+  });
+
+  it('C40: dropping summary from the file form', async () => {
+    const h = inProcessHead();
+    const put: HeadUnderTest['put'] = async (t, c) => h.put(t, typeof c === 'string' ? c.replace(/^summary: .*\n/m, '') : c);
+    await fails(core.C40, { head: sabotage(h, { put }) });
+  });
+
+  it('R09–R11: leads that ignore summary, keep headings or keep fences', async () => {
+    const r = referenceRenderer();
+    const firstLines = (b: string) => b.split('\n\n')[0]!;
+    await fails(render.R09, { render: { ...r, lead: async (c) => ({ text: firstLines(c.body), source: 'body' }) } });
+    await fails(render.R10, { render: { ...r, lead: async (c) => ({ text: c.summary ?? firstLines(c.body), source: c.summary ? 'summary' : 'body' }) } });
+    await fails(render.R11, { render: { ...r, lead: async (c) => ({ text: c.summary ?? firstLines(c.body.replace(/^## .*\n\n/, '')), source: c.summary ? 'summary' : 'body' }) } });
+  });
+
   it('R07: drawing a cached fence twice', async () => {
     const r = referenceRenderer();
     await fails(render.R07, { render: { ...r, draws: async () => (await r.draws()) + 1 } });

@@ -1,0 +1,198 @@
+{
+  "name": "C38 summary round-trips and counts for equality: an identical re-PUT changes nothing, a different summary replaces an open card, and is a 409 once decided",
+  "rfc": [
+    "\u00a74.1",
+    "\u00a75"
+  ],
+  "steps": [
+    {
+      "op": "put",
+      "args": {
+        "token": "hermes",
+        "card": {
+          "protocol": "pbcp/1",
+          "id": "hermes:gmail:19d2b6a1f0c4",
+          "kind": "decision",
+          "to_person": "morten",
+          "producer": "hermes",
+          "title": "Reply to Lars re contract renewal",
+          "summary": "Lars asks to renew the support contract for one year at the current price. The proposed reply accepts.",
+          "body": "Lars (Fjord Systems) asks whether the support contract can be renewed for a year at the current price.\n\n## Proposed reply\n\n> Hi Lars, yes: one more year at the current price.",
+          "emitted_at": "2026-10-07T13:02:11Z",
+          "thread": "gmail:19d2b6a1f0c4",
+          "actions": [
+            "approve",
+            "reject"
+          ]
+        }
+      },
+      "expect": {
+        "status": 201,
+        "body": {
+          "summary": "Lars asks to renew the support contract for one year at the current price. The proposed reply accepts.",
+          "state": "open"
+        }
+      },
+      "save": {
+        "seq1": "body.change_seq"
+      }
+    },
+    {
+      "op": "put",
+      "args": {
+        "token": "hermes",
+        "card": {
+          "protocol": "pbcp/1",
+          "id": "hermes:gmail:19d2b6a1f0c4",
+          "kind": "decision",
+          "to_person": "morten",
+          "producer": "hermes",
+          "title": "Reply to Lars re contract renewal",
+          "summary": "Lars asks to renew the support contract for one year at the current price. The proposed reply accepts.",
+          "body": "Lars (Fjord Systems) asks whether the support contract can be renewed for a year at the current price.\n\n## Proposed reply\n\n> Hi Lars, yes: one more year at the current price.",
+          "emitted_at": "2026-10-07T14:00:00Z",
+          "thread": "gmail:19d2b6a1f0c4",
+          "actions": [
+            "approve",
+            "reject"
+          ]
+        }
+      },
+      "expect": {
+        "status": 200,
+        "body": {
+          "summary": "Lars asks to renew the support contract for one year at the current price. The proposed reply accepts.",
+          "change_seq": {
+            "$var": "seq1"
+          }
+        }
+      }
+    },
+    {
+      "op": "put",
+      "args": {
+        "token": "hermes",
+        "card": {
+          "protocol": "pbcp/1",
+          "id": "hermes:gmail:19d2b6a1f0c4",
+          "kind": "decision",
+          "to_person": "morten",
+          "producer": "hermes",
+          "title": "Reply to Lars re contract renewal",
+          "summary": "Lars asks to renew the support contract for one year. The proposed reply accepts at a 5% increase.",
+          "body": "Lars (Fjord Systems) asks whether the support contract can be renewed for a year at the current price.\n\n## Proposed reply\n\n> Hi Lars, yes: one more year at the current price.",
+          "emitted_at": "2026-10-07T13:02:11Z",
+          "thread": "gmail:19d2b6a1f0c4",
+          "actions": [
+            "approve",
+            "reject"
+          ]
+        }
+      },
+      "expect": {
+        "status": 200,
+        "body": {
+          "summary": "Lars asks to renew the support contract for one year. The proposed reply accepts at a 5% increase.",
+          "state": "open"
+        }
+      }
+    },
+    {
+      "op": "syncAll",
+      "args": {
+        "token": "hermes",
+        "after": {
+          "$var": "seq1"
+        }
+      },
+      "expect": {
+        "status": 200,
+        "body": {
+          "changes": [
+            {
+              "card": {
+                "id": "hermes:gmail:19d2b6a1f0c4",
+                "summary": "Lars asks to renew the support contract for one year. The proposed reply accepts at a 5% increase."
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "op": "decide",
+      "args": {
+        "id": "hermes:gmail:19d2b6a1f0c4",
+        "decision": {
+          "decision": "approve"
+        }
+      },
+      "expect": {
+        "status": 200,
+        "body": {
+          "state": "decided",
+          "summary": "Lars asks to renew the support contract for one year. The proposed reply accepts at a 5% increase."
+        }
+      }
+    },
+    {
+      "op": "put",
+      "args": {
+        "token": "hermes",
+        "card": {
+          "protocol": "pbcp/1",
+          "id": "hermes:gmail:19d2b6a1f0c4",
+          "kind": "decision",
+          "to_person": "morten",
+          "producer": "hermes",
+          "title": "Reply to Lars re contract renewal",
+          "summary": "Lars asks to renew for two years instead.",
+          "body": "Lars (Fjord Systems) asks whether the support contract can be renewed for a year at the current price.\n\n## Proposed reply\n\n> Hi Lars, yes: one more year at the current price.",
+          "emitted_at": "2026-10-07T13:02:11Z",
+          "thread": "gmail:19d2b6a1f0c4",
+          "actions": [
+            "approve",
+            "reject"
+          ]
+        }
+      },
+      "expect": {
+        "status": 409,
+        "body": {
+          "state": "decided",
+          "decision": "approve",
+          "summary": "Lars asks to renew the support contract for one year. The proposed reply accepts at a 5% increase."
+        }
+      }
+    },
+    {
+      "op": "put",
+      "args": {
+        "token": "hermes",
+        "card": {
+          "protocol": "pbcp/1",
+          "id": "hermes:gmail:19d2b6a1f0c4",
+          "kind": "decision",
+          "to_person": "morten",
+          "producer": "hermes",
+          "title": "Reply to Lars re contract renewal",
+          "summary": "Lars asks to renew the support contract for one year. The proposed reply accepts at a 5% increase.",
+          "body": "Lars (Fjord Systems) asks whether the support contract can be renewed for a year at the current price.\n\n## Proposed reply\n\n> Hi Lars, yes: one more year at the current price.",
+          "emitted_at": "2026-10-08T06:00:00Z",
+          "thread": "gmail:19d2b6a1f0c4",
+          "actions": [
+            "approve",
+            "reject"
+          ]
+        }
+      },
+      "expect": {
+        "status": 200,
+        "body": {
+          "state": "decided",
+          "summary": "Lars asks to renew the support contract for one year. The proposed reply accepts at a 5% increase."
+        }
+      }
+    }
+  ]
+}

@@ -58,6 +58,7 @@ Each step runs its `op` with `args`, checks the result against `expect`, then ev
 | --- | --- | --- |
 | `render` | `body` (markdown) | `{ status: 200, body: RenderResult }` |
 | `draws` | — | `{ status: 200, body: { count } }` — diagrams actually drawn since `reset()` (cache misses) |
+| `lead` | `card` (`{ summary?, body }`) | `{ status: 200, body: { text, source } }` — the card's lead (§3.1); `source` is `summary` or `body`. `leadOf` from `@pbcp/core` implements it |
 
 ```ts
 interface RenderResult {
@@ -110,7 +111,7 @@ Dot-separated: `body.change_seq`, `body.changes.0.seq`. A segment `[k=v]` select
 
 ## Reference renderer
 
-`@pbcp/core/conformance/render` exports `referenceRenderer()`, the `RenderUnderTest` the in-process run uses. It classifies without drawing, so a head can run R01–R08 against it before its own renderer exists.
+`@pbcp/core/conformance/render` exports `referenceRenderer()`, the `RenderUnderTest` the in-process run uses. It classifies without drawing, so a head can run R01–R11 against it before its own renderer exists. Its `lead` is core's `leadOf`; a head that uses `leadOf` passes R09–R11 by delegating to it.
 
 ## Cases
 
@@ -152,6 +153,9 @@ Dot-separated: `body.change_seq`, `body.changes.0.seq`. A segment `[k=v]` select
 | C35 | Orders: a lease belongs to the root; a second token under it renews and posts the outcome | A.1–A.3 |
 | C36 | Orders: outcome ids are per claim; a re-run's outcome is a new card and only the current claim's moves `exec_state` | A.3, A.4 |
 | C37 | Snooze sets `snoozed_until` with a new `change_seq`; the card stays `open` and in sync; clearing it takes another | §4.2, §6 |
+| C38 | `summary` round-trips and counts for equality: identical re-PUT is a no-op, a changed summary replaces an open card (200), and is 409 once decided | §4.1, §5 |
+| C39 | A `summary` with CR or LF, or an empty one, is 400 `invalid_card` in both forms; nothing is stored | §4.1 |
+| C40 | `summary` in the file form is stored and synced | §3, §4.1 |
 | R01 | Each core-tier type renders; the text around it is intact | §3.1 |
 | R02 | An unknown diagram type falls back with its label; text intact | §3.1 |
 | R03 | A fence with a parse error falls back with a parser message (shown, its wording the renderer's); the other fences still render | §3.1 |
@@ -160,5 +164,8 @@ Dot-separated: `body.change_seq`, `body.changes.0.seq`. A segment `[k=v]` select
 | R06 | Ninth fence is collapsed, not dropped | §3.1 |
 | R07 | Identical fence in two cards yields one cached render (condition `prerender`) | §3.1 |
 | R08 | Image with alt `fallback` after a rendered fence is hidden; after an unrenderable fence it replaces the fallback block | §3.1 |
+| R09 | The lead is `summary` when present, whatever the body starts with | §3.1, §4.1 |
+| R10 | Without `summary`, the lead is the first paragraph, after any leading heading | §3.1 |
+| R11 | Without `summary`, a body that opens with a mermaid fence has the first paragraph after it as its lead | §3.1 |
 
 C23 (a parked change advances the cursor and is reported, RFC §7.2) is a producer obligation, so it is a client test in `packages/client`, not a head fixture.
