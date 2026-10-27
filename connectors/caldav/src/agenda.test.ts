@@ -2,10 +2,10 @@ import { HeadClient, memoryStore, producerPass, type Parked } from '@pbcp/client
 import { stubHead } from '@pbcp/client/testing';
 import { isId } from '@pbcp/core';
 import { describe, expect, it, vi } from 'vitest';
-import { agendaCard, calendarProducer, ganttTitle, occurrences, plan, slug, type Occurrence, type State } from './agenda.js';
+import { agendaCard, calendarProducer, ganttTitle, occurrences, overlaps, parseCalendars, plan, slug, type Calendar, type Occurrence, type State } from './agenda.js';
 
 const tz = 'Europe/Copenhagen';
-const cfg = { slug: 'work', toPerson: 'morten', tz };
+const cfg = { calendars: [{ name: 'Work', slug: 'work' }], toPerson: 'morten', tz };
 const VTIMEZONE = `BEGIN:VTIMEZONE
 TZID:Europe/Copenhagen
 BEGIN:STANDARD
@@ -193,5 +193,118 @@ describe('end to end against the stub head', () => {
     expect((await state.get('state'))?.agenda).toBe('2026-10-26');
     expect(logged).toHaveBeenCalledOnce();
     logged.mockRestore();
+  });
+});
+
+describe('several calendars', () => {
+  const work: Calendar = { name: 'Work', slug: 'work' };
+  const home: Calendar = { name: 'Home | family', slug: 'home-family' };
+  const two = { calendars: [work, home], toPerson: 'morten', tz };
+  const ics: Record<string, string[]> = {
+    work: [vcal(standup), vcal(vevent({ UID: 'budget', DTSTART: '20261026T130000Z', DTEND: '20261026T140000Z', SUMMARY: 'Budget review' }))],
+    'home-family': [
+      vcal(vevent({ UID: 'dentist', DTSTART: '20261026T080000Z', DTEND: '20261026T084500Z', SUMMARY: 'Dentist', LOCATION: 'Clinic' })),
+      vcal(vevent({ UID: 'school', 'DTSTART;VALUE=DATE': '20261026', 'DTEND;VALUE=DATE': '20261027', SUMMARY: 'School holiday' })),
+      vcal(vevent({ UID: 'plumber', DTSTART: '20261026T133000Z', DTEND: '20261026T134500Z', SUMMARY: 'Call with plumber' })),
+      vcal(vevent({ UID: 'gym', DTSTART: '20261026T160000Z', DTEND: '20261026T170000Z', SUMMARY: 'Gym' })),
+    ],
+  };
+  const tagged = (texts: Record<string, string[]>) =>
+    two.calendars.flatMap((c) => occurrences(texts[c.slug] ?? [], from, to).map((o) => ({ ...o, calendar: c })));
+
+  it('merges the day into one agenda with a calendar column, a gantt section per calendar, and overlaps marked', () => {
+    const c = agendaCard(tagged(ics), '2026-10-26', two, now);
+    expect(isId(c.id)).toBe(true);
+    expect(c).toMatchObject({ id: 'cal:agenda:2026-10-26', kind: 'artifact', urgency: 'brief', thread: 'day-2026-10-26', title: 'Mon 26 Oct: 6 events, first at 09:00, 2 overlaps' });
+    expect(c.body).toBe(
+      [
+        '| Time | Calendar | Event | Where |',
+        '| --- | --- | --- | --- |',
+        '| all day | Home \\| family | School holiday |  |',
+        '| 09:00–09:45 ⚠ | Home \\| family | Dentist | Clinic |',
+        '| 09:15–09:30 ⚠ | Work | Standup |  |',
+        '| 14:00–15:00 ⚠ | Work | Budget review |  |',
+        '| 14:30–14:45 ⚠ | Home \\| family | Call with plumber |  |',
+        '| 17:00–18:00 | Home \\| family | Gym |  |',
+        '',
+        '⚠ Overlapping across calendars:',
+        '',
+        '- 09:15–09:30: Dentist (Home \\| family) and Standup (Work)',
+        '- 14:30–14:45: Budget review (Work) and Call with plumber (Home \\| family)',
+        '',
+        '```mermaid',
+        'gantt',
+        '  title Mon 26 Oct',
+        '  dateFormat HH:mm',
+        '  axisFormat %H:%M',
+        '  section Work',
+        '  Standup :crit, 09:15, 09:30',
+        '  Budget review :crit, 14:00, 15:00',
+        '  section Home | family',
+        '  Dentist :crit, 09:00, 09:45',
+        '  · Call with plumber :crit, 14:30, 14:45',
+        '  Gym :17:00, 18:00',
+        '```',
+      ].join('\n'),
+    );
+  });
+
+  it('does not count events in one calendar, all-day events, touching ends, or one occurrence in two calendars as overlaps', () => {
+    const occ = tagged({
+      work: [vcal(vevent({ UID: 'a', DTSTART: '20261026T080000Z', DTEND: '20261026T090000Z', SUMMARY: 'A' })), vcal(vevent({ UID: 'b', DTSTART: '20261026T083000Z', DTEND: '20261026T093000Z', SUMMARY: 'B' }))],
+      'home-family': [
+        vcal(vevent({ UID: 'c', DTSTART: '20261026T093000Z', DTEND: '20261026T100000Z', SUMMARY: 'C' })),
+        vcal(vevent({ UID: 'day', 'DTSTART;VALUE=DATE': '20261026', 'DTEND;VALUE=DATE': '20261027', SUMMARY: 'Day' })),
+      ],
+    });
+    expect(overlaps(occ)).toEqual([]);
+    const c = agendaCard(occ, '2026-10-26', two, now);
+    expect(c.title).toBe('Mon 26 Oct: 4 events, first at 09:00');
+    expect(c.body).not.toContain('⚠');
+    expect(c.body).not.toContain('crit');
+    const a = vcal(vevent({ UID: 'a', DTSTART: '20261026T080000Z', DTEND: '20261026T090000Z', SUMMARY: 'A' }));
+    expect(overlaps(tagged({ work: [a], 'home-family': [a] }))).toEqual([]);
+  });
+
+  it('leaves out the section of a calendar with nothing timed that day', () => {
+    const c = agendaCard(tagged({ work: ics.work! }), '2026-10-26', two, now);
+    expect(c.body).toContain('  section Work');
+    expect(c.body).not.toContain('section Home');
+    expect(agendaCard([], '2026-10-26', two, now)).toMatchObject({ id: 'cal:agenda:2026-10-26', title: 'Mon 26 Oct: nothing scheduled', body: 'Nothing scheduled.' });
+  });
+
+  it('signals a move in its own calendar namespace, with the calendar name, keyed per calendar', () => {
+    const shared = (hhmm: string) => vcal(vevent({ UID: 'sync', 'DTSTART;TZID=Europe/Copenhagen': `20261026T${hhmm}00`, 'DTEND;TZID=Europe/Copenhagen': '20261026T100000', SUMMARY: 'Planning' }));
+    const nine = new Date('2026-10-26T08:00:00Z');
+    const first = plan(tagged({ work: [shared('0915')], 'home-family': [shared('0915')] }), { agenda: '2026-10-26', seen: {} }, two, nine);
+    expect(first.cards).toEqual([]);
+    expect(Object.keys(first.next.seen).sort()).toEqual(['home-family:sync/', 'work:sync/']);
+    const { cards } = plan(tagged({ work: [shared('0920')], 'home-family': [shared('0915')] }), first.next, two, nine);
+    expect(cards).toHaveLength(1);
+    expect(cards[0]!.id).toMatch(/^cal:work:[0-9a-f]{16}-20261026T0820Z:moved$/);
+    expect(cards[0]).toMatchObject({ title: 'Moved: Planning now at 09:20 (Work)', thread: 'day-2026-10-26' });
+    expect(cards[0]!.body).toBe('**Planning** now starts at 09:20–10:00 (was 09:15).\n\nCalendar: Work');
+  });
+
+  it('parses CALDAV_CALENDARS and refuses lists that cannot work', () => {
+    expect(parseCalendars('[{"name":"Work","url":"/dav/work/"},{"name":" Home ","url":"https://cal.example/dav/home/"}]')).toEqual([
+      { name: 'Work', url: '/dav/work/', slug: 'work' },
+      { name: 'Home', url: 'https://cal.example/dav/home/', slug: 'home' },
+    ]);
+    expect(() => parseCalendars('[]')).toThrow(/non-empty/);
+    expect(() => parseCalendars('[{"name":"Work"}]')).toThrow(/name and a url/);
+    expect(() => parseCalendars('[{"name":"Work","url":"a"},{"name":"work!","url":"b"}]')).toThrow(/namespace work/);
+  });
+
+  it('stores one merged agenda end to end, fetching each calendar', async () => {
+    const stub = stubHead();
+    const head = new HeadClient({ baseUrl: 'https://head.test', token: 't', fetch: stub.fetch });
+    const store = memoryStore();
+    const fetched: string[] = [];
+    const cal = calendarProducer({ fetch: async (c) => (fetched.push(c.slug), ics[c.slug] ?? []), state: store.kv<State>('calendar'), now: () => now }, two);
+    await producerPass({ ...cal, head, store, onDecision: async () => {}, onError: (e: unknown) => { throw e; } });
+    expect(fetched.sort()).toEqual(['home-family', 'work']);
+    expect([...stub.cards.keys()]).toEqual(['cal:agenda:2026-10-26']);
+    expect(stub.cards.get('cal:agenda:2026-10-26')).toMatchObject({ title: 'Mon 26 Oct: 6 events, first at 09:00, 2 overlaps' });
   });
 });
