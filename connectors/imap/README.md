@@ -5,7 +5,7 @@ An example producer on `@pbcp/client`: it turns unseen IMAP mail into cards (RFC
 - Unseen messages in `INBOX` become `decision` cards with the actions `archive` (the default, so a bare approve archives) and `keep` (RFC §11.1).
 - A new message in a thread whose card is still open supersedes that card (§8): a thread is decided once, on its latest message, and the decision applies to every message the card covers.
 - Unseen messages in any other listed mailbox become `artifact` cards.
-- The card body is the sender, the date in UTC with the zone named (`Mon 26 Oct 15:00 UTC`), since the connector has no time zone setting and the first lines of the plain text, quoted. The date never says `today`: an open card is produced again on later days, and its content must not change.
+- The card body is the sender, the date in `IMAP_TZ` (`Mon 26 Oct 16:00`), or in UTC with the zone named when it is unset (`Mon 26 Oct 15:00 UTC`), and the first lines of the plain text, quoted. The date never says `today`: an open card is produced again on later days, and its content must not change.
 - `summary` (RFC §4.1) is the opening plain text with quoted lines (`>`) left out and whitespace collapsed, cut at a word to at most 200 characters, ending in `…` when cut. A message with no text has no `summary`.
 - On a decision, `archive` moves the card's messages to the archive folder and `keep` marks them `\Seen`. A message that is already gone is not an error. Nothing else is done to the mailbox.
 
@@ -17,6 +17,7 @@ An example producer on `@pbcp/client`: it turns unseen IMAP mail into cards (RFC
 | `IMAP_USER`, `IMAP_PASSWORD` | – | |
 | `IMAP_MAILBOXES` | `INBOX` | comma-separated |
 | `IMAP_ARCHIVE` | `Archive` | target of `archive` |
+| `IMAP_TZ` | UTC | IANA zone for times in card text, e.g. `Europe/Copenhagen`; a name the runtime does not know stops the connector at startup |
 | `PBCP_HEAD_URL`, `PBCP_TOKEN` | – | the head and this producer's token |
 | `PBCP_TO_PERSON` | the head's `owner` | read once from `GET /` at startup when unset |
 | `PBCP_MAIL_ACCOUNT` | `IMAP_USER` | source of the id namespace |

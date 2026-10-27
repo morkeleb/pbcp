@@ -1,10 +1,10 @@
 import { HeadClient, fileStore, runProducer } from '@pbcp/client';
 import type { Card, ProducerCard } from '@pbcp/core';
 import { ImapFlow } from 'imapflow';
-import { namespaceOf, successor, toCard, type Fetched, type Open } from './mail.js';
+import { namespaceOf, successor, toCard, zoneOf, type Fetched, type Open } from './mail.js';
 
 const env = (name: string, fallback?: string): string => process.env[name] || fallback || (() => { throw new Error(`${name} is required`); })();
-const [user, mailboxes] = [env('IMAP_USER'), env('IMAP_MAILBOXES', 'INBOX').split(',').map((s) => s.trim())];
+const [user, mailboxes, timeZone] = [env('IMAP_USER'), env('IMAP_MAILBOXES', 'INBOX').split(',').map((s) => s.trim()), zoneOf(process.env.IMAP_TZ)];
 const account = namespaceOf(env('PBCP_MAIL_ACCOUNT', user));
 const store = fileStore(env('PBCP_STORE', env('PBCP_CURSOR', 'pbcp-imap.store.json')));
 const threads = store.kv<Open>('thread');
@@ -21,7 +21,7 @@ async function* produce() {
   for (const mailbox of mailboxes) {
     for (const m of await withImap(mailbox, async (c): Promise<Fetched[]> =>
       (await c.fetchAll({ seen: false }, { uid: true, threadId: true, source: { maxLength: 256 * 1024 } }, { uid: true })).map((m) => ({ mailbox, uid: m.uid, threadId: m.threadId, source: m.source ?? '' })))) {
-      const { card, ref } = await toCard(m, { account, toPerson });
+      const { card, ref } = await toCard(m, { account, toPerson, timeZone });
       const next = card.kind === 'decision' ? successor(card, ref, await threads.get(card.thread!)) : { card, open: undefined };
       pending = next?.open && [card.id, card.thread!, next.open];
       if (next) yield next.card;

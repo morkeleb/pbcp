@@ -17,6 +17,7 @@ An example executor on `runExecutor` from `@pbcp/client` (RFC Appendix A.4, "To-
 | `TODOIST_TOKEN` | – | personal API token, sent as `Authorization: Bearer` |
 | `TODOIST_PROJECT` | the Inbox | project id for new tasks |
 | `TODOIST_POLL_S` | `60` | seconds between checks of a waiting task |
+| `TODOIST_TZ` | UTC | IANA zone for times in card text, e.g. `Europe/Copenhagen`; a name the runtime does not know stops the connector at startup |
 | `PBCP_HEAD_URL`, `PBCP_TOKEN` | – | the head and this executor's token (root `todoist`) |
 | `PBCP_STORE` | `pbcp-todoist.json` | the sync cursor and, per running order, the id of its task (`fileStore`) |
 | `PBCP_LEASE_S` | `60` | lease length in seconds, renewed every half lease and at every check (A.5) |
@@ -44,7 +45,7 @@ The connector checks the task every `TODOIST_POLL_S`, renewing the lease first (
 
 | In Todoist | Outcome `todoist:order:<ulid>:outcome-<claim_seq>` | `exec_state` |
 |---|---|---|
-| Completed | `signal` with `orders.result: done`, `Done: <task content as it is now>`, body `Completed in Todoist, <time>.`, the time in UTC with the zone named, since the connector has no time zone setting: `today 08:12 UTC`, or `Mon 26 Oct 15:00 UTC` on another day | `done` |
+| Completed | `signal` with `orders.result: done`, `Done: <task content as it is now>`, body `Completed in Todoist, <time>.`, the time in `TODOIST_TZ`: `today 09:12`, or `Mon 26 Oct 16:00` on another day; with `TODOIST_TZ` unset, in UTC with the zone named: `today 08:12 UTC` | `done` |
 | Deleted | `signal` with `orders.result: failed`, `Not done: <order title>`, saying the task was deleted without being completed | `failed` |
 | (the person dismisses the order) | `signal` with `orders.result: failed`, `Stopped: <order title>`, saying the task was deleted | stays `cancelled` (the outcome is stale by design, A.5) |
 
