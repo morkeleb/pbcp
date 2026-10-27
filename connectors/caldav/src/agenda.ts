@@ -17,6 +17,8 @@ const local = (d: Date, tz: string) => d.toLocaleString('sv-SE', { timeZone: tz 
 const dateOf = (d: Date, tz: string) => local(d, tz).slice(0, 10);
 const timeOf = (d: Date, tz: string) => local(d, tz).slice(11, 16);
 const oneLine = (s: string) => s.replace(/\s+/g, ' ').trim() || '(untitled)';
+/** §4.1 `summary`: plain text on one line, at most 280 characters. */
+const clip = (s: string) => (s.length > 280 ? `${s.slice(0, 279)}…` : s);
 const hash = (s: string) => createHash('sha256').update(s).digest('hex').slice(0, 16);
 const KEYWORD = /^(title|section|dateformat|axisformat|tickinterval|excludes|includes|todaymarker|weekday|weekend|inclusiveenddates|topaxis|click|call|href|acc\w*)\b/i;
 
@@ -112,6 +114,8 @@ export function agendaCard(occ: Occurrence[], day: string, cfg: Config, now: Dat
   return card({
     producer: 'cal', namespace: multi ? 'agenda' : cfg.calendars[0]!.slug, upstream: day, kind: 'artifact', urgency: 'brief', to_person: cfg.toPerson, thread: `day-${day}`,
     title: events.length === 0 ? `${label}: nothing scheduled` : `${label}: ${count}${timed[0] ? `, first at ${span(timed[0])[0]}` : ''}${overlapNote}`,
+    // The first timed event, where it is cheap to say; an empty or all-day-only day has nothing the title does not say.
+    summary: timed[0] && clip(`First: ${timed[0].title}, ${span(timed[0]).join('–')}${timed[0].location ? `, ${timed[0].location}` : ''}${multi && timed[0].calendar ? ` (${timed[0].calendar.name})` : ''}.`),
     body, emitted_at: now.toISOString(),
   });
 }
@@ -125,6 +129,7 @@ export function movedCard(o: Occurrence, was: Date, cfg: Config, now: Date): Pro
     producer: 'cal', namespace: (o.calendar ?? cfg.calendars[0]!).slug, upstream: `${hash(o.key)}-${o.start.toISOString().replace(/[-:]/g, '').slice(0, 13)}Z`, intent: 'moved',
     kind: 'signal', urgency: 'immediate', to_person: cfg.toPerson, thread: `day-${day}`,
     title: `Moved: ${o.title} now at ${timeOf(o.start, cfg.tz)}${cal ? ` (${cal.name})` : ''}`,
+    summary: clip(`${o.title} now starts at ${timeOf(o.start, cfg.tz)}–${at(o.end)} (was ${at(was)})${o.location ? `, ${o.location}` : ''}${cal ? `, in ${cal.name}` : ''}.`),
     body: [`**${o.title}** now starts at ${timeOf(o.start, cfg.tz)}–${at(o.end)} (was ${at(was)}).`]
       .concat(cal ? ['', `Calendar: ${cal.name}`] : [], o.location ? ['', `Where: ${o.location}`] : []).join('\n'),
     emitted_at: now.toISOString(),

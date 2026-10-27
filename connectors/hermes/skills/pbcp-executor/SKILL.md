@@ -25,6 +25,7 @@ An order is a card of `kind: order` the person gave through their head (RFC Appe
   "kind": "signal",
   "to_person": "<the head's owner>",
   "title": "Booked the dentist for Tuesday 09:00",
+  "summary": "Booked the dentist for Tuesday at 09:00 with Dr Holm; the confirmation is in your inbox.",
   "body": "What you did, with links. If you stopped early: what was done and what was not.",
   "thread": "<order id>",
   "references": ["<order id>"],
@@ -34,6 +35,7 @@ An order is a card of `kind: order` the person gave through their head (RFC Appe
 }
 ```
 
+- `summary` is one sentence of plain text on one line saying what you did, or why you could not; it is what the person reads in the brief.
 - `orders.claim_seq` is the `claim_seq` your claim returned. `orders.result` is required: `"done"`, or `"failed"` if you could not do it or stopped because of a `410` (say why in the body).
 - If the result needs the person's approval before it takes effect (a draft to send), make the outcome `kind: "decision"` with `actions`, and act on it later as `pbcp-escalate` describes.
 

@@ -1,6 +1,6 @@
 {
   "name": "@pbcp/connector-goalpath",
-  "version": "0.6.0",
+  "version": "0.7.0",
   "private": true,
   "description": "Example producer: GoalPath milestone risk, approvals, red builds and a nightly digest to cards.",
   "license": "MIT",

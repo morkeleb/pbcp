@@ -8,7 +8,7 @@ node connectors/obsidian-daily/dist/src/index.js
 
 An example producer on `@pbcp/client`: each daily note in an Obsidian vault becomes a card (RFC §11.1). It is a reader only. It never writes to the vault and runs no model.
 
-- Every file named `YYYY-MM-DD.md` (a real calendar date) directly in the daily-notes folder becomes one `kind: artifact` card with `urgency: log`, no `actions`, and the title `Daily note YYYY-MM-DD`. Subfolders and other files are ignored.
+- Every file named `YYYY-MM-DD.md` (a real calendar date) directly in the daily-notes folder becomes one `kind: artifact` card with `urgency: log`, no `actions`, and the title `Daily note YYYY-MM-DD`. Its `summary` (§4.1) is the note's first line of text: the first line of its lead (§3.1, so headings and fences are skipped), without list, task or quote markers, cut to 280 characters. A note with no such line has no `summary`. Subfolders and other files are ignored.
 - A new note is submitted; a changed note replaces its card. Artifacts are never decided, so decisions are ignored.
 
 ## Configuration

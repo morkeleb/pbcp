@@ -12,8 +12,9 @@ const hash = (s: string) => createHash('sha256').update(s).digest('hex').slice(0
 
 /** A grammar-valid namespace (§5) from an account name such as an email address. */
 export const namespaceOf = (account: string) => account.toLowerCase().replace(/[^a-z0-9-]+/g, '-').replace(/^-+|-+$/g, '');
+export const summaryOf = (text: string, max = 200) => ((s: string, cut = s.slice(0, max).replace(/\s+\S*$/, '')) => (s.length <= max ? s : `${cut.length < max ? cut : s.slice(0, max - 1)}…`) || undefined)(text.split(/\r?\n/).filter((l) => !/^\s*>/.test(l)).join(' ').replace(/\s+/g, ' ').trim());
 
-/** One unseen message → one card (§11.1): headers and first lines, never a draft. */
+/** One unseen message → one card (§11.1): headers and first lines, never a draft; `summary` is the unquoted opening text, ≤ 200 chars. */
 export async function toCard(m: Fetched, cfg: MailConfig, maxLines = 12): Promise<{ card: ProducerCard; ref: MailRef }> {
   const mail = await simpleParser(m.source);
   const messageId = mail.messageId ?? `${m.mailbox}/${m.uid}`;
@@ -29,6 +30,7 @@ export async function toCard(m: Fetched, cfg: MailConfig, maxLines = 12): Promis
     to_person: cfg.toPerson,
     thread: m.threadId ? `thr-${m.threadId}` : `ref-${hash(refs[0] ?? mail.inReplyTo ?? messageId)}`,
     title: (mail.subject ?? '').replace(/\s+/g, ' ').trim() || '(no subject)',
+    summary: summaryOf(mail.text ?? ''),
     body: [`- **From:** ${mail.from?.text ?? 'unknown'}`, `- **Date:** ${mail.date?.toISOString() ?? 'unknown'}`]
       .concat(excerpt ? ['', excerpt.replace(/^/gm, '> ')] : [])
       .concat(mail.messageId ? [] : ['', '_This message has no Message-ID; its card id is not stable across moves._'])

@@ -3,8 +3,7 @@ import type { Card, ProducerCard } from '@pbcp/core';
 import { ImapFlow } from 'imapflow';
 import { namespaceOf, toCard, type Fetched, type MailRef } from './mail.js';
 
-const env = (name: string, fallback?: string): string =>
-  process.env[name] || fallback || (() => { throw new Error(`${name} is required`); })();
+const env = (name: string, fallback?: string): string => process.env[name] || fallback || (() => { throw new Error(`${name} is required`); })();
 
 const user = env('IMAP_USER');
 const account = namespaceOf(env('PBCP_MAIL_ACCOUNT', user));

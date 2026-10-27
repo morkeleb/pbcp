@@ -1,5 +1,5 @@
 import { card } from '@pbcp/client';
-import { CARD_LIMIT_BYTES, type ProducerCard } from '@pbcp/core';
+import { CARD_LIMIT_BYTES, leadOf, type ProducerCard } from '@pbcp/core';
 
 export interface NoteConfig { vault: string; toPerson: string }
 
@@ -28,16 +28,21 @@ export const unlink = (md: string) =>
 /** Drops a leading YAML front-matter block (Obsidian properties). */
 export const stripFrontMatter = (md: string) => md.replace(/^---\r?\n[\s\S]*?\r?\n---[ \t]*(?:\r?\n|$)/, '');
 
+/** §4.1 `summary`: the note's first line of text (headings and fences skipped, as for the lead, §3.1), without list or quote markers. */
+export const firstLine = (md: string): string | undefined => ((l: string) => (l.length > 280 ? `${l.slice(0, 279)}…` : l) || undefined)(
+  leadOf({ body: md }).text.split('\n')[0]!.replace(/^(?:>\s*|[-*+]\s+(?:\[.\]\s+)?|\d+[.)]\s+)+/, '').replace(/\s+/g, ' ').trim());
+
 const TRUNCATED = '\n\n_Truncated: the note is longer than a card allows. The full text is in the vault._';
 const size = (c: ProducerCard) => Buffer.byteLength(JSON.stringify(c));
 
 /** One daily note → one log artifact (§11.1), cut to fit the 64 KiB wire limit (§3). */
 export function toCard(text: string, date: string, cfg: NoteConfig, limit = CARD_LIMIT_BYTES): ProducerCard {
+  const full = unlink(stripFrontMatter(text)).trim();
+  const summary = firstLine(full);
   const make = (body: string) => card({
     producer: 'obsidian', namespace: cfg.vault, upstream: date, kind: 'artifact', to_person: cfg.toPerson,
-    thread: isoWeek(date), urgency: 'log', title: `Daily note ${date}`, body,
+    thread: isoWeek(date), urgency: 'log', title: `Daily note ${date}`, summary, body,
   });
-  const full = unlink(stripFrontMatter(text)).trim();
   let c = make(full);
   for (let keep = full.length; size(c) > limit && keep > 0; ) {
     keep = Math.floor((keep * limit) / size(c)) - TRUNCATED.length - 64;

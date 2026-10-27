@@ -25,6 +25,7 @@ Call `submit_card` with a card object like this:
   "kind": "decision",
   "to_person": "<the head's owner>",
   "title": "Reply to Anna re invoice timing",
+  "summary": "Anna asks to pay the September invoice on the 20th instead of the 15th. I propose agreeing for September only.",
   "body": "Anna asks whether the September invoice can be paid on the 20th.\n\n## Proposed reply\n\n> Hi Anna, the 20th is fine.",
   "actions": ["approve", "reject", "edit"],
   "thread": "<a key shared by cards about the same matter>",
@@ -34,7 +35,8 @@ Call `submit_card` with a card object like this:
 ```
 
 - **id** is deterministic: the same upstream event always gives the same id (a mail's thread id, an issue number), never a random value. Segments use letters, digits and `-`; the upstream key may also use `_` and `.`, and anything else is percent-encoded. Add an intent suffix when one event needs two cards (`:reply`, `:calendar`).
-- **body** is markdown: the evidence first, then the proposal under its own heading, quoted exactly as you would send it. Keep it short; link the source with `source: { "url": ..., "label": ... }`.
+- **summary** is one or two sentences of plain text, on one line, that say what is going on and what you want from the person. It is what they read in the brief before deciding whether to open the card, so write it for someone who reads nothing else. No markdown, no line breaks, under 280 characters. Put it on every card you send, signals and artifacts included.
+- **body** is markdown: the evidence first, then the proposal under a heading that begins with `Proposal` or `Proposed`, quoted exactly as you would send it. Keep it short; link the source with `source: { "url": ..., "label": ... }`.
 - **actions** are what the person can choose. Include `edit` when the proposal is text they may want to change.
 - Do not add `state`, `decision` or other fields the head sets; they are refused.
 

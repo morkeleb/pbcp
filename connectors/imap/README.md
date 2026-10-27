@@ -5,6 +5,7 @@ An example producer on `@pbcp/client`: it turns unseen IMAP mail into cards (RFC
 - Unseen messages in `INBOX` become `decision` cards with the actions `archive` and `keep`.
 - Unseen messages in any other listed mailbox become `artifact` cards.
 - The card body is the sender, the date and the first lines of the plain text, quoted.
+- `summary` (RFC §4.1) is the opening plain text with quoted lines (`>`) left out and whitespace collapsed, cut at a word to at most 200 characters, ending in `…` when cut. A message with no text has no `summary`.
 - On a decision, `archive` moves the message to the archive folder and `keep` marks it `\Seen`. A message that is already gone is not an error. Nothing else is done to the mailbox.
 
 ## Configuration
