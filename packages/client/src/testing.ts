@@ -5,7 +5,7 @@
 // extension (Appendix A) with @pbcp/core's orders.ts; a token's root for sync and claim is `roots[token] ?? token`.
 
 import {
-  acknowledge, applyOutcome, checkSubmission, claim, decide, expireIfDue, isOrder, markSeen, mintOrder, outcomeTarget,
+  acknowledge, applyOutcome, checkOutcome, checkSubmission, claim, ClaimRefusal, decide, expireIfDue, isOrder, markSeen, mintOrder,
   parseCardOrThrow, PbcpError, PROTOCOL, submit, ulid, visibleTo,
   type Card, type Decision, type OrderCard, type OrderInput, type Urgency,
 } from '@pbcp/core';
@@ -101,11 +101,11 @@ export function stubHead(opts: StubOptions = {}): Stub {
     if (put) {
       const incoming = parseCardOrThrow(body);
       checkSubmission(incoming, { root: incoming.producer, owner, pathId: id(put) });
+      const outcomeOf = checkOutcome(incoming);
       const target = incoming.supersedes === undefined ? null : (cards.get(incoming.supersedes) ?? null);
       const r = submit(cards.get(incoming.id) ?? null, incoming, now(), target, opts.ceilings?.[incoming.producer]);
       persist(r.changed);
-      const ordered = r.changed.length > 0 ? outcomeTarget(incoming) : undefined;
-      const o = ordered === undefined ? undefined : orderAt(ordered);
+      const o = r.changed.length > 0 && outcomeOf !== undefined ? orderAt(outcomeOf) : undefined;
       if (o) {
         const expiry = expireIfDue(o, now());
         persist(expiry.changed);
@@ -134,8 +134,9 @@ export function stubHead(opts: StubOptions = {}): Stub {
       const root = rootOf(auth!);
       const o = orderAt(id(claimed));
       if (!o || !visibleTo(o, root, eligible.get(o.id))) throw new PbcpError('not_found', `no order ${id(claimed)} for ${root}`);
-      const r = claim(o, root, (body as { lease_seconds?: number } | undefined)?.lease_seconds ?? NaN, now());
+      const r = claim(o, root, (body as { lease_seconds?: number } | undefined)?.lease_seconds as number, now());
       persist(r.changed);
+      if (r.status !== 200) throw new ClaimRefusal(r.code, cards.get(o.id)!);
       return json(r.status, cards.get(o.id));
     }
 

@@ -1,6 +1,6 @@
 // RFC §7: a producer's submit and sync, and describe, over HTTP. Decide is the owner's (owner.ts). Orders are out of scope.
 
-import { ERROR_CODES, HeadDescriptionSchema, PbcpError, type Card, type ErrorCode, type HeadDescription, type OrderCard, type ProducerCard } from '@pbcp/core';
+import { ClaimRefusal, ERROR_CODES, HeadDescriptionSchema, PbcpError, type Card, type ErrorCode, type HeadDescription, type OrderCard, type ProducerCard } from '@pbcp/core';
 
 export interface SubmitResponse {
   status: 200 | 201 | 409;
@@ -15,24 +15,6 @@ export interface Change {
 export interface SyncResponse {
   changes: Change[];
   next: number;
-}
-
-/**
- * A claim or renewal the head refused (A.2, A.5). The body is the order as it stands. 409 `lease_held`: another
- * executor holds a live lease; stand down. 410 `order_terminal`: the order is done, failed or cancelled; never retry.
- */
-export class ClaimRefused extends Error {
-  override readonly name = 'ClaimRefused';
-  readonly status: 409 | 410;
-  readonly code: 'lease_held' | 'order_terminal';
-  readonly order: OrderCard;
-
-  constructor(status: 409 | 410, order: OrderCard) {
-    super(status === 409 ? `${order.id} is held by another executor` : `${order.id} is ${order.exec_state}`);
-    this.status = status;
-    this.code = status === 409 ? 'lease_held' : 'order_terminal';
-    this.order = order;
-  }
 }
 
 /** A failure without a protocol error body (5xx, unknown codes, unexpected bodies). Protocol refusals are PbcpErrors (§7.4). */
@@ -97,8 +79,8 @@ export class Requester {
     this.transport = opts.transport ?? fetchTransport(opts.fetch);
   }
 
-  /** Statuses in `accept` with a card body are results; other non-2xx responses throw (§7.4). */
-  async request(method: string, path: string, json?: unknown, accept: number[] = []): Promise<{ status: number; body: unknown }> {
+  /** Statuses in `accept` with a card body are results, statuses in `raw` are returned as they are; other non-2xx responses throw (§7.4). */
+  async request(method: string, path: string, json?: unknown, accept: number[] = [], raw: number[] = []): Promise<{ status: number; body: unknown }> {
     const headers: Record<string, string> = { authorization: this.authorization, accept: 'application/json' };
     if (json !== undefined) headers['content-type'] = 'application/json';
     const res = await this.transport({ method, url: `${this.baseUrl}${path}`, headers, body: json === undefined ? undefined : JSON.stringify(json) });
@@ -108,7 +90,7 @@ export class Requester {
     } catch {
       // not JSON; keep the text for the error
     }
-    if ((res.status >= 200 && res.status < 300) || (accept.includes(res.status) && isCard(body))) return { status: res.status, body };
+    if ((res.status >= 200 && res.status < 300) || (accept.includes(res.status) && isCard(body)) || raw.includes(res.status)) return { status: res.status, body };
     throw toError(res.status, body, res.headers['retry-after'] ?? null);
   }
 }
@@ -123,8 +105,8 @@ export class HeadClient {
     this.baseUrl = this.http.baseUrl;
   }
 
-  private request(method: string, path: string, json?: unknown, accept?: number[]) {
-    return this.http.request(method, path, json, accept);
+  private request(method: string, path: string, json?: unknown, accept?: number[], raw?: number[]) {
+    return this.http.request(method, path, json, accept, raw);
   }
 
   /** §7.5. */
@@ -143,15 +125,20 @@ export class HeadClient {
   }
 
   /**
-   * Orders extension (A.2): claim an order, or renew a lease this producer holds. Resolves with the order as the head
-   * now holds it (`exec_state`, `claim_seq`, `claim_expires_at`); a 409 or 410 throws ClaimRefused.
+   * Orders extension (A.2): claim an order, or renew a lease this producer's root holds. Resolves with the order as
+   * the head now holds it (`exec_state`, `claim_seq`, `claim_expires_at`). A `409 lease_held` or `410 order_terminal`
+   * throws ClaimRefusal carrying the order; `400 invalid_lease` and the rest throw as any refusal does.
    */
   async claim(id: string, leaseSeconds: number): Promise<OrderCard> {
-    const { status, body } = await this.request('POST', `/cards/${encodeURIComponent(id)}/claim`, { lease_seconds: leaseSeconds }, [409, 410]);
-    const order = expectCard(status, body) as unknown as OrderCard;
-    if (status === 409 || status === 410) throw new ClaimRefused(status, order);
+    const { status, body } = await this.request('POST', `/cards/${encodeURIComponent(id)}/claim`, { lease_seconds: leaseSeconds }, [], [409, 410]);
+    if (status === 409 || status === 410) {
+      const { error, message, order } = (typeof body === 'object' && body !== null ? body : {}) as { error?: unknown; message?: unknown; order?: unknown };
+      const code = status === 409 ? 'lease_held' : 'order_terminal';
+      if (error !== code || !isCard(order)) throw new HeadHttpError(status, body, `malformed ${status} on claim`);
+      throw new ClaimRefusal(code, order as OrderCard, typeof message === 'string' ? message : undefined);
+    }
     if (status !== 200) throw new HeadHttpError(status, body, `unexpected status ${status} on claim`);
-    return order;
+    return expectCard(status, body) as unknown as OrderCard;
   }
 
   /** §7.2. One page; the caller loops until `next` stops moving. */

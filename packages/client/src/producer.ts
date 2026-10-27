@@ -18,6 +18,7 @@ export interface ProducerOptions {
   /**
    * Called once for every card the head answered (201, 200 or 409), before `produce()` is resumed for the next card,
    * so a connector can record local state only once the head has the card. Not called for a refused or failed submit.
+   * After a 409 the same content is not submitted again while the loop runs; a changed card is.
    */
   onSubmitted?: (card: ProducerCard, result: SubmitResponse) => void | Promise<void>;
   /**
@@ -105,7 +106,7 @@ export async function producerPass(opts: ProducerOptions, signal?: AbortSignal, 
       for await (const c of opts.produce()) {
         if (signal?.aborted) return {};
         const key = submitKey(c);
-        if (attempts.get(key) === PARKED) continue;
+        if (attempts.get(key) === PARKED || attempts.has(`answered ${key}`)) continue;
         let res: SubmitResponse;
         try {
           res = await opts.head.submit(c);
@@ -119,6 +120,8 @@ export async function producerPass(opts: ProducerOptions, signal?: AbortSignal, 
           continue;
         }
         attempts.delete(key);
+        // A 409 with the card is the head's last word on this content (§5): stop sending it while the loop runs.
+        if (res.status === 409) attempts.set(`answered ${key}`, 0);
         if (opts.onSubmitted) await Promise.resolve(opts.onSubmitted(c, res)).catch(report);
         if (res.card.state !== 'open') answered.push(res.card);
       }
