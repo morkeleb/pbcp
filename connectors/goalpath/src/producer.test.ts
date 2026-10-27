@@ -4,12 +4,12 @@ import { stubHead } from '@pbcp/client/testing';
 import { isId, type ProducerCard } from '@pbcp/core';
 import { describe, expect, it } from 'vitest';
 import { fixtureSource, loadFixtures } from './fixture-source.js';
-import { answeredCard, approvalId, ganttTitle, goalpathProducer, NAMESPACE } from './producer.js';
+import { answeredCard, approvalId, ganttTitle, goalpathProducer, labelOf, NAMESPACE } from './producer.js';
 
 const FIX = fileURLToPath(new URL('../fixtures', import.meta.url));
 const M = (n: number) => `7a1e0c2e-4d4b-4c51-9b1a-00000000000${n}`;
 const I = (n: string) => `3c9b7f10-2a6e-4e0f-8d3e-0000000000${n}`;
-const cfg = { toPerson: 'morten', projectId: 'p-demo', tz: 'Europe/Copenhagen' };
+const cfg = { toPerson: 'morten', projectId: 'p-demo', tz: 'Europe/Copenhagen', label: 'billing-platform' };
 const RISK = `goalpath:milestone:${M(4)}.20261124:risk`;
 const APPROVAL = `goalpath:approval:${I('12')}`;
 const BUILD = 'goalpath:build:gh-run-118842';
@@ -193,6 +193,7 @@ describe('goalpath producer', () => {
     expect(answered).toMatchObject({ id: `${APPROVAL}:answered`, kind: 'signal', supersedes: APPROVAL, thread: M(4), title: 'GP-12 Export invoices as CSV: answered in GoalPath' });
     expect(answered!.body).toContain('it is now Accepted');
     expect(answered!.source).toEqual({ url: 'https://goalpath.example/i/12', label: 'GoalPath item' });
+    expect(answered!.labels).toEqual(['billing-platform', 'billing-revamp']);
     // The head marked the approval superseded, so a decision can no longer land on it (§8): it answers with the card as is.
     expect(stub.decideHere(APPROVAL, { decision: 'reject' })).toMatchObject({ state: 'superseded' });
     expect(stub.cards.get(APPROVAL)).not.toHaveProperty('decision');
@@ -238,6 +239,25 @@ describe('goalpath producer', () => {
     expect((await pass()).some((c) => c.id.startsWith('goalpath:digest:'))).toBe(false);
     at('2026-10-27T19:00:00Z');
     expect((await pass()).map((c) => c.id)).toContain('goalpath:digest:2026-10-27');
+  });
+
+  it('labels every card with the project, and the milestone when there is one (§4.1)', async () => {
+    const { pass } = setup('2026-10-26T19:30:00Z');
+    const cards = await pass();
+    const by = (prefix: string) => cards.find((c) => c.id.startsWith(prefix))!;
+    expect(by('goalpath:milestone:').labels).toEqual(['billing-platform', 'billing-revamp']);
+    expect(by('goalpath:approval:').labels).toEqual(['billing-platform', 'billing-revamp']);
+    expect(by('goalpath:build:').labels).toEqual(['billing-platform', 'billing-revamp']);
+    expect(by('goalpath:digest:').labels).toEqual(['billing-platform']);
+  });
+
+  it('makes a label from a name, within the grammar of §4.1', async () => {
+    expect(labelOf('Billing revamp')).toBe('billing-revamp');
+    expect(labelOf('  Q4: Mobile beta (iOS) ')).toBe('q4-mobile-beta-ios');
+    expect(labelOf('Café Øresund')).toBe('cafe-resund');
+    expect(labelOf('A very long milestone name that keeps on going')).toBe('a-very-long-milestone-name-that');
+    expect(labelOf('—')).toBeUndefined();
+    expect(await fixtureSource(loadFixtures(FIX), 'p-demo').projectName()).toBe('Billing Platform');
   });
 
   it('escapes gantt task names', () => {

@@ -41,7 +41,7 @@ export function toCard(text: string, date: string, cfg: NoteConfig, limit = CARD
   const summary = firstLine(full);
   const make = (body: string) => card({
     producer: 'obsidian', namespace: cfg.vault, upstream: date, kind: 'artifact', to_person: cfg.toPerson,
-    thread: isoWeek(date), urgency: 'log', title: `Daily note ${date}`, summary, body,
+    thread: isoWeek(date), about: date, urgency: 'log', title: `Daily note ${date}`, summary, body, // §4.1 about: the note's own day
   });
   let c = make(full);
   for (let keep = full.length; size(c) > limit && keep > 0; ) {

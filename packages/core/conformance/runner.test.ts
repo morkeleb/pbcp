@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { parseCardOrThrow } from '../src/card.js';
 import { inProcessHead } from './in-process/head.js';
 import { referenceRenderer } from './in-process/render.js';
 import { getPath, match } from './match.js';
@@ -136,6 +137,59 @@ describe('the fixtures catch broken heads', () => {
     const h = inProcessHead();
     const put: HeadUnderTest['put'] = async (t, c) => h.put(t, typeof c === 'string' ? c.replace(/^summary: .*\n/m, '') : c);
     await fails(core.C40, { head: sabotage(h, { put }) });
+  });
+
+  it('C41: leaving labels out of equality', async () => {
+    const h = inProcessHead();
+    const stored = new Map<string, unknown>();
+    // A head that compares without labels answers changed labels as identical: 200 and the stored card.
+    const put: HeadUnderTest['put'] = async (t, c) => {
+      if (typeof c !== 'object' || c === null) return h.put(t, c);
+      const card = c as { id: string; labels?: string[] };
+      const prev = stored.get(card.id) as { labels?: string[] } | undefined;
+      const r = await h.put(t, prev ? { ...card, labels: prev.labels } : c);
+      if (r.status === 201) stored.set(card.id, c);
+      return r;
+    };
+    await fails(core.C41, { head: sabotage(h, { put }) });
+  });
+
+  it('C41: comparing labels as an ordered list', async () => {
+    const h = inProcessHead();
+    // A head that lets label order count sees a reordered re-PUT as changed. Simulated by carrying the order in a field.
+    const put: HeadUnderTest['put'] = async (t, c) => {
+      const card = (typeof c === 'string' ? parseCardOrThrow(c) : c) as { labels?: string[] };
+      return h.put(t, card.labels ? { ...card, 'x-label-order': card.labels.join(',') } : card);
+    };
+    await fails(core.C41, { head: sabotage(h, { put }) });
+  });
+
+  it('C42: keeping the first eight of nine labels', async () => {
+    const h = inProcessHead();
+    const put: HeadUnderTest['put'] = async (t, c) => {
+      const labels = (c as { labels?: unknown }).labels;
+      return h.put(t, Array.isArray(labels) ? { ...(c as object), labels: [...new Set(labels)].slice(0, 8) } : c);
+    };
+    await fails(core.C42, { head: sabotage(h, { put }) });
+  });
+
+  it('C43: lowercasing labels instead of refusing them', async () => {
+    const h = inProcessHead();
+    const put: HeadUnderTest['put'] = async (t, c) => {
+      const labels = (c as { labels?: unknown }).labels;
+      return h.put(t, Array.isArray(labels) ? { ...(c as object), labels: labels.map((l) => String(l).toLowerCase().replace(/[^a-z0-9-]/g, '-').slice(0, 32) || 'x') } : c);
+    };
+    await fails(core.C43, { head: sabotage(h, { put }) });
+  });
+
+  it('C44: dropping an about it cannot read', async () => {
+    const h = inProcessHead();
+    const put: HeadUnderTest['put'] = async (t, c) => {
+      if (typeof c !== 'object' || c === null || !('about' in c)) return h.put(t, c);
+      const { about, ...rest } = c as { about: unknown };
+      return h.put(t, typeof about === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(about) && !about.endsWith('-30') ? c : rest);
+    };
+    await fails(core.C44, { head: sabotage(h, { put }) });
   });
 
   it('R09–R11: leads that ignore summary, keep headings or keep fences', async () => {

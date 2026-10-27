@@ -18,6 +18,8 @@ export interface GoalPathSource {
   unplannedTrend(weeks: number): Promise<Week[]>;
   /** Milestone dependencies, prerequisite → enabled. */
   dependencies(): Promise<Edge[]>;
+  /** The project's name, for its label (§4.1); undefined when GoalPath does not say. */
+  projectName(): Promise<string | undefined>;
   setItemStatus(itemId: string, status: 'Accepted' | 'Rejected'): Promise<void>;
   addComment(itemId: string, content: string): Promise<void>;
 }
@@ -91,6 +93,7 @@ export function toolSource(call: CallTool, projectId: string): GoalPathSource {
     codeActivity: async (itemId) => parse.codeActivity(await call('list_code_activity', { itemId })),
     unplannedTrend: (weekCount) => call('get_unplanned_work_trend', { projectId, weekCount }).then(parse.trend, () => []),
     dependencies: async () => parse.graph(await call('get_dependency_graph', { projectId })),
+    projectName: () => call('get_project', { projectId }).then((raw) => line(pick(obj(raw), 'name', 'title') ?? pick(obj(obj(raw).project), 'name', 'title')), () => undefined),
     setItemStatus: async (itemId, status) => void (await call('set_item_status', { itemId, status })),
     addComment: async (itemId, content) => void (await call('add_comment', { itemId, content })),
   };

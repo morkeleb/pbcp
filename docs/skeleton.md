@@ -1,6 +1,6 @@
 # PBCP Reference Implementation — Repo Skeleton
 
-Oct 26, 2026 · @Morten Nielsen · Companion to RFC Draft 0.6
+Oct 27, 2026 · @Morten Nielsen · Companion to RFC Draft 0.7
 
 ## Layout
 

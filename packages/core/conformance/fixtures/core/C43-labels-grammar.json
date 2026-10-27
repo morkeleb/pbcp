@@ -1,0 +1,186 @@
+{
+  "name": "C43 each label is 1 to 32 lowercase letters, digits or -: uppercase, a space, an underscore, 33 characters, an empty label or a bare string is 400 invalid_card",
+  "rfc": [
+    "§4.1",
+    "§5"
+  ],
+  "steps": [
+    {
+      "op": "put",
+      "args": {
+        "token": "hermes",
+        "card": {
+          "protocol": "pbcp/1",
+          "id": "hermes:gmail:19e0a1b2c3f1",
+          "kind": "artifact",
+          "to_person": "morten",
+          "producer": "hermes",
+          "title": "Invoice timing for September",
+          "body": "Anna asks to pay the September invoice on the 20th.",
+          "emitted_at": "2026-10-07T13:02:11Z",
+          "labels": [
+            "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            "q4-2026"
+          ]
+        }
+      },
+      "expect": {
+        "status": 201,
+        "body": {
+          "labels": [
+            "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            "q4-2026"
+          ]
+        }
+      }
+    },
+    {
+      "op": "put",
+      "args": {
+        "token": "hermes",
+        "card": {
+          "protocol": "pbcp/1",
+          "id": "hermes:gmail:19e0a1b2c3f2",
+          "kind": "artifact",
+          "to_person": "morten",
+          "producer": "hermes",
+          "title": "Invoice timing for September",
+          "body": "Anna asks to pay the September invoice on the 20th.",
+          "emitted_at": "2026-10-07T13:02:11Z",
+          "labels": [
+            "Billing-Revamp"
+          ]
+        }
+      },
+      "expect": {
+        "status": 400,
+        "body": {
+          "error": "invalid_card"
+        }
+      }
+    },
+    {
+      "op": "put",
+      "args": {
+        "token": "hermes",
+        "card": {
+          "protocol": "pbcp/1",
+          "id": "hermes:gmail:19e0a1b2c3f3",
+          "kind": "artifact",
+          "to_person": "morten",
+          "producer": "hermes",
+          "title": "Invoice timing for September",
+          "body": "Anna asks to pay the September invoice on the 20th.",
+          "emitted_at": "2026-10-07T13:02:11Z",
+          "labels": [
+            "billing revamp"
+          ]
+        }
+      },
+      "expect": {
+        "status": 400,
+        "body": {
+          "error": "invalid_card"
+        }
+      }
+    },
+    {
+      "op": "put",
+      "args": {
+        "token": "hermes",
+        "card": {
+          "protocol": "pbcp/1",
+          "id": "hermes:gmail:19e0a1b2c3f4",
+          "kind": "artifact",
+          "to_person": "morten",
+          "producer": "hermes",
+          "title": "Invoice timing for September",
+          "body": "Anna asks to pay the September invoice on the 20th.",
+          "emitted_at": "2026-10-07T13:02:11Z",
+          "labels": [
+            "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+          ]
+        }
+      },
+      "expect": {
+        "status": 400,
+        "body": {
+          "error": "invalid_card"
+        }
+      }
+    },
+    {
+      "op": "put",
+      "args": {
+        "token": "hermes",
+        "card": {
+          "protocol": "pbcp/1",
+          "id": "hermes:gmail:19e0a1b2c3f5",
+          "kind": "artifact",
+          "to_person": "morten",
+          "producer": "hermes",
+          "title": "Invoice timing for September",
+          "body": "Anna asks to pay the September invoice on the 20th.",
+          "emitted_at": "2026-10-07T13:02:11Z",
+          "labels": [
+            ""
+          ]
+        }
+      },
+      "expect": {
+        "status": 400,
+        "body": {
+          "error": "invalid_card"
+        }
+      }
+    },
+    {
+      "op": "put",
+      "args": {
+        "token": "hermes",
+        "card": {
+          "protocol": "pbcp/1",
+          "id": "hermes:gmail:19e0a1b2c3f6",
+          "kind": "artifact",
+          "to_person": "morten",
+          "producer": "hermes",
+          "title": "Invoice timing for September",
+          "body": "Anna asks to pay the September invoice on the 20th.",
+          "emitted_at": "2026-10-07T13:02:11Z",
+          "labels": [
+            "billing_revamp"
+          ]
+        }
+      },
+      "expect": {
+        "status": 400,
+        "body": {
+          "error": "invalid_card"
+        }
+      }
+    },
+    {
+      "op": "put",
+      "args": {
+        "token": "hermes",
+        "card": {
+          "protocol": "pbcp/1",
+          "id": "hermes:gmail:19e0a1b2c3f7",
+          "kind": "artifact",
+          "to_person": "morten",
+          "producer": "hermes",
+          "title": "Invoice timing for September",
+          "body": "Anna asks to pay the September invoice on the 20th.",
+          "emitted_at": "2026-10-07T13:02:11Z",
+          "labels": "billing-revamp"
+        }
+      },
+      "expect": {
+        "status": 400,
+        "body": {
+          "error": "invalid_card"
+        }
+      }
+    }
+  ]
+}

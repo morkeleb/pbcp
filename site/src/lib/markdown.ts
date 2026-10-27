@@ -52,7 +52,7 @@ export interface Rendered { html: string; toc: TocEntry[] }
 
 /**
  * `sectionsOn`: the page whose anchors `§` references point at; `''` for the page itself (the RFC), else e.g.
- * `href('/rfc/')`. `rewrite` maps a link target in the source (`pbcp-draft-0.6.md`) to one on this site.
+ * `href('/rfc/')`. `rewrite` maps a link target in the source (`pbcp-draft-0.7.md`) to one on this site.
  */
 export function render(md: string, opts: { sectionsOn?: string; rewrite?: (url: string) => string } = {}): Rendered {
   const marked = new Marked({ gfm: true });

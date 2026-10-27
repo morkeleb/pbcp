@@ -1,0 +1,357 @@
+{
+  "name": "C41 labels round-trip in both forms and compare as a set: the same labels in another order are identical (200, no new change_seq, the producer's first order kept), a different set replaces an open card and is a 409 once decided, and an absent list equals []",
+  "rfc": [
+    "§3",
+    "§4.1",
+    "§5"
+  ],
+  "steps": [
+    {
+      "op": "put",
+      "args": {
+        "token": "hermes",
+        "card": {
+          "protocol": "pbcp/1",
+          "id": "hermes:gmail:19e0a1b2c3d4",
+          "kind": "decision",
+          "to_person": "morten",
+          "producer": "hermes",
+          "title": "Reply to Anna re invoice timing",
+          "body": "Anna asks to pay the September invoice on the 20th.",
+          "emitted_at": "2026-10-07T13:02:11Z",
+          "labels": [
+            "billing-revamp",
+            "nordic-supply"
+          ],
+          "actions": [
+            "approve",
+            "reject"
+          ],
+          "thread": "gmail:19e0a1b2c3d4"
+        }
+      },
+      "expect": {
+        "status": 201,
+        "body": {
+          "labels": [
+            "billing-revamp",
+            "nordic-supply"
+          ],
+          "state": "open"
+        }
+      },
+      "save": {
+        "seq1": "body.change_seq"
+      }
+    },
+    {
+      "op": "put",
+      "args": {
+        "token": "hermes",
+        "card": {
+          "protocol": "pbcp/1",
+          "id": "hermes:gmail:19e0a1b2c3d4",
+          "kind": "decision",
+          "to_person": "morten",
+          "producer": "hermes",
+          "title": "Reply to Anna re invoice timing",
+          "body": "Anna asks to pay the September invoice on the 20th.",
+          "emitted_at": "2026-10-07T14:00:00Z",
+          "labels": [
+            "billing-revamp",
+            "nordic-supply"
+          ],
+          "actions": [
+            "approve",
+            "reject"
+          ],
+          "thread": "gmail:19e0a1b2c3d4"
+        }
+      },
+      "expect": {
+        "status": 200,
+        "body": {
+          "labels": [
+            "billing-revamp",
+            "nordic-supply"
+          ],
+          "change_seq": {
+            "$var": "seq1"
+          }
+        }
+      }
+    },
+    {
+      "op": "put",
+      "args": {
+        "token": "hermes",
+        "card": "---\nprotocol: pbcp/1\nid: hermes:gmail:19e0a1b2c3d4\nkind: decision\nto_person: morten\nproducer: hermes\nthread: gmail:19e0a1b2c3d4\nlabels:\n  - billing-revamp\n  - nordic-supply\ntitle: Reply to Anna re invoice timing\nactions: [approve, reject]\nemitted_at: \"2026-10-07T15:00:00Z\"\n---\n\nAnna asks to pay the September invoice on the 20th.\n"
+      },
+      "expect": {
+        "status": 200,
+        "body": {
+          "labels": [
+            "billing-revamp",
+            "nordic-supply"
+          ],
+          "change_seq": {
+            "$var": "seq1"
+          }
+        }
+      }
+    },
+    {
+      "op": "put",
+      "args": {
+        "token": "hermes",
+        "card": {
+          "protocol": "pbcp/1",
+          "id": "hermes:gmail:19e0a1b2c3d4",
+          "kind": "decision",
+          "to_person": "morten",
+          "producer": "hermes",
+          "title": "Reply to Anna re invoice timing",
+          "body": "Anna asks to pay the September invoice on the 20th.",
+          "emitted_at": "2026-10-07T13:02:11Z",
+          "labels": [
+            "nordic-supply",
+            "billing-revamp"
+          ],
+          "actions": [
+            "approve",
+            "reject"
+          ],
+          "thread": "gmail:19e0a1b2c3d4"
+        }
+      },
+      "expect": {
+        "status": 200,
+        "body": {
+          "labels": [
+            "billing-revamp",
+            "nordic-supply"
+          ],
+          "state": "open",
+          "change_seq": {
+            "$var": "seq1"
+          }
+        }
+      }
+    },
+    {
+      "op": "put",
+      "args": {
+        "token": "hermes",
+        "card": {
+          "protocol": "pbcp/1",
+          "id": "hermes:gmail:19e0a1b2c3d4",
+          "kind": "decision",
+          "to_person": "morten",
+          "producer": "hermes",
+          "title": "Reply to Anna re invoice timing",
+          "body": "Anna asks to pay the September invoice on the 20th.",
+          "emitted_at": "2026-10-07T13:02:11Z",
+          "labels": [
+            "billing-revamp",
+            "nordic-supply",
+            "q4-2026"
+          ],
+          "actions": [
+            "approve",
+            "reject"
+          ],
+          "thread": "gmail:19e0a1b2c3d4"
+        }
+      },
+      "expect": {
+        "status": 200,
+        "body": {
+          "labels": [
+            "billing-revamp",
+            "nordic-supply",
+            "q4-2026"
+          ],
+          "state": "open",
+          "change_seq": {
+            "$gt": {
+              "$var": "seq1"
+            }
+          }
+        }
+      },
+      "save": {
+        "seq2": "body.change_seq"
+      }
+    },
+    {
+      "op": "syncAll",
+      "args": {
+        "token": "hermes",
+        "after": 0
+      },
+      "expect": {
+        "status": 200,
+        "body": {
+          "changes": [
+            {
+              "card": {
+                "id": "hermes:gmail:19e0a1b2c3d4",
+                "labels": [
+                  "billing-revamp",
+                  "nordic-supply",
+                  "q4-2026"
+                ]
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "op": "decide",
+      "args": {
+        "id": "hermes:gmail:19e0a1b2c3d4",
+        "decision": {
+          "decision": "approve"
+        }
+      },
+      "expect": {
+        "status": 200,
+        "body": {
+          "state": "decided",
+          "labels": [
+            "billing-revamp",
+            "nordic-supply",
+            "q4-2026"
+          ]
+        }
+      }
+    },
+    {
+      "op": "put",
+      "args": {
+        "token": "hermes",
+        "card": {
+          "protocol": "pbcp/1",
+          "id": "hermes:gmail:19e0a1b2c3d4",
+          "kind": "decision",
+          "to_person": "morten",
+          "producer": "hermes",
+          "title": "Reply to Anna re invoice timing",
+          "body": "Anna asks to pay the September invoice on the 20th.",
+          "emitted_at": "2026-10-07T13:02:11Z",
+          "labels": [
+            "billing-revamp"
+          ],
+          "actions": [
+            "approve",
+            "reject"
+          ],
+          "thread": "gmail:19e0a1b2c3d4"
+        }
+      },
+      "expect": {
+        "status": 409,
+        "body": {
+          "state": "decided",
+          "decision": "approve",
+          "labels": [
+            "billing-revamp",
+            "nordic-supply",
+            "q4-2026"
+          ]
+        }
+      }
+    },
+    {
+      "op": "put",
+      "args": {
+        "token": "hermes",
+        "card": {
+          "protocol": "pbcp/1",
+          "id": "hermes:gmail:19e0a1b2c3d4",
+          "kind": "decision",
+          "to_person": "morten",
+          "producer": "hermes",
+          "title": "Reply to Anna re invoice timing",
+          "body": "Anna asks to pay the September invoice on the 20th.",
+          "emitted_at": "2026-10-07T13:02:11Z",
+          "labels": [
+            "q4-2026",
+            "nordic-supply",
+            "billing-revamp"
+          ],
+          "actions": [
+            "approve",
+            "reject"
+          ],
+          "thread": "gmail:19e0a1b2c3d4"
+        }
+      },
+      "expect": {
+        "status": 200,
+        "body": {
+          "state": "decided",
+          "decision": "approve",
+          "labels": [
+            "billing-revamp",
+            "nordic-supply",
+            "q4-2026"
+          ]
+        }
+      }
+    },
+    {
+      "op": "put",
+      "args": {
+        "token": "hermes",
+        "card": {
+          "protocol": "pbcp/1",
+          "id": "hermes:gmail:19e0a1b2c3d5",
+          "kind": "artifact",
+          "to_person": "morten",
+          "producer": "hermes",
+          "title": "Invoice timing for September",
+          "body": "Anna asks to pay the September invoice on the 20th.",
+          "emitted_at": "2026-10-07T13:02:11Z"
+        }
+      },
+      "expect": {
+        "status": 201,
+        "body": {
+          "labels": {
+            "$absent": true
+          }
+        }
+      },
+      "save": {
+        "seqA": "body.change_seq"
+      }
+    },
+    {
+      "op": "put",
+      "args": {
+        "token": "hermes",
+        "card": {
+          "protocol": "pbcp/1",
+          "id": "hermes:gmail:19e0a1b2c3d5",
+          "kind": "artifact",
+          "to_person": "morten",
+          "producer": "hermes",
+          "title": "Invoice timing for September",
+          "body": "Anna asks to pay the September invoice on the 20th.",
+          "emitted_at": "2026-10-07T13:02:11Z",
+          "labels": []
+        }
+      },
+      "expect": {
+        "status": 200,
+        "body": {
+          "change_seq": {
+            "$var": "seqA"
+          }
+        }
+      }
+    }
+  ]
+}

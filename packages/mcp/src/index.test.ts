@@ -69,6 +69,16 @@ describe('@pbcp/mcp', () => {
     expect(bad).toMatchObject({ isError: true, json: { status: 400, error: 'invalid_card' } });
   });
 
+  it('carries labels and about through in every form, and refuses ones that break §4.1', async () => {
+    const { call } = await setup();
+    const tagged = { ...sample(), labels: ['billing-revamp', 'nordic-supply'], about: '2026-10-30' };
+    expect((await call('submit_card', { card: tagged })).json).toMatchObject({ status: 201, card: { labels: tagged.labels, about: '2026-10-30' } });
+    expect((await call('submit_card', { card: toFrontMatter(tagged) })).json).toMatchObject({ status: 200, card: { labels: tagged.labels, about: '2026-10-30', change_seq: 1 } });
+    for (const bad of [{ labels: ['Billing'] }, { labels: Array.from({ length: 9 }, (_, i) => `l${i}`) }, { about: '2026-02-30' }]) {
+      expect(await call('submit_card', { card: { ...sample(), ...bad } })).toMatchObject({ isError: true, json: { status: 400, error: 'invalid_card' } });
+    }
+  });
+
   it('returns a 409 with the decision as a result, not an error', async () => {
     const { call, stub } = await setup();
     await call('submit_card', { card: sample() });

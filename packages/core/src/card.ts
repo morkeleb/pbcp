@@ -33,6 +33,18 @@ export function isUtcTimestamp(s: string): boolean {
 }
 
 const Timestamp = z.string().refine(isUtcTimestamp, 'must be an RFC 3339 UTC timestamp');
+
+/** §2, §4.1 `about`: an ISO 8601 calendar date, `YYYY-MM-DD`, that exists. No time, no offset. */
+export function isLocalDate(s: string): boolean {
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(s);
+  if (!m) return false;
+  const [y, mo, d] = m.slice(1).map(Number) as [number, number, number];
+  return mo >= 1 && mo <= 12 && d >= 1 && d <= new Date(Date.UTC(y, mo, 0)).getUTCDate();
+}
+
+/** §4.1 `labels`: the intent grammar of §5 in lowercase, 1–32 characters; at most this many per card, no duplicates. */
+export const LABELS_MAX = 8;
+export const isLabel = (s: string): boolean => /^[a-z0-9-]{1,32}$/.test(s);
 const Id = z.string().refine(isId, 'must match the id grammar (§5)');
 const NonEmpty = z.string().min(1);
 
@@ -57,6 +69,12 @@ export const ProducerCardSchema = z.looseObject({
   body: z.string(),
   urgency: z.enum(URGENCIES).optional(),
   thread: NonEmpty.optional(),
+  labels: z
+    .array(z.string().refine(isLabel, 'each label must be 1–32 lowercase letters, digits or - (§4.1)'))
+    .max(LABELS_MAX, `at most ${LABELS_MAX} labels (§4.1)`)
+    .refine((ls) => new Set(ls).size === ls.length, 'labels must not repeat (§4.1)')
+    .optional(),
+  about: z.string().refine(isLocalDate, 'must be a calendar date, YYYY-MM-DD (§4.1)').optional(),
   references: z.array(Id).optional(),
   supersedes: Id.optional(),
   actions: z.array(ActionSchema).optional(),
@@ -204,7 +222,7 @@ function typedFromYaml(doc: YamlDoc): Record<string, unknown> {
 }
 
 const FIELD_ORDER = [
-  'protocol', 'id', 'kind', 'to_person', 'producer', 'thread', 'urgency', 'title', 'summary', 'actions',
+  'protocol', 'id', 'kind', 'to_person', 'producer', 'thread', 'labels', 'about', 'urgency', 'title', 'summary', 'actions',
   'references', 'supersedes', 'emitted_at', 'source',
 ];
 
@@ -265,9 +283,9 @@ export function producerPart(c: Card): ProducerCard {
 
 /**
  * §5: every producer-owned field except `emitted_at`, compared on parsed values.
- * Defaults are applied before comparing (urgency `brief`, references `[]`, decision
+ * Defaults are applied before comparing (urgency `brief`, references and labels `[]`, decision
  * actions `[approve, reject]`), a bare action string equals `{ id }`, `default: false`
- * equals no default, and trailing whitespace at the end of the body is not significant.
+ * equals no default, labels compare as a set, and trailing whitespace at the end of the body is not significant.
  */
 export function equal(a: ProducerCard, b: ProducerCard): boolean {
   return canonical(normalise(a)) === canonical(normalise(b));
@@ -281,6 +299,7 @@ function normalise(c: ProducerCard): Record<string, unknown> {
   }
   out.urgency = c.urgency ?? 'brief';
   out.references = c.references ?? [];
+  out.labels = [...(c.labels ?? [])].sort(); // §5: a set; the card itself keeps the producer's order
   out.body = c.body.replace(/\s+$/, '');
   out.actions = effectiveActions(c).map((a) => {
     const o: Record<string, unknown> = typeof a === 'string' ? { id: a } : { ...a };

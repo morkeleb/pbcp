@@ -6,6 +6,7 @@ An example producer on `@pbcp/client`: it turns unseen IMAP mail into cards (RFC
 - A new message in a thread whose card is still open supersedes that card (§8): a thread is decided once, on its latest message, and the decision applies to every message the card covers.
 - Unseen messages in any other listed mailbox become `artifact` cards.
 - The card body is the sender, the date in `IMAP_TZ` (`Mon 26 Oct 16:00`), or in UTC with the zone named when it is unset (`Mon 26 Oct 15:00 UTC`), and the first lines of the plain text, quoted. The date never says `today`: an open card is produced again on later days, and its content must not change.
+- `labels` (RFC §4.1): the mailbox the message was read from, as a label (`INBOX` → `inbox`, `[Gmail]/All Mail` → `gmail-all-mail`: lowercased, each run of other characters made `-`, cut to 32), then the `IMAP_LABELS`, without repeats and at most 8.
 - `summary` (RFC §4.1) is the opening plain text with quoted lines (`>`) left out and whitespace collapsed, cut at a word to at most 200 characters, ending in `…` when cut. A message with no text has no `summary`.
 - On a decision, `archive` moves the card's messages to the archive folder and `keep` marks them `\Seen`. A message that is already gone is not an error. Nothing else is done to the mailbox.
 
@@ -17,6 +18,7 @@ An example producer on `@pbcp/client`: it turns unseen IMAP mail into cards (RFC
 | `IMAP_USER`, `IMAP_PASSWORD` | – | |
 | `IMAP_MAILBOXES` | `INBOX` | comma-separated |
 | `IMAP_ARCHIVE` | `Archive` | target of `archive` |
+| `IMAP_LABELS` | – | comma-separated labels added to every card after the mailbox's (§4.1), e.g. `work,nordic-supply`; each is made into a label as below |
 | `IMAP_SOURCE_URL` | – | template for a link to the message, with `{message_id}` and `{uid}`; when set, every card gets `source` (see below) |
 | `IMAP_SOURCE_LABEL` | `Open in mail` | the link's label |
 | `IMAP_TZ` | UTC | IANA zone for times in card text, e.g. `Europe/Copenhagen`; a name the runtime does not know stops the connector at startup |

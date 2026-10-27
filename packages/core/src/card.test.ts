@@ -9,6 +9,7 @@ kind: decision
 to_person: morten
 producer: hermes
 thread: gmail:19a4f2e7c3b1
+labels: [billing-revamp]
 urgency: brief
 title: Reply to Anna re invoice timing
 summary: Anna asks to pay the September invoice on the 20th instead of the 15th. The proposed reply agrees for September only.
@@ -34,6 +35,7 @@ const RFC_WIRE: ProducerCard = {
   to_person: 'morten',
   producer: 'hermes',
   thread: 'gmail:19a4f2e7c3b1',
+  labels: ['billing-revamp'],
   urgency: 'brief',
   title: 'Reply to Anna re invoice timing',
   summary: 'Anna asks to pay the September invoice on the 20th instead of the 15th. The proposed reply agrees for September only.',
@@ -144,6 +146,33 @@ describe('parseCard', () => {
     expect(parseCard(minimal({ actions: [{ id: 'a', default: true }, { id: 'b', default: false }] })).ok).toBe(true);
   });
 
+  it('accepts labels within the rules and refuses the rest with invalid_card (§4.1)', () => {
+    expect(parseCardOrThrow(minimal({ labels: ['billing-revamp', 'q4-2026', 'a'.repeat(32)] })).labels).toEqual(['billing-revamp', 'q4-2026', 'a'.repeat(32)]);
+    expect(parseCardOrThrow(minimal({ labels: Array.from({ length: 8 }, (_, i) => `l${i}`) })).labels).toHaveLength(8);
+    expect(parseCardOrThrow(minimal({ labels: [] })).labels).toEqual([]);
+    refused(minimal({ labels: Array.from({ length: 9 }, (_, i) => `l${i}`) }), 'invalid_card');
+    refused(minimal({ labels: ['a', 'a'] }), 'invalid_card');
+    for (const bad of ['Billing', 'billing revamp', 'billing_revamp', 'a'.repeat(33), '', 'é']) refused(minimal({ labels: [bad] }), 'invalid_card');
+    refused(minimal({ labels: 'billing-revamp' }), 'invalid_card');
+  });
+
+  it('accepts about as a calendar date that exists, and nothing else (§2, §4.1)', () => {
+    expect(parseCardOrThrow(minimal({ about: '2026-10-08' })).about).toBe('2026-10-08');
+    expect(parseCardOrThrow(minimal({ about: '2028-02-29' })).about).toBe('2028-02-29');
+    for (const bad of ['2026-02-29', '2026-02-30', '2026-13-01', '2026-10-8', '2026-10-08T00:00:00Z', '08/10/2026', '']) refused(minimal({ about: bad }), 'invalid_card');
+  });
+
+  it('reads labels as a flow or a block sequence, and about plain or quoted, in the file form (§3)', () => {
+    const file = (header: string) => `---\nprotocol: pbcp/1\nid: goalpath:item:4421\nkind: artifact\nto_person: morten\nproducer: goalpath\ntitle: T\nemitted_at: "2026-10-07T06:05:00Z"\n${header}---\n\nBody.\n`;
+    const flow = parseCardOrThrow(file('labels: [billing-revamp, nordic-supply]\nabout: 2026-10-08\n'));
+    const block = parseCardOrThrow(file('labels:\n  - billing-revamp\n  - nordic-supply\nabout: "2026-10-08"\n'));
+    expect(flow).toMatchObject({ labels: ['billing-revamp', 'nordic-supply'], about: '2026-10-08' });
+    expect(equal(flow, block)).toBe(true);
+    const written = toFrontMatter(flow);
+    expect(written).toContain('labels: [billing-revamp, nordic-supply]\nabout: "2026-10-08"\n');
+    expect(equal(parseCardOrThrow(written), flow)).toBe(true);
+  });
+
   it('rejects malformed front matter', () => {
     refused('---\nprotocol: pbcp/1\n', 'malformed_front_matter');
     refused(RFC_FILE.replace('urgency: brief', 'urgency: &u brief'), 'yaml_outside_subset');
@@ -169,6 +198,10 @@ describe('equal (§5)', () => {
     expect(equal(base, { ...base, 'x-trace': 'a' })).toBe(false);
     expect(equal(base, { ...base, source: { url: 'https://a' } })).toBe(false);
     expect(equal(base, { ...base, references: ['a:b:c'] })).toBe(false);
+    expect(equal(base, { ...base, labels: ['billing-revamp'] })).toBe(false);
+    expect(equal({ ...base, labels: ['a', 'b'] }, { ...base, labels: ['a', 'c'] })).toBe(false);
+    expect(equal(base, { ...base, about: '2026-10-08' })).toBe(false);
+    expect(equal({ ...base, about: '2026-10-08' }, { ...base, about: '2026-10-09' })).toBe(false);
   });
 
   it('is semantic, not byte-for-byte', () => {
@@ -176,6 +209,10 @@ describe('equal (§5)', () => {
     expect(equal(base, reordered)).toBe(true);
     expect(equal(base, { ...base, urgency: 'brief' })).toBe(true);
     expect(equal(base, { ...base, references: [] })).toBe(true);
+    expect(equal(base, { ...base, labels: [] })).toBe(true);
+    expect(equal({ ...base, labels: ['a', 'b'] }, { ...base, labels: ['b', 'a'] })).toBe(true);
+    expect(toJSON({ ...base, labels: ['b', 'a'] })).toContain('"labels":["b","a"]');
+    expect(toFrontMatter({ ...base, labels: ['b', 'a'] })).toContain('labels: [b, a]\n');
     expect(equal(base, { ...base, actions: ['approve', 'reject'] })).toBe(true);
     expect(equal(base, { ...base, actions: [{ id: 'approve' }, 'reject'] })).toBe(true);
     expect(equal(base, { ...base, actions: ['reject', 'approve'] })).toBe(false);

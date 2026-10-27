@@ -11,6 +11,8 @@ An example producer on `@pbcp/client`: it reads one or more CalDAV calendars and
 - Once a day, an `artifact` card with the day's agenda at `urgency: brief`: a table of time, title and location, then a `mermaid` `gantt` fence of the timed events (core tier, §3.1).
 - When an event's start moves to within the next 30 minutes, a `signal` card at `urgency: immediate` (§9).
 - `summary` (§4.1): on a moved signal, the event's new and old time and its location (and calendar, with several); on an agenda, the first timed event's time and location, `First: Standup, 09:15–09:30.` An empty day, or one with only all-day events, has no `summary`, since the title already says everything.
+- `about` (§4.1): the agenda's day on an agenda, and the event's new local day on a moved signal, so a head files both under the day they concern.
+- `labels` (§4.1): the calendar's namespace (its slug, cut to 32 characters) as a label: `work`. A merged agenda (several calendars) carries every configured calendar's label, at most 8.
 - `source` (§4.1): a moved signal links to the event when the event has a web `URL` property (`http` or `https`), labelled `Calendar event`. An agenda covers a whole day and has no `source`; nor does an event without a URL, since a CalDAV resource URL needs the server login and does not open in a calendar app.
 
 It polls every 5 minutes by default, so a move is reported at most one interval after the server has it.
