@@ -1,7 +1,7 @@
 import { createHash } from 'node:crypto';
 import { isId } from '@pbcp/core';
 import { describe, expect, it } from 'vitest';
-import { namespaceOf, readable, successor, summaryOf, toCard, type Open } from './mail.js';
+import { namespaceOf, readable, successor, summaryOf, toCard, zoneOf, type Open } from './mail.js';
 
 const raw = (headers: Record<string, string>, body: string) =>
   `${Object.entries(headers).map(([k, v]) => `${k}: ${v}`).join('\r\n')}\r\nContent-Type: text/plain; charset=utf-8\r\n\r\n${body}`;
@@ -88,6 +88,24 @@ describe('readable', () => {
     expect(readable(new Date('2026-10-27T09:05:00Z'), 'UTC')).toBe('Tue 27 Oct 09:05');
     expect(readable(new Date('2026-10-26T23:30:00Z'), 'Europe/Copenhagen')).toBe('Tue 27 Oct 00:30');
     expect(readable(new Date('2026-10-26T15:00:00Z'))).toBe('Mon 26 Oct 15:00 UTC');
+  });
+});
+
+describe('IMAP_TZ', () => {
+  it('writes the date in the configured zone, with no suffix', async () => {
+    const { card } = await toCard({ mailbox: 'INBOX', uid: 42, source: anna }, { ...cfg, timeZone: zoneOf('Europe/Copenhagen') });
+    expect(card.body).toContain('- **Date:** Wed 7 Oct 15:02\n');
+  });
+
+  it('writes UTC and says so when no zone is set', async () => {
+    const { card } = await toCard({ mailbox: 'INBOX', uid: 42, source: anna }, { account: cfg.account, toPerson: cfg.toPerson, timeZone: zoneOf(undefined) });
+    expect(card.body).toContain('- **Date:** Wed 7 Oct 13:02 UTC\n');
+  });
+
+  it('checks the zone: empty is unset, a bad name throws', () => {
+    expect(zoneOf('')).toBeUndefined();
+    expect(zoneOf('Europe/Copenhagen')).toBe('Europe/Copenhagen');
+    expect(() => zoneOf('Mars/Base')).toThrow(RangeError);
   });
 });
 

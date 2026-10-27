@@ -13,7 +13,8 @@ const hash = (s: string) => createHash('sha256').update(s).digest('hex').slice(0
 /** A grammar-valid namespace (§5) from an account name such as an email address. */
 export const namespaceOf = (account: string) => account.toLowerCase().replace(/[^a-z0-9-]+/g, '-').replace(/^-+|-+$/g, '');
 export const summaryOf = (text: string, max = 200) => ((s: string, cut = s.slice(0, max).replace(/\s+\S*$/, '')) => (s.length <= max ? s : `${cut.length < max ? cut : s.slice(0, max - 1)}…`) || undefined)(text.split(/\r?\n/).filter((l) => !/^\s*>/.test(l)).join(' ').replace(/\s+/g, ' ').trim());
-
+/** `IMAP_TZ`: an IANA zone, checked at startup (a RangeError names a bad one); unset means UTC. */
+export const zoneOf = (name?: string) => (name ? new Intl.DateTimeFormat('en-GB', { timeZone: name }).resolvedOptions().timeZone : undefined);
 /** `Mon 26 Oct 16:00` in `timeZone`, else `Mon 26 Oct 15:00 UTC`; never `today`, since an open card is produced again on later days. */
 export const readable = (d: Date, timeZone?: string) => ((p: Record<string, string>) => `${p.weekday} ${p.day} ${p.month} ${p.hour}:${p.minute}${timeZone ? '' : ' UTC'}`)(Object.fromEntries(
   new Intl.DateTimeFormat('en-GB', { timeZone: timeZone ?? 'UTC', weekday: 'short', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit', hourCycle: 'h23' }).formatToParts(d).map((x) => [x.type, x.value])));
@@ -24,7 +25,6 @@ export function successor(c: ProducerCard, ref: MailRef, open?: Open): { card: P
   const refs = [...(open?.refs ?? []), { ...ref, card: c.id }];
   return open ? { card: { ...c, supersedes: open.id }, open: { id: c.id, supersedes: open.id, refs } } : { card: c, open: { id: c.id, refs } };
 }
-
 /** One unseen message → one card (§11.1): headers and first lines, never a draft; `summary` is the unquoted opening text, ≤ 200 chars. */
 export async function toCard(m: Fetched, cfg: MailConfig, maxLines = 12): Promise<{ card: ProducerCard; ref: MailRef }> {
   const mail = await simpleParser(m.source);

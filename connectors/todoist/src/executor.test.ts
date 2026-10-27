@@ -4,11 +4,11 @@ import { stubHead } from '@pbcp/client/testing';
 import type { OrderCard } from '@pbcp/core';
 import { describe, expect, it } from 'vitest';
 import { fixtureSource } from './fixture-source.js';
-import { marker, readable, taskFor, todoistRun } from './executor.js';
+import { marker, readable, taskFor, todoistRun, zoneOf } from './executor.js';
 
 const FIX = fileURLToPath(new URL('../fixtures/tasks.json', import.meta.url));
 
-function setup() {
+function setup({ timeZone }: { timeZone?: string } = { timeZone: 'UTC' }) {
   let clock = Date.parse('2026-10-26T12:00:00Z');
   const stub = stubHead({ now: () => new Date(clock).toISOString() });
   const src = fixtureSource(FIX);
@@ -17,7 +17,7 @@ function setup() {
     head: new HeadClient({ baseUrl: 'https://head.test', token: 'todoist', fetch: stub.fetch }),
     store, producer: 'todoist', leaseSeconds: 1, concurrency: 50,
     onError: (e) => void errors.push(e),
-    run: todoistRun(src, { pollMs: 5, onError: (e) => void errors.push(e), now: () => new Date('2026-10-27T12:00:00Z'), timeZone: 'UTC' }),
+    run: todoistRun(src, { pollMs: 5, onError: (e) => void errors.push(e), now: () => new Date('2026-10-27T12:00:00Z'), timeZone }),
   });
   const ex = executor(opts());
   const order = (id: string) => stub.cards.get(id) as unknown as OrderCard;
@@ -36,6 +36,24 @@ describe('todoist executor', () => {
     expect(readable('2026-10-27T08:12:00Z', now)).toBe('today 08:12 UTC');
     expect(readable('2026-10-26T15:00:00Z', now)).toBe('Mon 26 Oct 15:00 UTC');
     expect(readable('soon', now)).toBe('soon');
+  });
+
+  // The fixture task is completed at 2026-10-27T08:00Z, 09:00 in Copenhagen.
+  for (const [tz, body] of [['Europe/Copenhagen', 'Completed in Todoist, today 09:00.'], [undefined, 'Completed in Todoist, today 08:00 UTC.']] as const)
+    it(`writes the completion time ${tz ? `in TODOIST_TZ (${tz}), with no suffix` : 'in UTC, named, when TODOIST_TZ is unset'}`, async () => {
+      const t = setup({ timeZone: zoneOf(tz) });
+      const o = t.stub.order({ to_producer: 'todoist', title: 'Call the bank', body: '' });
+      await t.ex.pass();
+      await t.until(() => t.src.created.length === 1);
+      t.src.complete(t.src.created[0]!);
+      await t.ex.idle();
+      expect(t.outcome(o)!.body).toBe(body);
+    });
+
+  it('checks TODOIST_TZ: empty is unset, a bad name throws', () => {
+    expect(zoneOf('')).toBeUndefined();
+    expect(zoneOf('Europe/Copenhagen')).toBe('Europe/Copenhagen');
+    expect(() => zoneOf('Mars/Base')).toThrow(RangeError);
   });
 
   it('splits the order into task content, description and due string, and marks it with the order id', () => {

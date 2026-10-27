@@ -15,6 +15,9 @@ export function taskFor(order: OrderCard): NewTask {
   return { content: order.title, description: [body, marker(order.id)].filter(Boolean).join('\n\n'), ...(due ? { due_string: due } : {}) };
 }
 
+/** `TODOIST_TZ`: an IANA zone, checked at startup (a RangeError names a bad one); unset means UTC. */
+export const zoneOf = (name?: string) => (name ? new Intl.DateTimeFormat('en-GB', { timeZone: name }).resolvedOptions().timeZone : undefined);
+
 /** A local time a person reads at a glance: `today 09:12` on `now`'s day, else `Mon 26 Oct 16:00`. With no `zone`, UTC and
  *  named (`today 08:12 UTC`). An unparseable time is given as it came. */
 export function readable(iso: string, now: Date, zone?: string): string {
