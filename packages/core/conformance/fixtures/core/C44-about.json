@@ -1,0 +1,278 @@
+{
+  "name": "C44 about round-trips in both forms and counts for equality; a date that does not exist, a timestamp or another format is 400 invalid_card",
+  "rfc": [
+    "§2",
+    "§4.1",
+    "§5"
+  ],
+  "steps": [
+    {
+      "op": "put",
+      "args": {
+        "token": "cal",
+        "card": {
+          "protocol": "pbcp/1",
+          "id": "cal:agenda:2026-10-08",
+          "kind": "artifact",
+          "to_person": "morten",
+          "producer": "cal",
+          "title": "Thu 8 Oct: 3 events, first at 09:15",
+          "body": "| Time | Event |\n| --- | --- |\n| 09:15–09:30 | Standup |",
+          "emitted_at": "2026-10-07T13:02:11Z",
+          "about": "2026-10-08",
+          "urgency": "brief"
+        }
+      },
+      "expect": {
+        "status": 201,
+        "body": {
+          "about": "2026-10-08",
+          "state": "open"
+        }
+      },
+      "save": {
+        "seq1": "body.change_seq"
+      }
+    },
+    {
+      "op": "put",
+      "args": {
+        "token": "cal",
+        "card": {
+          "protocol": "pbcp/1",
+          "id": "cal:agenda:2026-10-08",
+          "kind": "artifact",
+          "to_person": "morten",
+          "producer": "cal",
+          "title": "Thu 8 Oct: 3 events, first at 09:15",
+          "body": "| Time | Event |\n| --- | --- |\n| 09:15–09:30 | Standup |",
+          "emitted_at": "2026-10-07T19:00:00Z",
+          "about": "2026-10-08",
+          "urgency": "brief"
+        }
+      },
+      "expect": {
+        "status": 200,
+        "body": {
+          "about": "2026-10-08",
+          "change_seq": {
+            "$var": "seq1"
+          }
+        }
+      }
+    },
+    {
+      "op": "put",
+      "args": {
+        "token": "cal",
+        "card": {
+          "protocol": "pbcp/1",
+          "id": "cal:agenda:2026-10-08",
+          "kind": "artifact",
+          "to_person": "morten",
+          "producer": "cal",
+          "title": "Thu 8 Oct: 3 events, first at 09:15",
+          "body": "| Time | Event |\n| --- | --- |\n| 09:15–09:30 | Standup |",
+          "emitted_at": "2026-10-07T13:02:11Z",
+          "about": "2026-10-09",
+          "urgency": "brief"
+        }
+      },
+      "expect": {
+        "status": 200,
+        "body": {
+          "about": "2026-10-09",
+          "change_seq": {
+            "$gt": {
+              "$var": "seq1"
+            }
+          }
+        }
+      }
+    },
+    {
+      "op": "put",
+      "args": {
+        "token": "cal",
+        "card": "---\nprotocol: pbcp/1\nid: cal:agenda:2026-10-09\nkind: artifact\nto_person: morten\nproducer: cal\nabout: 2026-10-09\ntitle: Fri 9 Oct, nothing scheduled\nemitted_at: \"2026-10-08T18:00:00Z\"\n---\n\nNothing scheduled.\n"
+      },
+      "expect": {
+        "status": 201,
+        "body": {
+          "id": "cal:agenda:2026-10-09",
+          "about": "2026-10-09"
+        }
+      }
+    },
+    {
+      "op": "syncAll",
+      "args": {
+        "token": "cal",
+        "after": 0
+      },
+      "expect": {
+        "status": 200,
+        "body": {
+          "changes": [
+            {
+              "card": {
+                "id": "cal:agenda:2026-10-08",
+                "about": "2026-10-09"
+              }
+            },
+            {
+              "card": {
+                "id": "cal:agenda:2026-10-09",
+                "about": "2026-10-09"
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "op": "put",
+      "args": {
+        "token": "cal",
+        "card": {
+          "protocol": "pbcp/1",
+          "id": "cal:agenda:bad-1",
+          "kind": "artifact",
+          "to_person": "morten",
+          "producer": "cal",
+          "title": "Thu 8 Oct: 3 events, first at 09:15",
+          "body": "| Time | Event |\n| --- | --- |\n| 09:15–09:30 | Standup |",
+          "emitted_at": "2026-10-07T13:02:11Z",
+          "about": "2026-02-30",
+          "urgency": "brief"
+        }
+      },
+      "expect": {
+        "status": 400,
+        "body": {
+          "error": "invalid_card"
+        }
+      }
+    },
+    {
+      "op": "put",
+      "args": {
+        "token": "cal",
+        "card": {
+          "protocol": "pbcp/1",
+          "id": "cal:agenda:bad-2",
+          "kind": "artifact",
+          "to_person": "morten",
+          "producer": "cal",
+          "title": "Thu 8 Oct: 3 events, first at 09:15",
+          "body": "| Time | Event |\n| --- | --- |\n| 09:15–09:30 | Standup |",
+          "emitted_at": "2026-10-07T13:02:11Z",
+          "about": "2026-13-01",
+          "urgency": "brief"
+        }
+      },
+      "expect": {
+        "status": 400,
+        "body": {
+          "error": "invalid_card"
+        }
+      }
+    },
+    {
+      "op": "put",
+      "args": {
+        "token": "cal",
+        "card": {
+          "protocol": "pbcp/1",
+          "id": "cal:agenda:bad-3",
+          "kind": "artifact",
+          "to_person": "morten",
+          "producer": "cal",
+          "title": "Thu 8 Oct: 3 events, first at 09:15",
+          "body": "| Time | Event |\n| --- | --- |\n| 09:15–09:30 | Standup |",
+          "emitted_at": "2026-10-07T13:02:11Z",
+          "about": "2026-10-8",
+          "urgency": "brief"
+        }
+      },
+      "expect": {
+        "status": 400,
+        "body": {
+          "error": "invalid_card"
+        }
+      }
+    },
+    {
+      "op": "put",
+      "args": {
+        "token": "cal",
+        "card": {
+          "protocol": "pbcp/1",
+          "id": "cal:agenda:bad-4",
+          "kind": "artifact",
+          "to_person": "morten",
+          "producer": "cal",
+          "title": "Thu 8 Oct: 3 events, first at 09:15",
+          "body": "| Time | Event |\n| --- | --- |\n| 09:15–09:30 | Standup |",
+          "emitted_at": "2026-10-07T13:02:11Z",
+          "about": "2026-10-08T00:00:00Z",
+          "urgency": "brief"
+        }
+      },
+      "expect": {
+        "status": 400,
+        "body": {
+          "error": "invalid_card"
+        }
+      }
+    },
+    {
+      "op": "put",
+      "args": {
+        "token": "cal",
+        "card": {
+          "protocol": "pbcp/1",
+          "id": "cal:agenda:bad-5",
+          "kind": "artifact",
+          "to_person": "morten",
+          "producer": "cal",
+          "title": "Thu 8 Oct: 3 events, first at 09:15",
+          "body": "| Time | Event |\n| --- | --- |\n| 09:15–09:30 | Standup |",
+          "emitted_at": "2026-10-07T13:02:11Z",
+          "about": "08/10/2026",
+          "urgency": "brief"
+        }
+      },
+      "expect": {
+        "status": 400,
+        "body": {
+          "error": "invalid_card"
+        }
+      }
+    },
+    {
+      "op": "put",
+      "args": {
+        "token": "cal",
+        "card": {
+          "protocol": "pbcp/1",
+          "id": "cal:agenda:bad-6",
+          "kind": "artifact",
+          "to_person": "morten",
+          "producer": "cal",
+          "title": "Thu 8 Oct: 3 events, first at 09:15",
+          "body": "| Time | Event |\n| --- | --- |\n| 09:15–09:30 | Standup |",
+          "emitted_at": "2026-10-07T13:02:11Z",
+          "about": "",
+          "urgency": "brief"
+        }
+      },
+      "expect": {
+        "status": 400,
+        "body": {
+          "error": "invalid_card"
+        }
+      }
+    }
+  ]
+}

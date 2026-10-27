@@ -1,0 +1,108 @@
+{
+  "name": "C42 at most eight labels and no duplicates: eight are stored, nine or a repeated label is 400 invalid_card",
+  "rfc": [
+    "§4.1"
+  ],
+  "steps": [
+    {
+      "op": "put",
+      "args": {
+        "token": "hermes",
+        "card": {
+          "protocol": "pbcp/1",
+          "id": "hermes:gmail:19e0a1b2c3e1",
+          "kind": "artifact",
+          "to_person": "morten",
+          "producer": "hermes",
+          "title": "Invoice timing for September",
+          "body": "Anna asks to pay the September invoice on the 20th.",
+          "emitted_at": "2026-10-07T13:02:11Z",
+          "labels": [
+            "label-1",
+            "label-2",
+            "label-3",
+            "label-4",
+            "label-5",
+            "label-6",
+            "label-7",
+            "label-8"
+          ]
+        }
+      },
+      "expect": {
+        "status": 201,
+        "body": {
+          "labels": [
+            "label-1",
+            "label-2",
+            "label-3",
+            "label-4",
+            "label-5",
+            "label-6",
+            "label-7",
+            "label-8"
+          ]
+        }
+      }
+    },
+    {
+      "op": "put",
+      "args": {
+        "token": "hermes",
+        "card": {
+          "protocol": "pbcp/1",
+          "id": "hermes:gmail:19e0a1b2c3e2",
+          "kind": "artifact",
+          "to_person": "morten",
+          "producer": "hermes",
+          "title": "Invoice timing for September",
+          "body": "Anna asks to pay the September invoice on the 20th.",
+          "emitted_at": "2026-10-07T13:02:11Z",
+          "labels": [
+            "label-1",
+            "label-2",
+            "label-3",
+            "label-4",
+            "label-5",
+            "label-6",
+            "label-7",
+            "label-8",
+            "label-9"
+          ]
+        }
+      },
+      "expect": {
+        "status": 400,
+        "body": {
+          "error": "invalid_card"
+        }
+      }
+    },
+    {
+      "op": "put",
+      "args": {
+        "token": "hermes",
+        "card": {
+          "protocol": "pbcp/1",
+          "id": "hermes:gmail:19e0a1b2c3e3",
+          "kind": "artifact",
+          "to_person": "morten",
+          "producer": "hermes",
+          "title": "Invoice timing for September",
+          "body": "Anna asks to pay the September invoice on the 20th.",
+          "emitted_at": "2026-10-07T13:02:11Z",
+          "labels": [
+            "billing-revamp",
+            "billing-revamp"
+          ]
+        }
+      },
+      "expect": {
+        "status": 400,
+        "body": {
+          "error": "invalid_card"
+        }
+      }
+    }
+  ]
+}
