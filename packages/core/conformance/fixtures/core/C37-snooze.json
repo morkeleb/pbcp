@@ -1,0 +1,184 @@
+{
+  "name": "C37 snoozing sets snoozed_until with a new change_seq and the card stays open and in sync; clearing it takes another change_seq",
+  "rfc": [
+    "\u00a74.2",
+    "\u00a76",
+    "\u00a77.2"
+  ],
+  "steps": [
+    {
+      "op": "clock",
+      "args": {
+        "set": "2026-10-07T14:00:00Z"
+      }
+    },
+    {
+      "op": "put",
+      "args": {
+        "token": "hermes",
+        "card": {
+          "protocol": "pbcp/1",
+          "id": "hermes:gmail:19c3a8e05f72",
+          "kind": "decision",
+          "to_person": "morten",
+          "producer": "hermes",
+          "title": "Reply to Jonas about the offsite",
+          "body": "Jonas asks whether you can join the offsite on the 14th.",
+          "emitted_at": "2026-10-07T13:02:11Z",
+          "thread": "gmail:19c3a8e05f72",
+          "urgency": "brief",
+          "actions": [
+            "approve",
+            "reject"
+          ]
+        }
+      },
+      "expect": {
+        "status": 201,
+        "body": {
+          "state": "open",
+          "snoozed_until": {
+            "$absent": true
+          }
+        }
+      }
+    },
+    {
+      "op": "syncAll",
+      "args": {
+        "token": "hermes",
+        "after": 0
+      },
+      "expect": {
+        "status": 200,
+        "body": {
+          "changes": [
+            {
+              "card": {
+                "id": "hermes:gmail:19c3a8e05f72"
+              }
+            }
+          ]
+        }
+      },
+      "save": {
+        "seqPut": "body.next"
+      }
+    },
+    {
+      "op": "snooze",
+      "args": {
+        "id": "hermes:gmail:19c3a8e05f72",
+        "until": "2026-10-08T06:00:00Z"
+      },
+      "expect": {
+        "status": 200,
+        "body": {
+          "id": "hermes:gmail:19c3a8e05f72",
+          "state": "open",
+          "snoozed_until": "2026-10-08T06:00:00Z"
+        }
+      }
+    },
+    {
+      "op": "syncAll",
+      "args": {
+        "token": "hermes",
+        "after": {
+          "$var": "seqPut"
+        }
+      },
+      "expect": {
+        "status": 200,
+        "body": {
+          "changes": [
+            {
+              "card": {
+                "id": "hermes:gmail:19c3a8e05f72",
+                "state": "open",
+                "snoozed_until": "2026-10-08T06:00:00Z"
+              }
+            }
+          ]
+        }
+      },
+      "save": {
+        "seqSnoozed": "body.next"
+      }
+    },
+    {
+      "op": "put",
+      "args": {
+        "token": "hermes",
+        "card": {
+          "protocol": "pbcp/1",
+          "id": "hermes:gmail:19c3a8e05f72",
+          "kind": "decision",
+          "to_person": "morten",
+          "producer": "hermes",
+          "title": "Reply to Jonas about the offsite",
+          "body": "Jonas asks whether you can join the offsite on the 14th.",
+          "emitted_at": "2026-10-07T13:02:11Z",
+          "thread": "gmail:19c3a8e05f72",
+          "urgency": "brief",
+          "actions": [
+            "approve",
+            "reject"
+          ]
+        }
+      },
+      "expect": {
+        "status": 200,
+        "body": {
+          "state": "open",
+          "snoozed_until": "2026-10-08T06:00:00Z",
+          "change_seq": {
+            "$var": "seqSnoozed"
+          }
+        }
+      }
+    },
+    {
+      "op": "snooze",
+      "args": {
+        "id": "hermes:gmail:19c3a8e05f72",
+        "until": null
+      },
+      "expect": {
+        "status": 200,
+        "body": {
+          "id": "hermes:gmail:19c3a8e05f72",
+          "state": "open",
+          "snoozed_until": {
+            "$absent": true
+          }
+        }
+      }
+    },
+    {
+      "op": "syncAll",
+      "args": {
+        "token": "hermes",
+        "after": {
+          "$var": "seqSnoozed"
+        }
+      },
+      "expect": {
+        "status": 200,
+        "body": {
+          "changes": [
+            {
+              "card": {
+                "id": "hermes:gmail:19c3a8e05f72",
+                "state": "open",
+                "snoozed_until": {
+                  "$absent": true
+                }
+              }
+            }
+          ]
+        }
+      }
+    }
+  ]
+}

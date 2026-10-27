@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { parseCardOrThrow, type Card, type ProducerCard } from './card.js';
 import { PbcpError } from './errors.js';
-import { acknowledge, canSupersede, checkSubmission, decide, markSeen, submit } from './lifecycle.js';
+import { acknowledge, canSupersede, checkSubmission, decide, markSeen, snooze, submit, unsnooze } from './lifecycle.js';
 
 const T0 = '2026-10-07T06:00:00Z';
 const T1 = '2026-10-07T07:00:00Z';
@@ -203,6 +203,48 @@ describe('acknowledge and markSeen', () => {
     const r = markSeen(c, T1);
     expect(r.card.seen_at).toBe(T1);
     expect(markSeen(r.card, T2).changed).toEqual([]);
+  });
+});
+
+describe('snooze and unsnooze (§4.2, §6)', () => {
+  it('sets snoozed_until on an open card without changing its state; idempotent', () => {
+    const c = submit(null, card(), T0).card;
+    const r = snooze(c, T2, T1);
+    expect(r).toMatchObject({ status: 200, card: { state: 'open', snoozed_until: T2, changed_at: T1 } });
+    expect(r.changed).toEqual([r.card]);
+    expect(snooze(r.card, T2, T1)).toEqual({ status: 200, card: r.card, changed: [] });
+    const later = '2026-10-07T09:00:00Z';
+    expect(snooze(r.card, later, T1).card.snoozed_until).toBe(later);
+  });
+
+  it('unsnooze clears it, once', () => {
+    const c = snooze(submit(null, card(), T0).card, T2, T0).card;
+    const r = unsnooze(c, T1);
+    expect(r.card).not.toHaveProperty('snoozed_until');
+    expect(r.card).toMatchObject({ state: 'open', changed_at: T1 });
+    expect(r.changed).toEqual([r.card]);
+    expect(unsnooze(r.card, T2)).toEqual({ status: 200, card: r.card, changed: [] });
+  });
+
+  it('a decided or superseded card is a 409 result carrying the stored card', () => {
+    const decided = decide(submit(null, card(), T0).card, { decision: 'approve' }, T1).card;
+    expect(snooze(decided, T2, T1)).toEqual({ status: 409, card: decided, changed: [] });
+    expect(unsnooze(decided, T1)).toEqual({ status: 409, card: decided, changed: [] });
+    const superseded = { ...submit(null, card(), T0).card, state: 'superseded' as const };
+    expect(snooze(superseded, T2, T1).status).toBe(409);
+  });
+
+  it('refuses an until that is not later than now, or not a UTC timestamp, with 400 invalid_snooze', () => {
+    const c = submit(null, card(), T0).card;
+    throws(() => snooze(c, T0, T1), 'invalid_snooze', 400);
+    throws(() => snooze(c, T1, T1), 'invalid_snooze', 400);
+    throws(() => snooze(c, 'tomorrow', T1), 'invalid_snooze', 400);
+    throws(() => snooze(c, '2026-10-08T09:00:00+02:00', T1), 'invalid_snooze', 400);
+  });
+
+  it('a revision by re-PUT keeps snoozed_until (§5)', () => {
+    const c = snooze(submit(null, card(), T0).card, T2, T0).card;
+    expect(submit(c, card({ body: 'Revised.' }), T1).card.snoozed_until).toBe(T2);
   });
 });
 

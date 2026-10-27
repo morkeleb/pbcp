@@ -41,9 +41,10 @@ const owner = new OwnerClient({ baseUrl, credential: 'Session …' });
 await owner.decide(id, { decision: 'approve' });   // POST /cards/{id}/decision → { status: 200 | 409, card }
 await owner.seen(id);                              // head-defined path; default /cards/{id}/seen
 await owner.ack(id);                               // head-defined path; default /cards/{id}/acknowledge
+await owner.snooze(id, '2026-10-28T06:00:00Z');     // head-defined path; default /cards/{id}/snooze, body { until }; null clears
 ```
 
-Decide is the owner's operation, performed with the owner's credential, which the protocol does not define (§7.3). `credential` is sent verbatim as the `Authorization` header; a head refuses a producer token there with `401`. Where a head mounts these operations is its choice: pass `paths` to match it. Seen and acknowledge are not protocol operations at all (§4.2).
+Decide is the owner's operation, performed with the owner's credential, which the protocol does not define (§7.3). `credential` is sent verbatim as the `Authorization` header; a head refuses a producer token there with `401`. Where a head mounts these operations is its choice: pass `paths` to match it. Seen, acknowledge and snooze are not protocol operations at all (§4.2). `snooze` returns `{ status: 200 | 409, card }` like `decide`: a card that is no longer open is a 409 with the stored card, and an `until` that is not in the future is `400 invalid_snooze`.
 
 ## runProducer
 
@@ -87,7 +88,11 @@ Writes to one store are applied in the order they are made, through a temp file 
 
 ## Testing
 
-`@pbcp/client/testing` exports `stubHead()`, an in-memory head behind a `fetch` function, for testing producers and tools without a server. Its rules are `@pbcp/core`'s own transitions (submit, supersession, decide, acknowledge), so a connector sees the protocol's answers. Producer tokens are any `Bearer` value; the owner endpoints take `Session owner` (or `ownerCredential`). `stub.decideHere(id, decision)` decides as the owner without HTTP, `stub.script(status, body)` scripts the next response, and `stub.requests` records every request.
+`@pbcp/client/testing` exports `stubHead()`, an in-memory head behind a `fetch` function, for testing producers and tools without a server. Its rules are `@pbcp/core`'s own transitions (submit, supersession, decide, acknowledge, snooze), so a connector sees the protocol's answers. Producer tokens are any `Bearer` value; the owner endpoints take `Session owner` (or `ownerCredential`). `stub.decideHere(id, decision)` decides as the owner without HTTP, `stub.script(status, body)` scripts the next response, and `stub.requests` records every request.
+
+## Migrating from 0.5
+
+- New: `OwnerClient.snooze(id, until | null)`, and the stub's `/cards/{id}/snooze` route. Nothing else changes.
 
 ## Migrating from 0.4
 

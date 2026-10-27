@@ -22,6 +22,8 @@ export const ERROR_CODES = {
   invalid_cursor: 400,
   // orders extension (A.2): `lease_seconds` missing or not a positive integer
   invalid_lease: 400,
+  // owner-side snooze: `until` is not a UTC timestamp later than now
+  invalid_snooze: 400,
   // 401 — any missing or invalid credential: a producer token, or the owner's on decide
   unauthorized: 401,
   // 403 — outside the producer's namespace, or not this head's owner

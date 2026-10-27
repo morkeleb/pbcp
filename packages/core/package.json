@@ -1,6 +1,6 @@
 {
   "name": "@pbcp/core",
-  "version": "0.5.0",
+  "version": "0.6.0",
   "description": "PBCP protocol core: card schema, id grammar, restricted YAML, lifecycle transitions. No I/O.",
   "license": "MIT",
   "type": "module",

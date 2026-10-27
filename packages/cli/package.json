@@ -1,6 +1,6 @@
 {
   "name": "@pbcp/cli",
-  "version": "0.5.0",
+  "version": "0.6.0",
   "description": "PBCP command line: describe, submit, sync and decide against a head.",
   "license": "MIT",
   "type": "module",

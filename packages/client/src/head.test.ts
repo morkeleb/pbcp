@@ -184,6 +184,20 @@ describe('OwnerClient', () => {
     expect(await o.seen('mail:acct:m1')).toMatchObject({ seen_at: '2026-10-26T12:00:00Z' });
     expect(await o.ack('mail:acct:m1')).toMatchObject({ acknowledged_at: '2026-10-26T12:00:00Z' });
   });
+
+  it('snoozes and clears snoozed_until; a decided card is a 409 result, a past until is invalid_snooze', async () => {
+    const { head, stub } = setup();
+    await head.submit(sample());
+    const until = '2026-10-27T06:00:00Z';
+    expect(await owner(stub).snooze('mail:acct:m1', until)).toMatchObject({ status: 200, card: { state: 'open', snoozed_until: until } });
+    expect(stub.requests.at(-1)!).toMatchObject({ method: 'POST', url: 'https://head.test/cards/mail%3Aacct%3Am1/snooze', body: { until } });
+    const cleared = await owner(stub).snooze('mail:acct:m1', null);
+    expect(cleared.card).not.toHaveProperty('snoozed_until');
+    expect(stub.requests.at(-1)!.body).toEqual({ until: null });
+    await expect(owner(stub).snooze('mail:acct:m1', '2026-10-26T11:00:00Z')).rejects.toMatchObject({ status: 400, code: 'invalid_snooze' });
+    await owner(stub).decide('mail:acct:m1', { decision: 'approve' });
+    expect(await owner(stub).snooze('mail:acct:m1', until)).toMatchObject({ status: 409, card: { state: 'decided' } });
+  });
 });
 
 describe('stubHead', () => {
