@@ -1,6 +1,6 @@
 {
   "name": "n8n-nodes-pbcp",
-  "version": "0.5.0",
+  "version": "0.6.0",
   "description": "n8n community nodes for PBCP: a polling trigger on sync and a submit action.",
   "license": "MIT",
   "keywords": [

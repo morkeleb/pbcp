@@ -1,6 +1,6 @@
 {
   "name": "@pbcp/mcp",
-  "version": "0.5.0",
+  "version": "0.6.0",
   "description": "PBCP MCP server over stdio: submit_card and poll_changes.",
   "license": "MIT",
   "type": "module",

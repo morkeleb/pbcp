@@ -91,6 +91,11 @@ export const decide: (stored: Card, d: Decision, now: string) =>
   | { status: 200; card: Card; cancelOrder?: true }
   | { status: 409; card: Card };
 export const canSupersede: (target: Card | null, incoming: ProducerCard) => PbcpError | null;
+// owner-side, not transitions: the card keeps its state and takes a new change_seq (§4.2)
+export const markSeen: (stored: Card, now: string) => { status: 200; card: Card };
+export const acknowledge: (stored: Card, now: string) => { status: 200; card: Card };
+export const snooze: (stored: Card, until: string, now: string) => { status: 200 | 409; card: Card };  // 400 invalid_snooze if until <= now
+export const unsnooze: (stored: Card, now: string) => { status: 200 | 409; card: Card };             // 409 when the card is not open
 
 // orders.ts (extension) — every transition also returns `changed`, as lifecycle.ts does
 export type ExecState = 'open' | 'claimed' | 'done' | 'failed' | 'cancelled';
@@ -134,6 +139,7 @@ export class OwnerClient {
   decide(id: string, d: Decision): Promise<{ status: 200|409; card: Card }>;  // a producer token here is a 401
   seen(id: string): Promise<Card>;
   ack(id: string): Promise<Card>;
+  snooze(id: string, until: string | null): Promise<{ status: 200|409; card: Card }>;  // null clears snoozed_until
 }
 
 // store.ts — the cursor plus connector state
@@ -269,6 +275,7 @@ export interface HeadUnderTest {
   decideWithToken(token: string, cardId: string, d: Decision): Promise<{ status: number; body: unknown }>;  // must be 401
   seen(cardId: string): Promise<{ status: number; body: unknown }>;                  // owner: present the card (seen_at)
   acknowledge(cardId: string): Promise<{ status: number; body: unknown }>;           // owner: acknowledge an artifact/signal
+  snooze(cardId: string, until: string | null): Promise<{ status: number; body: unknown }>; // owner: set or clear snoozed_until
   claim(token: string, cardId: string, lease: number): Promise<{ status: number; body: unknown }>;
   clock: { set(iso: string): void };     // leases and expiry are tested against a controlled clock
 }
@@ -314,6 +321,7 @@ Each fixture is `{ name, steps: [{ op, args, expect }] }`. The first release car
 | C34 | Order: bad `lease_seconds` → 400 `invalid_lease` | A.2 |
 | C35 | Order: a second token under the holding root renews and posts the outcome | A.1–A.3 |
 | C36 | Order: outcome ids per claim; only the current claim's outcome moves `exec_state` | A.3, A.4 |
+| C37 | Snooze sets `snoozed_until` with a new `change_seq`; the card stays `open` and in sync; clearing it takes another | §4.2, §6 |
 
 Rendering is tested from fixture bodies rather than over HTTP (RFC §3.1): the runner takes a `render(body) → classified fences + text` adapter and checks classification, not pixels.
 
