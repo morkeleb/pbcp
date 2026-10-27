@@ -1,5 +1,31 @@
 # RFC changelog
 
+## 0.6 (2026-10-27)
+
+Draft 0.6 is driven by the first real brief rendered by a head. It adds one producer-owned field and makes presentation normative where it decides whether a person can act on a card. There are no changes to orders, delegation or the operations. In-process conformance: 44 → 50 cases (core C38–C40, render R09–R11).
+
+**Fields**
+
+- **§4.1 — `summary`.** An optional producer-owned string: one or two sentences of plain text saying what is going on and what the card wants. It MUST NOT be empty or contain CR or LF (`400 invalid_card`), SHOULD be under 280 characters, and a head MAY truncate it beyond that with an ellipsis. It is not markdown: a head MUST show it as text. It counts for equality (§5) like every producer-owned field except `emitted_at`, so a changed `summary` replaces an open card (`200`) and is a `409` on a decided one. New fixtures C38, C39 and C40.
+- **§3 — the example card** carries `summary` in both forms.
+
+**Rendering and presentation**
+
+- **§3.1 — the lead.** A card's lead is its `summary`, or else the body's first paragraph, found by a line-based rule that skips headings, thematic breaks and fenced code blocks. In a list, a folded brief or a thread summary, a head MUST show at least each card's lead and MAY stop there; on the card a head MUST NOT hide it behind a gesture. Producers without `summary` write bodies lead-first. New fixtures R09, R10 and R11.
+- **§4.5 — presenting a decision (new).**
+  - The card's `actions` are its controls. A head MUST show them without a prior gesture and in order, with the default or else the first as the primary control, and never behind one intermediate control.
+  - `dismissed` is always available as a secondary control; free text (`edited`) only when `edit` is listed; `delegated` only with Appendix B.
+  - The lead and any `Proposal`/`Proposed` section are visible. Deciding never requires opening the card.
+  - `comment` is never required, and SHOULD sit behind a disclosure.
+  - A recorded decision or acknowledgement MUST be confirmed distinguishably from an unavailable control, and SHOULD show the new state in place.
+- **§8 — what a brief contains.** A generated brief MUST include every open decision card's title and lead, SHOULD include the newest card's title and lead for each of the previous day's artifact and signal threads, and MUST link each entry to its card. Counts and charts are optional additions, never the brief.
+
+**Conformance**
+
+- **§11.1** — the mail reader fills `summary` from the message's first lines, whitespace collapsed.
+- **§11.3** — the head checklist gains `summary` as text, the lead, §4.5 and §8.
+- **§14** — lead fixtures run against the render adapter, from a card's `summary` and `body`. §4.5 and §8 are interface obligations and have no fixtures.
+
 ## 0.5 (2026-10-26)
 
 Draft 0.5 writes the second implementation's findings into the text. The evidence is `rfc/OPEN.md` as of 0.4 plus orders (items 1–21, cited as OPEN #n), `morkeleb/pbcp-head` PR #2 (its fifteen §3.1 decisions, cited as H2-#n) and PR #3 (its Appendix A table and readings H-1 to H-6). Nothing new was added beyond what those findings required. In-process conformance: 40 → 43 cases.
