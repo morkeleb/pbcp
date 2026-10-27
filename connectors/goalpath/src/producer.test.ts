@@ -61,7 +61,7 @@ describe('goalpath producer', () => {
     expect(approval.actions).toEqual([{ id: 'accept', label: 'Accept', body: 'Sets GP-12 to Accepted.' }, { id: 'reject', label: 'Reject', body: 'Sets GP-12 to Rejected.' }]);
     expect(approval.body).toMatch(/## Proposal/);
     // §4.1: one line of plain text from the item's title and status.
-    expect(approval.summary).toMatch(/^GP-12 Export invoices as CSV is \w+ in Billing revamp and waiting for your acceptance\. /);
+    expect(approval.summary).toMatch(/^GP-12 Export invoices as CSV is \w+ in Billing revamp and waiting for your acceptance\. Proposed: accept it, which sets it to Accepted in GoalPath\.$/);
     expect(risk.summary).toBe('Billing revamp is forecast for 2026-11-24, 11 days past its deadline 2026-11-13. Cut scope, move the deadline or add capacity.');
     expect(build.summary).toMatch(/^ci \/ test ended \w+ on #91, linked to GP-14 /);
 

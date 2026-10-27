@@ -20,6 +20,12 @@ Draft 0.6 is driven by the first real brief rendered by a head. It adds one prod
   - A recorded decision or acknowledgement MUST be confirmed distinguishably from an unavailable control, and SHOULD show the new state in place.
 - **§8 — what a brief contains.** A generated brief MUST include every open decision card's title and lead, SHOULD include the newest card's title and lead for each of the previous day's artifact and signal threads, and MUST link each entry to its card. Counts and charts are optional additions, never the brief.
 
+**Corrections after merge**
+
+- **§4.5 — no default, no primary.** Only the option marked `default` is the primary control. With no default, a head MUST give the options equal weight and MUST NOT style or place one as primary, consistent with §4.4's rule that there is no bare approve without a default. The merged text made the first entry primary, which contradicted §4.4. The render adapter cannot express how a control is weighted, so there is no fixture; the rule is in the §11.3 head checklist.
+- **§4.5 — the proposal heading is matched case-insensitively**: `Proposal`, `Proposed`, `PROPOSED REPLY`. No core helper matches it.
+- **§4.1 — `summary` on a decision card SHOULD state the proposal**, not only the topic, so that a brief's decision line can be decided on its own. The §3 example's `summary` already does. The hermes skills and the goalpath connector follow it.
+
 **Conformance**
 
 - **§11.1** — the mail reader fills `summary` from the message's first lines, whitespace collapsed.

@@ -35,7 +35,7 @@ An order is a card of `kind: order` the person gave through their head (RFC Appe
 }
 ```
 
-- `summary` is one sentence of plain text on one line saying what you did, or why you could not; it is what the person reads in the brief.
+- `summary` is one sentence of plain text on one line saying what you did, or why you could not; it is what the person reads in the brief. If the outcome is a decision card (below), the summary states what you propose, so the person can decide from it alone.
 - `orders.claim_seq` is the `claim_seq` your claim returned. `orders.result` is required: `"done"`, or `"failed"` if you could not do it or stopped because of a `410` (say why in the body).
 - If the result needs the person's approval before it takes effect (a draft to send), make the outcome `kind: "decision"` with `actions`, and act on it later as `pbcp-escalate` describes.
 
