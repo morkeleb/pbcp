@@ -60,6 +60,15 @@ describe('@pbcp/mcp', () => {
     expect((await call('submit_card', { card: toFrontMatter(sample()) })).json).toMatchObject({ status: 200, card: { change_seq: 1 } });
   });
 
+  it('carries summary through in every form, and refuses one with a line break (§4.1)', async () => {
+    const { call } = await setup();
+    const withSummary = { ...sample(), summary: 'Anna asks to pay on the 20th. Approve the reply?' };
+    expect((await call('submit_card', { card: withSummary })).json).toMatchObject({ status: 201, card: { summary: withSummary.summary } });
+    expect((await call('submit_card', { card: toFrontMatter(withSummary) })).json).toMatchObject({ status: 200, card: { summary: withSummary.summary, change_seq: 1 } });
+    const bad = await call('submit_card', { card: { ...sample(), summary: 'two\nlines' } });
+    expect(bad).toMatchObject({ isError: true, json: { status: 400, error: 'invalid_card' } });
+  });
+
   it('returns a 409 with the decision as a result, not an error', async () => {
     const { call, stub } = await setup();
     await call('submit_card', { card: sample() });

@@ -7,7 +7,7 @@ import { HeadClient, HeadHttpError } from '@pbcp/client';
 import { ClaimRefusal, PbcpError, parseCardOrThrow } from '@pbcp/core';
 import { z } from 'zod';
 
-export const VERSION = '0.6.0';
+export const VERSION = '0.7.0';
 
 export interface Config {
   baseUrl: string;
@@ -43,6 +43,8 @@ function refusal(e: unknown): CallToolResult {
 }
 
 const SUBMIT = `Submit a card to the person's head (PBCP §7.1). Pass the card as a JSON object, JSON text, or front-matter text (a YAML header between --- lines, then the markdown body).
+
+Give every card a "summary" (§4.1): one or two sentences of plain text on one line, under 280 characters, saying what is going on and what you want from the person. It is what they read in the brief. No markdown and no line breaks; a summary with a line break, or an empty one, is refused with 400 invalid_card.
 
 Returns { status, card }. 201: new card stored. 200: already current; read card.state and card.decision, since the person may already have answered. 409: the person already decided an earlier version; card carries that decision. Never re-submit the same id after a 409; submit a new card with "supersedes" set to the old id if you still need an answer.`;
 
