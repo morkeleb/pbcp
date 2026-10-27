@@ -1,7 +1,7 @@
 import { createHash } from 'node:crypto';
 import { isId } from '@pbcp/core';
 import { describe, expect, it } from 'vitest';
-import { namespaceOf, summaryOf, toCard } from './mail.js';
+import { namespaceOf, readable, successor, summaryOf, toCard, type Open } from './mail.js';
 
 const raw = (headers: Record<string, string>, body: string) =>
   `${Object.entries(headers).map(([k, v]) => `${k}: ${v}`).join('\r\n')}\r\nContent-Type: text/plain; charset=utf-8\r\n\r\n${body}`;
@@ -17,10 +17,10 @@ const anna = raw(
   },
   'Hi Morten,\r\n\r\n\r\nCan we pay on the 20th?\r\n# not a heading\r\n' + Array.from({ length: 30 }, (_, i) => `line ${i}`).join('\r\n'),
 );
-const cfg = { account: 'morten-example-com', toPerson: 'morten' };
+const cfg = { account: 'morten-example-com', toPerson: 'morten', timeZone: 'UTC' };
 
 describe('toCard', () => {
-  it('maps an INBOX message to a decision card with archive/keep', async () => {
+  it('maps an INBOX message to a decision card with archive (the default) and keep', async () => {
     const { card: c, ref } = await toCard({ mailbox: 'INBOX', uid: 42, source: anna }, cfg);
     expect(isId(c.id)).toBe(true);
     expect(c.id).toBe(`mail:morten-example-com:${createHash('sha256').update('<CA+abc=def@mail.example.com>').digest('hex').slice(0, 24)}`);
@@ -31,13 +31,13 @@ describe('toCard', () => {
       kind: 'decision',
       to_person: 'morten',
       title: 'Invoice timing for September',
-      actions: ['archive', 'keep'],
+      actions: [{ id: 'archive', default: true }, 'keep'],
     });
     expect(Object.keys(c).filter((k) => k.startsWith('x-'))).toEqual([]);
     expect(ref).toEqual({ mailbox: 'INBOX', uid: 42, messageId: '<CA+abc=def@mail.example.com>' });
     expect(c.body).not.toContain('Message-ID');
     expect(c.body).toContain('**From:** "Anna Berg" <anna@nordic.example>');
-    expect(c.body).toContain('**Date:** 2026-10-07T13:02:11.000Z');
+    expect(c.body).toContain('**Date:** Wed 7 Oct 13:02');
     expect(c.body).toContain('> Hi Morten,\n> \n> Can we pay on the 20th?\n> # not a heading');
     expect(c.body).not.toContain('line 20');
     expect(c.summary).toMatch(/^Hi Morten, Can we pay on the 20th\? # not a heading line 0 line 1 .*…$/);
@@ -79,6 +79,45 @@ describe('toCard', () => {
     expect(ref).toEqual({ mailbox: 'Lists', uid: 9, messageId: undefined });
     expect((await toCard({ mailbox: 'Lists', uid: 9, source: bare }, cfg)).card.id).toBe(c.id);
     expect((await toCard({ mailbox: 'Archive', uid: 3, source: bare }, cfg)).card.id).not.toBe(c.id);
+  });
+});
+
+describe('readable', () => {
+  it('writes a local time a person reads at a glance, not an ISO timestamp', () => {
+    expect(readable(new Date('2026-10-26T15:00:00Z'), 'Europe/Copenhagen')).toBe('Mon 26 Oct 16:00');
+    expect(readable(new Date('2026-10-27T09:05:00Z'), 'UTC')).toBe('Tue 27 Oct 09:05');
+    expect(readable(new Date('2026-10-26T23:30:00Z'), 'Europe/Copenhagen')).toBe('Tue 27 Oct 00:30');
+  });
+});
+
+describe('successor (§11.1, §8)', () => {
+  const msg = (n: number) => raw({ From: 'x@y', Subject: 'Re: invoice', 'Message-ID': `<m${n}@x>`, References: '<root@x>' }, `message ${n}`);
+  const at = async (n: number) => toCard({ mailbox: 'INBOX', uid: n, source: msg(n) }, cfg);
+
+  it('records the first message of a thread as its open card, superseding nothing', async () => {
+    const { card, ref } = await at(1);
+    const next = successor(card, ref)!;
+    expect(next.card).toBe(card);
+    expect('supersedes' in next.card).toBe(false);
+    expect(next.open).toEqual({ id: card.id, refs: [{ ...ref, card: card.id }] });
+  });
+
+  it('a new message supersedes the open card, which then covers every message of the thread', async () => {
+    const [a, b, c] = [await at(1), await at(2), await at(3)];
+    const o1 = successor(a.card, a.ref)!.open;
+    const two = successor(b.card, b.ref, o1)!;
+    expect(two.card).toMatchObject({ id: b.card.id, thread: a.card.thread, supersedes: a.card.id });
+    expect(two.open).toEqual({ id: b.card.id, supersedes: a.card.id, refs: [{ ...a.ref, card: a.card.id }, { ...b.ref, card: b.card.id }] });
+    const three = successor(c.card, c.ref, two.open)!;
+    expect(three.card.supersedes).toBe(b.card.id);
+    expect(three.open.refs.map((r) => r.uid)).toEqual([1, 2, 3]);
+  });
+
+  it('produces the open card again with the same supersedes, and skips the messages it superseded', async () => {
+    const [a, b] = [await at(1), await at(2)];
+    const open: Open = successor(b.card, b.ref, successor(a.card, a.ref)!.open)!.open;
+    expect(successor(b.card, b.ref, open)).toEqual({ card: { ...b.card, supersedes: a.card.id }, open });
+    expect(successor(a.card, a.ref, open)).toBeUndefined();
   });
 });
 

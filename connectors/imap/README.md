@@ -2,11 +2,12 @@
 
 An example producer on `@pbcp/client`: it turns unseen IMAP mail into cards (RFC §11.1). It is a reader only. It does not draft replies, send mail or run a model.
 
-- Unseen messages in `INBOX` become `decision` cards with the actions `archive` and `keep`.
+- Unseen messages in `INBOX` become `decision` cards with the actions `archive` (the default, so a bare approve archives) and `keep` (RFC §11.1).
+- A new message in a thread whose card is still open supersedes that card (§8): a thread is decided once, on its latest message, and the decision applies to every message the card covers.
 - Unseen messages in any other listed mailbox become `artifact` cards.
-- The card body is the sender, the date and the first lines of the plain text, quoted.
+- The card body is the sender, the date as a local time (`Mon 26 Oct 16:00`, in the process's `TZ`) and the first lines of the plain text, quoted. The date never says `today`: an open card is produced again on later days, and its content must not change.
 - `summary` (RFC §4.1) is the opening plain text with quoted lines (`>`) left out and whitespace collapsed, cut at a word to at most 200 characters, ending in `…` when cut. A message with no text has no `summary`.
-- On a decision, `archive` moves the message to the archive folder and `keep` marks it `\Seen`. A message that is already gone is not an error. Nothing else is done to the mailbox.
+- On a decision, `archive` moves the card's messages to the archive folder and `keep` marks them `\Seen`. A message that is already gone is not an error. Nothing else is done to the mailbox.
 
 ## Configuration
 
@@ -33,9 +34,24 @@ A card id is `mail:<namespace>:<upstream>` (§5).
 
 A card's `thread` is `thr-<id>` when the server exposes a thread id (Gmail's `X-GM-THRID`, or `OBJECTID`), else `ref-<hash>` of the first `References` entry (or `In-Reply-To`, or the message's own Message-ID). Thread keys are scoped to the producer, but moving the same account to a server with different thread support changes every thread key.
 
+## Threads and supersession
+
+The connector keeps, per thread, the card it believes is open and the messages that card covers. For an inbox message:
+
+- No open card in its thread: the message's card is sent as is and becomes the thread's open card.
+- The open card is this message's card: it is sent again unchanged, with the same `supersedes` as before (re-sending is idempotent, §5).
+- The open card already covers this message (it was superseded): the message is not sent again.
+- Otherwise the message is newer: its card names the open card in `supersedes` and becomes the open card, covering the earlier messages too.
+
+A decision on the open card applies to all its messages and closes the thread; the next message starts a new card that supersedes nothing. A predecessor the person decided before its successor reached the head keeps its decision (§8); the connector acts on it for that card's own message, and the successor's decision applies afterwards to all of them. Messages outside `INBOX` are artifacts and do not take part.
+
 ## Store file
 
-The connector does not rely on the head echoing extension fields. Once the head has answered a decision card (`201`, `200` or `409`), it records the card id → `{ mailbox, uid, messageId }` in the store file, under `state.mail`, next to the sync cursor; a submit that fails records nothing. On a decision it looks the message up by uid and Message-ID in that mailbox, then by Message-ID alone, and removes the entry once it has acted. Losing the store file means decisions on cards produced before the loss are ignored, and the cursor starts again from 0. Entries for cards that are never decided (superseded, or the message read elsewhere) are not pruned; the file grows with them.
+The connector does not rely on the head echoing extension fields. Once the head has answered a decision card (`201`, `200` or `409`), it records the thread's open card in the store file, under `state.thread`, keyed by thread: `{ id, supersedes?, refs: [{ card, mailbox, uid, messageId }] }`, next to the sync cursor; a submit that fails records nothing. On a decision it looks each message up by uid and Message-ID in its mailbox, then by Message-ID alone, and removes the thread's entry once the open card is decided (with any decision; only `archive` and `keep` touch the mailbox). Losing the store file means decisions on cards produced before the loss are ignored, and the cursor starts again from 0.
+
+## Upgrading from 0.7.0
+
+0.7.0 kept one entry per card under `state.mail`. Those entries are no longer read. A message that is still unseen in the inbox recovers on the next pass, as below for 0.3: it is produced again with the same id and recorded as its thread's open card. Delete `state.mail` from the store file afterwards.
 
 ## Upgrading from 0.3
 

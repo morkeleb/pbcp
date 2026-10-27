@@ -44,7 +44,7 @@ The connector checks the task every `TODOIST_POLL_S`, renewing the lease first (
 
 | In Todoist | Outcome `todoist:order:<ulid>:outcome-<claim_seq>` | `exec_state` |
 |---|---|---|
-| Completed | `signal` with `orders.result: done`, `Done: <task content as it is now>`, body `Completed in Todoist at <time>.` | `done` |
+| Completed | `signal` with `orders.result: done`, `Done: <task content as it is now>`, body `Completed in Todoist, <time>.`, the time local to the process (`TZ`): `today 09:12`, or `Mon 26 Oct 16:00` on another day | `done` |
 | Deleted | `signal` with `orders.result: failed`, `Not done: <order title>`, saying the task was deleted without being completed | `failed` |
 | (the person dismisses the order) | `signal` with `orders.result: failed`, `Stopped: <order title>`, saying the task was deleted | stays `cancelled` (the outcome is stale by design, A.5) |
 

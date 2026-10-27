@@ -124,7 +124,8 @@ export function agendaCard(occ: Occurrence[], day: string, cfg: Config, now: Dat
 export function movedCard(o: Occurrence, was: Date, cfg: Config, now: Date): ProducerCard {
   const day = dateOf(o.start, cfg.tz);
   const cal = several(cfg) ? o.calendar : undefined;
-  const at = (d: Date) => (dateOf(d, cfg.tz) === day ? timeOf(d, cfg.tz) : local(d, cfg.tz).slice(0, 16));
+  // Another day reads `Sun 25 Oct 09:15`, never an ISO timestamp.
+  const at = (d: Date) => (dateOf(d, cfg.tz) === day ? '' : `${d.toLocaleDateString('en-GB', { timeZone: cfg.tz, weekday: 'short', day: 'numeric', month: 'short' })} `) + timeOf(d, cfg.tz);
   return card({
     producer: 'cal', namespace: (o.calendar ?? cfg.calendars[0]!).slug, upstream: `${hash(o.key)}-${o.start.toISOString().replace(/[-:]/g, '').slice(0, 13)}Z`, intent: 'moved',
     kind: 'signal', urgency: 'immediate', to_person: cfg.toPerson, thread: `day-${day}`,

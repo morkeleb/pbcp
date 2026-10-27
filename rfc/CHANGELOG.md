@@ -26,6 +26,11 @@ Draft 0.6 is driven by the first real brief rendered by a head. It adds one prod
 - **§4.5 — the proposal heading is matched case-insensitively**: `Proposal`, `Proposed`, `PROPOSED REPLY`. No core helper matches it.
 - **§4.1 — `summary` on a decision card SHOULD state the proposal**, not only the topic, so that a brief's decision line can be decided on its own. The §3 example's `summary` already does. The hermes skills and the goalpath connector follow it.
 
+**After first use on a phone**
+
+- **§11.1 — one decision per mail thread.** A new message in a thread that has an open mail card supersedes that card (§8), so the thread is decided once, on its latest message, and the decision applies to the messages it superseded. A predecessor decided before the successor reached the head keeps its decision, as §8 already requires, and the reader acts on it for that message.
+- **§11.1 — archive is the default.** Inbox cards are `actions: [{id: archive, default: true}, keep]`, so a bare approve gesture (§4.4) archives the message.
+
 **Conformance**
 
 - **§11.1** — the mail reader fills `summary` from the message's first lines, whitespace collapsed.

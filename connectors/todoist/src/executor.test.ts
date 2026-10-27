@@ -4,7 +4,7 @@ import { stubHead } from '@pbcp/client/testing';
 import type { OrderCard } from '@pbcp/core';
 import { describe, expect, it } from 'vitest';
 import { fixtureSource } from './fixture-source.js';
-import { marker, taskFor, todoistRun } from './executor.js';
+import { marker, readable, taskFor, todoistRun } from './executor.js';
 
 const FIX = fileURLToPath(new URL('../fixtures/tasks.json', import.meta.url));
 
@@ -17,7 +17,7 @@ function setup() {
     head: new HeadClient({ baseUrl: 'https://head.test', token: 'todoist', fetch: stub.fetch }),
     store, producer: 'todoist', leaseSeconds: 1, concurrency: 50,
     onError: (e) => void errors.push(e),
-    run: todoistRun(src, { pollMs: 5, onError: (e) => void errors.push(e) }),
+    run: todoistRun(src, { pollMs: 5, onError: (e) => void errors.push(e), now: () => new Date('2026-10-27T12:00:00Z'), timeZone: 'UTC' }),
   });
   const ex = executor(opts());
   const order = (id: string) => stub.cards.get(id) as unknown as OrderCard;
@@ -27,6 +27,15 @@ function setup() {
 }
 
 describe('todoist executor', () => {
+  it('writes the completion time as a readable local time, not an ISO timestamp', () => {
+    const now = new Date('2026-10-27T10:00:00Z');
+    expect(readable('2026-10-27T08:12:00.000000Z', now, 'Europe/Copenhagen')).toBe('today 09:12');
+    expect(readable('2026-10-26T15:00:00Z', now, 'Europe/Copenhagen')).toBe('Mon 26 Oct 16:00');
+    expect(readable('2026-10-26T23:30:00Z', now, 'UTC')).toBe('Mon 26 Oct 23:30');
+    expect(readable('2026-10-26T23:30:00Z', now, 'Europe/Copenhagen')).toBe('today 00:30');
+    expect(readable('soon', now)).toBe('soon');
+  });
+
   it('splits the order into task content, description and due string, and marks it with the order id', () => {
     const o = { id: 'head:order:01JBXZ0000000000000000000B', title: 'Call the plumber', body: 'About the boiler.\nDue: tomorrow 9am\n\nNumber is on the fridge.' } as OrderCard;
     expect(taskFor(o)).toEqual({ content: 'Call the plumber', description: `About the boiler.\n\nNumber is on the fridge.\n\n${marker(o.id)}`, due_string: 'tomorrow 9am' });
@@ -45,7 +54,7 @@ describe('todoist executor', () => {
     await t.ex.idle();
     const out = t.outcome(o)!;
     expect(out).toMatchObject({ kind: 'signal', title: 'Done: Book the dentist', references: [o.id], thread: o.id });
-    expect(out.body).toMatch(/Completed in Todoist at 2026-10-27/);
+    expect(out.body).toBe('Completed in Todoist, today 08:00.');
     expect(out['orders.result']).toBe('done');
     expect(out['orders.claim_seq']).toBe(1);
     expect(t.order(o.id).exec_state).toBe('done');

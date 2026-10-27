@@ -207,9 +207,10 @@ describe('goalpath producer', () => {
   it('produces the digest once a day after GOALPATH_DIGEST_AT, with one gantt', async () => {
     const { pass, at } = setup('2026-10-26T19:30:00Z'); // 20:30 in Copenhagen
     const digest = (await pass()).find((c) => c.id.startsWith('goalpath:digest:'))!;
-    expect(digest).toMatchObject({ id: 'goalpath:digest:2026-10-26', kind: 'artifact', urgency: 'brief', thread: 'p-demo', title: 'GoalPath 26 Oct: 1 done, 1 blocked, 2 milestones late' });
+    expect(digest).toMatchObject({ id: 'goalpath:digest:2026-10-26', kind: 'artifact', urgency: 'brief', thread: 'p-demo', title: 'GoalPath 26 Oct: 1 done, 1 blocked, 2 milestones late', summary: '1 done, 1 blocked, 2 milestones late.' });
     expect('actions' in digest).toBe(false);
     expect(digest.body).toBe([
+      '1 item was accepted in the last 24 hours and 1 is blocked; 2 milestones are forecast past their deadline.', '',
       '```mermaid', 'gantt', '  title Milestone forecasts', '  dateFormat YYYY-MM-DD', '  axisFormat %d %b',
       '  Billing revamp :crit, 2026-09-28, 2026-11-24',
       '  Mobile beta :2026-10-12, 2026-12-04',

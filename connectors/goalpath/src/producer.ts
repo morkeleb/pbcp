@@ -99,15 +99,19 @@ export function digestCard(date: string, items: Item[], ms: Milestone[], trend: 
   const list = (xs: Item[]) => (xs.length ? xs.map((i) => `- ${label(i)}`) : ['- none']);
   const bars = ms.filter((m) => m.projected).slice(0, 20).map((m) => ({ m, start: [m.start ?? date, m.projected!].sort()[0]! })).sort((a, b) => (a.start < b.start ? -1 : a.start > b.start ? 1 : 0));
   const [last, ...before] = [...trend].reverse();
+  const lateCount = ms.filter(late).length;
+  const counts = `${done.length} done, ${blocked.length} blocked, ${lateCount} milestone${lateCount === 1 ? '' : 's'} late`;
+  const are = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`;
   const body = [
+    // The body opens with a sentence, so the card reads on its own before the chart and the lists.
+    `${are(done.length, 'item was', 'items were')} accepted in the last 24 hours and ${are(blocked.length, 'is', 'are')} blocked; ${are(lateCount, 'milestone is', 'milestones are')} forecast past ${lateCount === 1 ? 'its' : 'their'} deadline.`, '',
     ...(bars.length ? ['```mermaid', 'gantt', '  title Milestone forecasts', '  dateFormat YYYY-MM-DD', '  axisFormat %d %b', ...bars.map(({ m, start }) => `  ${ganttTitle(m.name)} :${late(m) ? 'crit, ' : ''}${start}, ${m.projected}`), '```', ''] : []),
     '**Done** (accepted in the last 24 hours)', ...list(done), '', '**Blocked**', ...list(blocked), '',
     `**Unplanned work.** ${last ? `${pct(last)} of completed work in the week of ${short(last.week)}${before.length ? `; the weeks before, newest first: ${before.map(pct).join(', ')}` : ''}.` : 'Not available.'}`,
   ].join('\n');
-  const lateCount = ms.filter(late).length;
   return card({
     ...base(cfg, now), namespace: 'digest', upstream: date, kind: 'artifact', urgency: 'brief', thread: cfg.projectId,
-    title: `GoalPath ${short(date)}: ${done.length} done, ${blocked.length} blocked, ${lateCount} milestone${lateCount === 1 ? '' : 's'} late`, body,
+    title: `GoalPath ${short(date)}: ${counts}`, summary: summary(`${counts}.`), body,
   });
 }
 
