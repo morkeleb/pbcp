@@ -55,6 +55,7 @@ describe('toCard', () => {
       to_person: 'morten',
       urgency: 'log',
       thread: '2026-W44',
+      about: '2026-10-26',
       title: 'Daily note 2026-10-26',
       body: '# Monday\n\nMet Anna about Invoices > September.',
       summary: 'Met Anna about Invoices > September.',

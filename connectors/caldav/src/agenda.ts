@@ -28,6 +28,8 @@ export const slug = (name: string) => name.toLowerCase().replace(/[^a-z0-9]+/g, 
 export const ganttTitle = (s: string) => oneLine(s.replace(/[:#;%]/g, ' ')).replace(KEYWORD, '· $1').slice(0, 40);
 const cell = (s: string) => s.replace(/\s+/g, ' ').trim().replace(/\|/g, '\\|');
 const several = (cfg: Config) => cfg.calendars.length > 1;
+/** §4.1 `labels`: a calendar's name as a label (its slug, cut to 32 characters), at most 8 per card. */
+const labelsOf = (cals: Calendar[]) => ({ labels: [...new Set(cals.map((c) => c.slug.slice(0, 32).replace(/-+$/, '') || 'calendar'))].slice(0, 8) });
 
 /** `CALDAV_CALENDARS`: a JSON list of `{ name, url }`. Names must give distinct namespaces, since moved signals use them. */
 export function parseCalendars(json: string): { name: string; url: string; slug: string }[] {
@@ -116,6 +118,7 @@ export function agendaCard(occ: Occurrence[], day: string, cfg: Config, now: Dat
   const overlapNote = clash.length === 0 ? '' : clash.length === 1 ? ', 1 overlap' : `, ${clash.length} overlaps`;
   return card({
     producer: 'cal', namespace: multi ? 'agenda' : cfg.calendars[0]!.slug, upstream: day, kind: 'artifact', urgency: 'brief', to_person: cfg.toPerson, thread: `day-${day}`,
+    about: day, ...labelsOf(cfg.calendars), // §4.1: the day the agenda is for, and every calendar it merges
     title: events.length === 0 ? `${label}: nothing scheduled` : `${label}: ${count}${timed[0] ? `, first at ${span(timed[0])[0]}` : ''}${overlapNote}`,
     // The first timed event, where it is cheap to say; an empty or all-day-only day has nothing the title does not say.
     summary: timed[0] && clip(`First: ${timed[0].title}, ${span(timed[0]).join('–')}${timed[0].location ? `, ${timed[0].location}` : ''}${multi && timed[0].calendar ? ` (${timed[0].calendar.name})` : ''}.`),
@@ -132,6 +135,7 @@ export function movedCard(o: Occurrence, was: Date, cfg: Config, now: Date): Pro
   return card({
     producer: 'cal', namespace: (o.calendar ?? cfg.calendars[0]!).slug, upstream: `${hash(o.key)}-${o.start.toISOString().replace(/[-:]/g, '').slice(0, 13)}Z`, intent: 'moved',
     kind: 'signal', urgency: 'immediate', to_person: cfg.toPerson, thread: `day-${day}`,
+    about: day, ...labelsOf([o.calendar ?? cfg.calendars[0]!]), // §4.1: the event's new local day, and its calendar
     title: `Moved: ${o.title} now at ${timeOf(o.start, cfg.tz)}${cal ? ` (${cal.name})` : ''}`,
     summary: clip(`${o.title} now starts at ${timeOf(o.start, cfg.tz)}–${at(o.end)} (was ${at(was)})${o.location ? `, ${o.location}` : ''}${cal ? `, in ${cal.name}` : ''}.`),
     body: [`**${o.title}** now starts at ${timeOf(o.start, cfg.tz)}–${at(o.end)} (was ${at(was)}).`]

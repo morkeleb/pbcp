@@ -67,6 +67,16 @@ describe('pbcp submit', () => {
     expect(stub.requests).toHaveLength(1);
   });
 
+  it('submits labels and about from a front-matter file and refuses bad ones locally (§4.1)', async () => {
+    const good = { ...sample(), labels: ['billing-revamp'], about: '2026-10-30' };
+    const { run, out, err, stub } = setup({ 'c.md': toFrontMatter(good), 'bad.json': JSON.stringify({ ...sample(), labels: ['Billing Revamp'] }) });
+    expect(await run('submit', 'c.md')).toBe(0);
+    expect(JSON.parse(out[0]!)).toMatchObject({ status: 201, card: { labels: ['billing-revamp'], about: '2026-10-30' } });
+    expect(await run('submit', 'bad.json')).toBe(1);
+    expect(err[0]).toMatch(/^pbcp: 400 invalid_card: /);
+    expect(stub.requests).toHaveLength(1);
+  });
+
   it('prints a 409 and exits 0', async () => {
     const { run, out, stub } = setup({ 'a.json': toJSON(sample()), 'b.json': toJSON(sample('Changed')) });
     await run('submit', 'a.json');

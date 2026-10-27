@@ -30,6 +30,7 @@ Call `submit_card` with a card object like this:
   "actions": ["approve", "reject", "edit"],
   "thread": "<a key shared by cards about the same matter>",
   "urgency": "brief",
+  "labels": ["nordic-supply"],
   "source": { "url": "https://mail.google.com/mail/u/0/#search/rfc822msgid:CA%2Babc%3Ddef%40mail.example.com", "label": "Open in Gmail" },
   "emitted_at": "<now, UTC, e.g. 2026-10-26T13:02:11Z>"
 }
@@ -40,6 +41,8 @@ Call `submit_card` with a card object like this:
 - **Times** in the title, summary and body are written as a person reads them on a phone, in their local time: "today 09:12", "Mon 26 Oct 16:00". Never an ISO timestamp such as `2026-10-26T15:00:00Z`; that form belongs only in `emitted_at`.
 - **body** is markdown: the evidence first, then the proposal under a heading that begins with `Proposal` or `Proposed`, quoted exactly as you would send it. Keep it short.
 - **source** opens the thing the card is about, so the person can check it in one tap: the mail thread, the calendar event, the document, the issue. The `label` names where it opens ("Open in Gmail", "Open in Calendar", "Open in Docs"). For a Gmail message, use `https://mail.google.com/mail/u/0/#search/rfc822msgid:<Message-ID>`, with the Message-ID header's value without its angle brackets, percent-encoded (`<CA+abc=def@mail.example.com>` becomes `CA%2Babc%3Ddef%40mail.example.com`). Set `source` whenever you can form a URL; leave it out rather than guess one.
+- **labels** name the project or client the card concerns, so the person can filter by them: `["nordic-supply"]`, `["billing-revamp"]`. Each is 1–32 lowercase letters, digits or `-`, at most 8 per card; use the same label for the same project or client every time. Leave them out rather than invent one.
+- **about** is the day the card concerns, as `YYYY-MM-DD`, when that is not the day you send it: tomorrow's agenda, a meeting moved to Friday, an invoice due on the 20th. It is the day as the person means it, with no time and no time zone. Leave it out for a card about now.
 - **actions** are what the person can choose. Include `edit` when the proposal is text they may want to change.
 - Do not add `state`, `decision` or other fields the head sets; they are refused.
 

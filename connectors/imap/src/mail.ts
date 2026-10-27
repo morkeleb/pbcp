@@ -4,14 +4,15 @@ import type { ProducerCard } from '@pbcp/core';
 import { simpleParser } from 'mailparser';
 
 export interface Fetched { mailbox: string; uid: number; threadId?: string; source: Buffer | string }
-export interface MailConfig { account: string; toPerson: string; inbox?: string; timeZone?: string; source?: { url: string; label: string } }
+export interface MailConfig { account: string; toPerson: string; inbox?: string; timeZone?: string; source?: { url: string; label: string }; labels?: string[] }
 /** Where a card's message lives: producer state, never fields on the card (OPEN #41). */
 export interface MailRef { mailbox: string; uid: number; messageId?: string }
 /** A thread's open decision card, as far as this reader knows, and the messages it covers (`card`: the id each was sent as). */
 export interface Open { id: string; supersedes?: string; refs: (MailRef & { card: string })[] }
 const hash = (s: string) => createHash('sha256').update(s).digest('hex').slice(0, 24);
-/** A grammar-valid namespace (§5) from an account name such as an email address. */
+/** A grammar-valid namespace (§5) from an account name such as an email address; a label (§4.1) from a mailbox name the same way, cut to 32. */
 export const namespaceOf = (account: string) => account.toLowerCase().replace(/[^a-z0-9-]+/g, '-').replace(/^-+|-+$/g, '');
+export const labelOf = (name: string) => namespaceOf(name).slice(0, 32).replace(/-+$/, '');
 export const summaryOf = (text: string, max = 200) => ((s: string, cut = s.slice(0, max).replace(/\s+\S*$/, '')) => (s.length <= max ? s : `${cut.length < max ? cut : s.slice(0, max - 1)}…`) || undefined)(text.split(/\r?\n/).filter((l) => !/^\s*>/.test(l)).join(' ').replace(/\s+/g, ' ').trim());
 /** `IMAP_TZ`: an IANA zone, checked at startup (a RangeError names a bad one); unset means UTC. */
 export const zoneOf = (name?: string) => (name ? new Intl.DateTimeFormat('en-GB', { timeZone: name }).resolvedOptions().timeZone : undefined);
@@ -36,7 +37,7 @@ export async function toCard(m: Fetched, cfg: MailConfig, maxLines = 12): Promis
   const excerpt = (mail.text ?? '').split(/\r?\n/).map((l) => l.trimEnd()).filter((l, i, a) => l !== '' || a[i - 1] !== '').slice(0, maxLines).join('\n').trim().slice(0, 4000);
   const c = card({
     producer: 'mail', namespace: cfg.account, upstream: hash(messageId), kind: inbox ? 'decision' : 'artifact', to_person: cfg.toPerson,
-    thread: m.threadId ? `thr-${m.threadId}` : `ref-${hash(refs[0] ?? mail.inReplyTo ?? messageId)}`,
+    thread: m.threadId ? `thr-${m.threadId}` : `ref-${hash(refs[0] ?? mail.inReplyTo ?? messageId)}`, labels: [...new Set([labelOf(m.mailbox), ...(cfg.labels ?? [])].filter(Boolean))].slice(0, 8),
     title: (mail.subject ?? '').replace(/\s+/g, ' ').trim() || '(no subject)', summary: summaryOf(mail.text ?? ''), source: sourceOf(cfg.source, mail.messageId, m.uid),
     body: [`- **From:** ${mail.from?.text ?? 'unknown'}`, `- **Date:** ${mail.date ? readable(mail.date, cfg.timeZone) : 'unknown'}`]
       .concat(excerpt ? ['', excerpt.replace(/^/gm, '> ')] : [])

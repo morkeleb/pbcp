@@ -46,6 +46,8 @@ const SUBMIT = `Submit a card to the person's head (PBCP §7.1). Pass the card a
 
 Give every card a "summary" (§4.1): one or two sentences of plain text on one line, under 280 characters, saying what is going on and what you want from the person. It is what they read in the brief. No markdown and no line breaks; a summary with a line break, or an empty one, is refused with 400 invalid_card.
 
+Set "labels" (§4.1) to the project, client or mailbox the card concerns, so the person can filter by them: a list of up to 8, each 1–32 lowercase letters, digits or "-" (["billing-revamp"]). Set "about" to the day the card is about, as YYYY-MM-DD, when that is not today: tomorrow's agenda, a meeting moved to Friday. Either one broken is refused with 400 invalid_card.
+
 Returns { status, card }. 201: new card stored. 200: already current; read card.state and card.decision, since the person may already have answered. 409: the person already decided an earlier version; card carries that decision. Never re-submit the same id after a 409; submit a new card with "supersedes" set to the old id if you still need an answer.`;
 
 const POLL = `Read what changed on your cards since a cursor (PBCP §7.2). Pass after = 0 the first time, then the "next" from the previous call.

@@ -2,7 +2,7 @@ import { card, type StateStore, type SubmitResponse } from '@pbcp/client';
 import { encodeUpstream as enc, type Card, type ProducerCard } from '@pbcp/core';
 import type { Check, CodeLink, Edge, GoalPathSource, Item, Milestone, Week } from './source.js';
 
-export interface Config { toPerson: string; projectId: string; tz: string; digestAt?: string; approvalStatus?: string; milestones?: string[]; trendWeeks?: number }
+export interface Config { toPerson: string; projectId: string; tz: string; /** The project's label (§4.1), from `labelOf`. */ label?: string; digestAt?: string; approvalStatus?: string; milestones?: string[]; trendWeeks?: number }
 /** One mirrored approval round. `card` is its id; `left` is set once the item was seen out of the queue after the round closed; `url` is the
  *  item's, kept so the answered card can link to it after the item leaves your list. */
 export interface Approval { card: string; round: number; label: string; thread: string; prev?: string; url?: string; submitted?: boolean; decided?: boolean; answered?: boolean; left?: boolean }
@@ -23,13 +23,18 @@ const late = (m: Milestone) => !!(m.projected && m.deadline && m.projected > m.d
 const label = (i: Item) => `${i.number} ${i.title}`;
 const base = (cfg: Config, now: Date) => ({ producer: 'goalpath', to_person: cfg.toPerson, emitted_at: now.toISOString() });
 const source = (url: string | undefined, label: string) => (url ? { source: { url, label } } : {});
+/** A §4.1 label from a name: lowercase letters, digits and `-`, at most 32 characters; undefined when nothing is left. */
+export const labelOf = (name: string) =>
+  name.normalize('NFKD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 32).replace(/-+$/, '') || undefined;
+/** `labels`: the project's, then the milestone's when there is one; none when neither gives a label. */
+const labels = (cfg: Config, m?: Milestone) => ((ls) => (ls.length ? { labels: ls } : {}))([...new Set([cfg.label, m && labelOf(m.name)].filter((l): l is string => !!l))]);
 /** §4.1 `summary`: one line of plain text, cut to 280 characters. */
 const summary = (s: string) => ((t) => (t.length > 280 ? `${t.slice(0, 279)}…` : t))(s.replace(/\s+/g, ' ').trim());
 
 /** A risk signal when the forecast is past the deadline and differs from the chain's current card; back on track when it recovers. */
 export function riskCard(m: Milestone, prev: Risk | undefined, all: Milestone[], edges: Edge[], cfg: Config, now: Date): ProducerCard | undefined {
   if (!m.projected || !m.deadline) return undefined;
-  const common = { ...base(cfg, now), namespace: 'milestone', upstream: `${enc(m.id)}.${m.projected.replace(/-/g, '')}`, kind: 'signal' as const, urgency: 'brief' as const, thread: m.id, supersedes: prev?.card, ...source(m.url, 'GoalPath milestone') };
+  const common = { ...base(cfg, now), namespace: 'milestone', upstream: `${enc(m.id)}.${m.projected.replace(/-/g, '')}`, kind: 'signal' as const, urgency: 'brief' as const, thread: m.id, supersedes: prev?.card, ...source(m.url, 'GoalPath milestone'), ...labels(cfg, m) };
   if (!late(m)) {
     if (!prev?.slipping) return undefined;
     return card({ ...common, intent: 'on-track', title: `${m.name}: back on track, forecast ${short(m.projected)} (deadline ${short(m.deadline)})`,
@@ -67,25 +72,25 @@ export function approvalCard(i: Item, m: Milestone | undefined, a: Approval, cfg
   ].join('\n');
   return card({
     ...base(cfg, now), namespace: 'approval', upstream: a.card.slice('goalpath:approval:'.length), kind: 'decision', urgency: 'brief', thread: a.thread, supersedes: a.prev,
-    title: `Accept ${label(i)}?`, body, ...source(i.url, 'GoalPath item'),
+    title: `Accept ${label(i)}?`, body, ...source(i.url, 'GoalPath item'), ...labels(cfg, m),
     // §4.1: on a decision card the summary states the proposal, so the brief's line can be decided on its own.
     summary: summary(`${label(i)} is ${i.status}${m ? ` in ${m.name}` : ''} and waiting for your acceptance. Proposed: accept it, which sets it to Accepted in GoalPath.`),
     actions: [{ id: 'accept', label: 'Accept', body: `Sets ${i.number} to Accepted.` }, { id: 'reject', label: 'Reject', body: `Sets ${i.number} to Rejected.` }],
   });
 }
 
-export function answeredCard(a: Approval, item: Item | undefined, cfg: Config, now: Date): ProducerCard {
+export function answeredCard(a: Approval, item: Item | undefined, cfg: Config, now: Date, m?: Milestone): ProducerCard {
   const where = item ? `it is now ${item.status}` : 'it is no longer assigned to you';
   return card({
     ...base(cfg, now), namespace: 'approval', upstream: a.card.slice('goalpath:approval:'.length), intent: 'answered', kind: 'signal', urgency: 'brief', thread: a.thread, supersedes: a.card,
-    title: `${a.label}: answered in GoalPath`, ...source(item?.url ?? a.url, 'GoalPath item'), summary: summary(`${a.label} left the acceptance queue in GoalPath; ${where}.`), body: `**${a.label}** left the acceptance queue in GoalPath; ${where}. Nothing to decide here.`,
+    title: `${a.label}: answered in GoalPath`, ...source(item?.url ?? a.url, 'GoalPath item'), ...labels(cfg, m), summary: summary(`${a.label} left the acceptance queue in GoalPath; ${where}.`), body: `**${a.label}** left the acceptance queue in GoalPath; ${where}. Nothing to decide here.`,
   });
 }
 
 export function buildCard(i: Item, l: CodeLink, ch: Check, m: Milestone | undefined, cfg: Config, now: Date): ProducerCard {
   const ref = l.url ? `[${l.ref}](${l.url})` : l.ref;
   return card({
-    ...base(cfg, now), namespace: 'build', upstream: enc(ch.runId), kind: 'signal', urgency: 'immediate', thread: i.milestoneId ?? cfg.projectId,
+    ...base(cfg, now), namespace: 'build', upstream: enc(ch.runId), kind: 'signal', urgency: 'immediate', thread: i.milestoneId ?? cfg.projectId, ...labels(cfg, m),
     title: `Build failed: ${ch.name} on ${l.ref} (${i.number})`,
     summary: summary(`${ch.name} ended ${ch.conclusion} on ${l.ref}, linked to ${label(i)}${m ? ` in ${m.name}` : ''}.`),
     body: `**${ch.name}** ended \`${ch.conclusion}\` on ${ref}${l.title ? ` ${l.title}` : ''}, linked to **${label(i)}**${m ? ` in ${m.name}` : ''}.`,
@@ -111,7 +116,7 @@ export function digestCard(date: string, items: Item[], ms: Milestone[], trend: 
     `**Unplanned work.** ${last ? `${pct(last)} of completed work in the week of ${short(last.week)}${before.length ? `; the weeks before, newest first: ${before.map(pct).join(', ')}` : ''}.` : 'Not available.'}`,
   ].join('\n');
   return card({
-    ...base(cfg, now), namespace: 'digest', upstream: date, kind: 'artifact', urgency: 'brief', thread: cfg.projectId,
+    ...base(cfg, now), namespace: 'digest', upstream: date, kind: 'artifact', urgency: 'brief', thread: cfg.projectId, ...labels(cfg),
     title: `GoalPath ${short(date)}: ${counts}`, body,
     summary: summary(`${done.length} done, ${blocked.length} blocked and ${lateCount} milestone${lateCount === 1 ? '' : 's'} late in GoalPath on ${short(date)}.`),
   });
@@ -165,7 +170,8 @@ export function goalpathProducer(gp: GoalPathSource, store: StateStore, cfg: Con
       for (const [id, a] of await approvals()) {
         if (queue.has(id) || !a.submitted || a.left) continue;
         if (closed(a)) { await setApproval(id, { ...a, left: true }); continue; }
-        yield after(answeredCard(a, items.find((i) => i.id === id), cfg, now), async (r) => void (ok(r) && (await setApproval(id, { ...a, answered: true, left: true }))));
+        const item = items.find((i) => i.id === id);
+        yield after(answeredCard(a, item, cfg, now, byId.get(item?.milestoneId ?? '')), async (r) => void (ok(r) && (await setApproval(id, { ...a, answered: true, left: true }))));
       }
 
       const runs = new Set<string>();

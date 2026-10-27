@@ -1,7 +1,7 @@
 import { createHash } from 'node:crypto';
 import { isId } from '@pbcp/core';
 import { describe, expect, it } from 'vitest';
-import { namespaceOf, readable, sourceOf, successor, summaryOf, toCard, zoneOf, type Open } from './mail.js';
+import { labelOf, namespaceOf, readable, sourceOf, successor, summaryOf, toCard, zoneOf, type Open } from './mail.js';
 
 const raw = (headers: Record<string, string>, body: string) =>
   `${Object.entries(headers).map(([k, v]) => `${k}: ${v}`).join('\r\n')}\r\nContent-Type: text/plain; charset=utf-8\r\n\r\n${body}`;
@@ -162,6 +162,24 @@ describe('successor (§11.1, §8)', () => {
     const open: Open = successor(b.card, b.ref, successor(a.card, a.ref)!.open)!.open;
     expect(successor(b.card, b.ref, open)).toEqual({ card: { ...b.card, supersedes: a.card.id }, open });
     expect(successor(a.card, a.ref, open)).toBeUndefined();
+  });
+});
+
+describe('labels (§4.1)', () => {
+  it('labels a card with its mailbox, then the fixed IMAP_LABELS, without repeats', async () => {
+    expect((await toCard({ mailbox: 'INBOX', uid: 42, source: anna }, cfg)).card.labels).toEqual(['inbox']);
+    expect((await toCard({ mailbox: '[Gmail]/All Mail', uid: 7, source: anna }, cfg)).card.labels).toEqual(['gmail-all-mail']);
+    expect((await toCard({ mailbox: 'INBOX', uid: 42, source: anna }, { ...cfg, labels: ['work', 'inbox'] })).card.labels).toEqual(['inbox', 'work']);
+    const many = Array.from({ length: 10 }, (_, i) => `l${i}`);
+    expect((await toCard({ mailbox: 'INBOX', uid: 42, source: anna }, { ...cfg, labels: many })).card.labels).toHaveLength(8);
+  });
+
+  it('makes a label from a mailbox name or an IMAP_LABELS entry', () => {
+    expect(labelOf('INBOX')).toBe('inbox');
+    expect(labelOf(' Clients / Nordic Supply ')).toBe('clients-nordic-supply');
+    expect(labelOf('x'.repeat(40))).toBe('x'.repeat(32));
+    expect(labelOf('a'.repeat(31) + '/b')).toBe('a'.repeat(31));
+    expect(labelOf('///')).toBe('');
   });
 });
 
