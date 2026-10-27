@@ -24,7 +24,7 @@ export type State = (typeof STATES)[number];
 const RFC3339_UTC = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2}):(\d{2})(?:\.\d+)?(?:Z|[+-]00:00)$/;
 
 /** RFC 3339 in UTC (§2): the shape, and a date and time that exist (a leap second is allowed). */
-function isUtcTimestamp(s: string): boolean {
+export function isUtcTimestamp(s: string): boolean {
   const m = RFC3339_UTC.exec(s);
   if (!m) return false;
   const [y, mo, d, h, mi, sec] = m.slice(1).map(Number) as [number, number, number, number, number, number];

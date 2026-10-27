@@ -3,7 +3,7 @@
 
 import {
   acknowledge, applyOutcome, CARD_LIMIT_BYTES, checkOutcome, checkSubmission, claim, ClaimRefusal, decide, expireIfDue, isOrder,
-  markSeen, mintOrder, parseCardOrThrow, PbcpError, PROTOCOL, submit, ulid, visibleTo,
+  markSeen, mintOrder, snooze, unsnooze, parseCardOrThrow, PbcpError, PROTOCOL, submit, ulid, visibleTo,
   type Card, type Decision, type OrderCard, type Urgency,
 } from '../../src/index.js';
 import type { HeadUnderTest, Response } from '../types.js';
@@ -163,6 +163,10 @@ export function inProcessHead(opts: InProcessOptions = {}): HeadUnderTest {
 
     async acknowledge(id) {
       return ownerOp(id, (c) => acknowledge(c, now));
+    },
+
+    async snooze(id, until) {
+      return ownerOp(id, (c) => (until === null ? unsnooze(c, now) : snooze(c, until, now)));
     },
 
     clock: {

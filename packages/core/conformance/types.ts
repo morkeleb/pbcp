@@ -28,6 +28,8 @@ export interface HeadUnderTest {
   seen(cardId: string): Promise<Response>;
   /** The owner explicitly acknowledges an artifact or signal (§4.2). */
   acknowledge(cardId: string): Promise<Response>;
+  /** The owner snoozes an open card until `until` (sets `snoozed_until`, §4.2), or clears it when `until` is null. */
+  snooze(cardId: string, until: string | null): Promise<Response>;
   /** Orders extension (Appendix A): the owner gives an order; the head mints `head:order:<ulid>`. Body: the order card. */
   order?(input: { to_producer: string; title: string; body: string }): Promise<Response>;
   /** Orders extension: `POST /cards/{id}/claim` with `{ lease_seconds }` as the producer holding `token` (A.2). */

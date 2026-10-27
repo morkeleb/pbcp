@@ -7,7 +7,7 @@
 
 import { z } from 'zod';
 import {
-  BUILTIN_DECISIONS, EDIT_ACTION, actionId, effectiveActions, equal, producerPart,
+  BUILTIN_DECISIONS, EDIT_ACTION, actionId, effectiveActions, equal, isUtcTimestamp, producerPart,
   type Card, type ProducerCard, type Urgency,
 } from './card.js';
 import { PbcpError } from './errors.js';
@@ -27,6 +27,10 @@ export type SubmitResult =
   | { status: 409; card: Card; changed: []; superseded?: undefined };
 
 export type DecideResult =
+  | { status: 200; card: Card; changed: Card[] }
+  | { status: 409; card: Card; changed: [] };
+
+export type SnoozeResult =
   | { status: 200; card: Card; changed: Card[] }
   | { status: 409; card: Card; changed: [] };
 
@@ -166,6 +170,29 @@ export function acknowledge(stored: Card, now: string): UpdateResult {
 export function markSeen(stored: Card, now: string): UpdateResult {
   if (stored.seen_at !== undefined) return { status: 200, card: stored, changed: [] };
   const card: Card = { ...stored, seen_at: now, changed_at: now };
+  return { status: 200, card, changed: [card] };
+}
+
+/**
+ * §4.2 `snoozed_until`, §6: the owner hides an `open` card from the brief until `until`. Not a transition; the card
+ * stays `open` and producers still see it. A card that is no longer open is a 409 result carrying the stored card.
+ */
+export function snooze(stored: Card, until: string, now: string): SnoozeResult {
+  if (!isUtcTimestamp(until) || Date.parse(until) <= Date.parse(now)) {
+    throw new PbcpError('invalid_snooze', `until must be a UTC timestamp later than ${now}, got ${JSON.stringify(until)}`);
+  }
+  if (stored.state !== 'open') return { status: 409, card: stored, changed: [] };
+  if (stored.snoozed_until === until) return { status: 200, card: stored, changed: [] };
+  const card: Card = { ...stored, snoozed_until: until, changed_at: now };
+  return { status: 200, card, changed: [card] };
+}
+
+/** Clears `snoozed_until` on an `open` card. A card that is no longer open is a 409 result, as for `snooze`. */
+export function unsnooze(stored: Card, now: string): SnoozeResult {
+  if (stored.state !== 'open') return { status: 409, card: stored, changed: [] };
+  if (stored.snoozed_until === undefined) return { status: 200, card: stored, changed: [] };
+  const { snoozed_until: _, ...rest } = stored;
+  const card: Card = { ...rest, changed_at: now };
   return { status: 200, card, changed: [card] };
 }
 

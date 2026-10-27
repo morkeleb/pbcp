@@ -98,6 +98,9 @@ export async function runFixture(fixture: Fixture, adapters: Adapters): Promise<
       case 'acknowledge':
         res = await needHead().acknowledge(String(args.id));
         break;
+      case 'snooze':
+        res = await needHead().snooze(String(args.id), args.until === null || args.until === undefined ? null : String(args.until));
+        break;
       case 'clock':
         await needHead().clock.set(String(args.set));
         res = { status: 200, body: {} };

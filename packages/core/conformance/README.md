@@ -49,6 +49,7 @@ Each step runs its `op` with `args`, checks the result against `expect`, then ev
 | `decideWithToken` | `token`, `id`, `decision` | `{ status, body }` — the same request with a producer token instead of the owner's credential |
 | `seen` | `id` | `{ status, body }` — the head presents the card to its owner (sets `seen_at`) |
 | `acknowledge` | `id` | `{ status, body }` — the owner explicitly acknowledges an artifact or signal |
+| `snooze` | `id`, `until` (RFC 3339, or `null` to clear) | `{ status, body }` — the owner snoozes an open card (sets `snoozed_until`) or clears it |
 | `clock` | `set` (RFC 3339) | sets the head clock |
 
 ### Render ops (`RenderUnderTest`)
@@ -150,6 +151,7 @@ Dot-separated: `body.change_seq`, `body.changes.0.seq`. A segment `[k=v]` select
 | C34 | Orders: `lease_seconds` that is not a positive integer → 400 `invalid_lease`; nothing changes | A.2, §7.4 |
 | C35 | Orders: a lease belongs to the root; a second token under it renews and posts the outcome | A.1–A.3 |
 | C36 | Orders: outcome ids are per claim; a re-run's outcome is a new card and only the current claim's moves `exec_state` | A.3, A.4 |
+| C37 | Snooze sets `snoozed_until` with a new `change_seq`; the card stays `open` and in sync; clearing it takes another | §4.2, §6 |
 | R01 | Each core-tier type renders; the text around it is intact | §3.1 |
 | R02 | An unknown diagram type falls back with its label; text intact | §3.1 |
 | R03 | A fence with a parse error falls back with a parser message (shown, its wording the renderer's); the other fences still render | §3.1 |
