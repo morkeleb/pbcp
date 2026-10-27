@@ -1,0 +1,226 @@
+{
+  "name": "C36 outcome ids are per claim: a re-run's outcome is a new card beside the first, and only the current claim's moves exec_state",
+  "rfc": [
+    "A.3",
+    "A.4"
+  ],
+  "extension": "orders",
+  "steps": [
+    {
+      "op": "clock",
+      "args": {
+        "set": "2026-10-07T09:00:00Z"
+      }
+    },
+    {
+      "op": "syncAll",
+      "args": {
+        "token": "hermes",
+        "executor": true,
+        "after": 0
+      },
+      "expect": {
+        "status": 200,
+        "body": {
+          "changes": {
+            "$len": 0
+          }
+        }
+      }
+    },
+    {
+      "op": "order",
+      "args": {
+        "to_producer": "*",
+        "title": "Book the dentist",
+        "body": "Any weekday morning."
+      },
+      "expect": {
+        "status": 201
+      },
+      "save": {
+        "o": "body.id"
+      }
+    },
+    {
+      "op": "claim",
+      "args": {
+        "token": "hermes",
+        "executor": true,
+        "id": {
+          "$var": "o"
+        },
+        "lease": 60
+      },
+      "expect": {
+        "status": 200,
+        "body": {
+          "claim_seq": 1
+        }
+      }
+    },
+    {
+      "op": "clock",
+      "args": {
+        "set": "2026-10-07T09:01:00Z"
+      }
+    },
+    {
+      "op": "claim",
+      "args": {
+        "token": "hermes",
+        "executor": true,
+        "id": {
+          "$var": "o"
+        },
+        "lease": 60
+      },
+      "expect": {
+        "status": 200,
+        "body": {
+          "claim_seq": 2
+        }
+      }
+    },
+    {
+      "op": "put",
+      "args": {
+        "token": "hermes",
+        "executor": true,
+        "card": {
+          "protocol": "pbcp/1",
+          "id": "hermes:order:o1:outcome-1",
+          "kind": "signal",
+          "to_person": "morten",
+          "producer": "hermes",
+          "title": "Crashed halfway",
+          "body": "Booked for Tuesday.",
+          "emitted_at": "2026-10-07T09:00:00Z",
+          "thread": {
+            "$var": "o"
+          },
+          "references": [
+            {
+              "$var": "o"
+            }
+          ],
+          "orders.claim_seq": 1,
+          "orders.result": "failed"
+        }
+      },
+      "expect": {
+        "status": 201
+      }
+    },
+    {
+      "op": "syncAll",
+      "args": {
+        "token": "hermes",
+        "executor": true,
+        "after": 0
+      },
+      "expect": {
+        "status": 200,
+        "body": {
+          "changes": {
+            "$contains": [
+              {
+                "card": {
+                  "id": {
+                    "$var": "o"
+                  },
+                  "exec_state": "claimed",
+                  "claim_seq": 2
+                }
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "op": "put",
+      "args": {
+        "token": "hermes",
+        "executor": true,
+        "card": {
+          "protocol": "pbcp/1",
+          "id": "hermes:order:o1:outcome-2",
+          "kind": "signal",
+          "to_person": "morten",
+          "producer": "hermes",
+          "title": "Done",
+          "body": "Booked for Tuesday.",
+          "emitted_at": "2026-10-07T09:00:00Z",
+          "thread": {
+            "$var": "o"
+          },
+          "references": [
+            {
+              "$var": "o"
+            }
+          ],
+          "orders.claim_seq": 2,
+          "orders.result": "done"
+        }
+      },
+      "expect": {
+        "status": 201
+      }
+    },
+    {
+      "op": "syncAll",
+      "args": {
+        "token": "hermes",
+        "executor": true,
+        "after": 0
+      },
+      "expect": {
+        "status": 200,
+        "body": {
+          "changes": {
+            "$contains": [
+              {
+                "card": {
+                  "id": {
+                    "$var": "o"
+                  },
+                  "exec_state": "done"
+                }
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "op": "syncAll",
+      "args": {
+        "token": "hermes",
+        "executor": true,
+        "after": 0
+      },
+      "expect": {
+        "status": 200,
+        "body": {
+          "changes": {
+            "$contains": [
+              {
+                "card": {
+                  "id": "hermes:order:o1:outcome-1",
+                  "orders.result": "failed"
+                }
+              },
+              {
+                "card": {
+                  "id": "hermes:order:o1:outcome-2",
+                  "orders.result": "done"
+                }
+              }
+            ]
+          }
+        }
+      }
+    }
+  ]
+}

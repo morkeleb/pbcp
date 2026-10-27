@@ -11,7 +11,7 @@ describe('PbcpError', () => {
   });
 
   it('only uses the §7.4 refusal codes', () => {
-    expect(new Set(Object.values(ERROR_CODES))).toEqual(new Set([400, 401, 403, 404, 409, 413, 429]));
+    expect(new Set(Object.values(ERROR_CODES))).toEqual(new Set([400, 401, 403, 404, 409, 410, 413, 429]));
   });
 
   it('carries Retry-After seconds when given', () => {

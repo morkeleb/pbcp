@@ -1,5 +1,5 @@
 {
-  "name": "C18 an outcome with a stale orders.claim_seq is stored but leaves exec_state alone; the current lease's outcome moves it to done; a terminal order never changes",
+  "name": "C18 an outcome with a stale orders.claim_seq is stored but leaves exec_state alone; the current lease's outcome moves it to done; a terminal order never changes; an outcome without orders.result is 400",
   "rfc": [
     "A.3"
   ],
@@ -101,7 +101,7 @@
         "executor": true,
         "card": {
           "protocol": "pbcp/1",
-          "id": "hermes:order:o1:outcome",
+          "id": "hermes:order:o1:outcome-1",
           "kind": "signal",
           "to_person": "morten",
           "producer": "hermes",
@@ -116,7 +116,8 @@
               "$var": "o"
             }
           ],
-          "orders.claim_seq": 1
+          "orders.claim_seq": 1,
+          "orders.result": "done"
         }
       },
       "expect": {
@@ -137,7 +138,7 @@
             "$contains": [
               {
                 "card": {
-                  "id": "hermes:order:o1:outcome",
+                  "id": "hermes:order:o1:outcome-1",
                   "orders.claim_seq": 1
                 }
               }
@@ -180,7 +181,7 @@
         "executor": true,
         "card": {
           "protocol": "pbcp/1",
-          "id": "cal:order:o1:outcome",
+          "id": "cal:order:o1:outcome-2",
           "kind": "signal",
           "to_person": "morten",
           "producer": "cal",
@@ -196,6 +197,39 @@
             }
           ],
           "orders.claim_seq": 2
+        }
+      },
+      "expect": {
+        "status": 400,
+        "body": {
+          "error": "invalid_card"
+        }
+      }
+    },
+    {
+      "op": "put",
+      "args": {
+        "token": "cal",
+        "executor": true,
+        "card": {
+          "protocol": "pbcp/1",
+          "id": "cal:order:o1:outcome-2",
+          "kind": "signal",
+          "to_person": "morten",
+          "producer": "cal",
+          "title": "Done",
+          "body": "Booked for Tuesday.",
+          "emitted_at": "2026-10-07T09:00:00Z",
+          "thread": {
+            "$var": "o"
+          },
+          "references": [
+            {
+              "$var": "o"
+            }
+          ],
+          "orders.claim_seq": 2,
+          "orders.result": "done"
         }
       },
       "expect": {
@@ -237,7 +271,7 @@
         "executor": true,
         "card": {
           "protocol": "pbcp/1",
-          "id": "cal:order:o2:outcome",
+          "id": "cal:order:o1:outcome-2b",
           "kind": "signal",
           "to_person": "morten",
           "producer": "cal",

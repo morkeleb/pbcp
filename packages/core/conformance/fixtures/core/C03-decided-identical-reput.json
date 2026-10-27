@@ -1,10 +1,10 @@
 {
-  "name": "C03 identical re-PUT of a decided card returns 200 with the decision in the body",
+  "name": "C03 identical re-PUT of a decided card returns 200 with the decision in the body; presenting or acknowledging an unknown id returns 404",
   "rfc": [
-    "§5",
-    "§7.1",
-    "§7.3",
-    "§7.4"
+    "\u00a75",
+    "\u00a77.1",
+    "\u00a77.3",
+    "\u00a77.4"
   ],
   "steps": [
     {
@@ -150,6 +150,30 @@
       },
       "expect": {
         "status": 404
+      }
+    },
+    {
+      "op": "seen",
+      "args": {
+        "id": "goalpath:item:nope"
+      },
+      "expect": {
+        "status": 404,
+        "body": {
+          "error": "not_found"
+        }
+      }
+    },
+    {
+      "op": "acknowledge",
+      "args": {
+        "id": "goalpath:item:nope"
+      },
+      "expect": {
+        "status": 404,
+        "body": {
+          "error": "not_found"
+        }
       }
     }
   ]

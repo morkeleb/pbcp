@@ -35,9 +35,10 @@ export async function runFixture(fixture: Fixture, adapters: Adapters): Promise<
   const tokens = new Map<string, string>();
   const vars: Vars = {};
 
-  const tokenFor = async (root: unknown, ceiling?: unknown, executor?: unknown): Promise<string> => {
+  /** `instance` names a further token under the same root, so a fixture can act as two installations of one producer. */
+  const tokenFor = async (root: unknown, ceiling?: unknown, executor?: unknown, instance?: unknown): Promise<string> => {
     if (!head) throw new Error('no HeadUnderTest');
-    const key = `${String(root)}|${String(ceiling ?? '')}|${executor === true}`;
+    const key = `${String(root)}|${String(ceiling ?? '')}|${executor === true}|${String(instance ?? '')}`;
     const opts = { ...(ceiling === undefined ? {} : { ceiling: ceiling as Urgency }), ...(executor === true ? { executor: true } : {}) };
     if (!tokens.has(key)) tokens.set(key, await head.token(String(root), Object.keys(opts).length ? opts : undefined));
     return tokens.get(key)!;
@@ -46,7 +47,7 @@ export async function runFixture(fixture: Fixture, adapters: Adapters): Promise<
   const credential = async (args: Record<string, unknown>): Promise<string | null> => {
     if (args.credential === 'none') return null;
     if (args.credential === 'invalid') return INVALID_TOKEN;
-    return tokenFor(args.token, args.ceiling, args.executor);
+    return tokenFor(args.token, args.ceiling, args.executor, args.instance);
   };
   const needHead = (): HeadUnderTest => {
     if (!head) throw new Error('fixture needs a HeadUnderTest');
@@ -85,7 +86,7 @@ export async function runFixture(fixture: Fixture, adapters: Adapters): Promise<
       case 'claim': {
         const h = needHead();
         if (!h.claim) throw new Error('fixture needs HeadUnderTest.claim (orders extension)');
-        res = await h.claim(await tokenFor(args.token, args.ceiling, args.executor), String(args.id), Number(args.lease));
+        res = await h.claim(await tokenFor(args.token, args.ceiling, args.executor, args.instance), String(args.id), Number(args.lease));
         break;
       }
       case 'decideWithToken':
@@ -98,7 +99,7 @@ export async function runFixture(fixture: Fixture, adapters: Adapters): Promise<
         res = await needHead().acknowledge(String(args.id));
         break;
       case 'clock':
-        needHead().clock.set(String(args.set));
+        await needHead().clock.set(String(args.set));
         res = { status: 200, body: {} };
         break;
       case 'render':

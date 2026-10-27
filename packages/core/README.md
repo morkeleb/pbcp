@@ -1,8 +1,8 @@
 # @pbcp/core
 
-The Personal Brief Card Protocol (draft 0.4), as pure functions: no I/O, no clock, no storage. A head is mostly plumbing around these calls; a producer uses them to build and check cards before sending.
+The Personal Brief Card Protocol (draft 0.5), as pure functions: no I/O, no clock, no storage. A head is mostly plumbing around these calls; a producer uses them to build and check cards before sending.
 
-The specification is [`rfc/pbcp-draft-0.4.md`](https://github.com/morkeleb/pbcp/blob/main/rfc/pbcp-draft-0.4.md). Section numbers below refer to it.
+The specification is [`rfc/pbcp-draft-0.5.md`](https://github.com/morkeleb/pbcp/blob/main/rfc/pbcp-draft-0.5.md). Section numbers below refer to it.
 
 ```ts
 import { parseCard, toFrontMatter, toJSON, equal, submit, decide, checkSubmission } from '@pbcp/core';
@@ -15,8 +15,8 @@ import { parseCard, toFrontMatter, toJSON, equal, submit, decide, checkSubmissio
 | `equal(a, b)` | Semantic equality (§5). |
 | `parseId`, `sameNamespace`, `inRoot`, `encodeUpstream`, `decodeUpstream` | The id grammar, including percent-encoded upstream ids (§5). |
 | `parseYaml`, `stringifyYaml` | The restricted YAML subset (§3). |
-| `checkSubmission`, `submit`, `decide`, `canSupersede`, `acknowledge`, `markSeen` | Lifecycle transitions (§5–§8). Each returns its effect, including `changed`: the cards to persist, in the order the head assigns them `change_seq`. Nothing here touches the counter. `submit(stored, incoming, now, target, ceiling?)` sets the head-owned `delivery` from the producer's urgency ceiling (§9), which the head passes in. |
-| `mintOrder`, `visibleTo`, `claim`, `renew`, `expireIfDue`, `applyOutcome`, `ulid`, `ulidOf` | The orders extension (Appendix A), pure like the lifecycle: the head mints orders, keeps the wildcard eligibility snapshot, and applies leases and outcomes with its own clock. `decide` takes `dismissed` on an order and cancels it. |
+| `checkSubmission`, `submit`, `decide`, `canSupersede`, `acknowledge`, `markSeen` | Lifecycle transitions (§5–§8). Each returns its effect, including `changed`: the cards to persist, in the order the head assigns them `change_seq`. Nothing here touches the counter. `submit(stored, incoming, now, target, ceiling?)` sets the head-owned `delivery` from the producer's urgency ceiling (§9), which the head passes in; a producer with none set has the ceiling `brief`, the default. |
+| `mintOrder`, `visibleTo`, `claim`, `renew`, `expireIfDue`, `checkLease`, `checkOutcome`, `applyOutcome`, `ulid`, `ulidOf` | The orders extension (Appendix A), pure like the lifecycle: the head mints orders, keeps the wildcard eligibility snapshot per root, and applies leases and outcomes with its own clock. A lease belongs to a root; a renewal keeps `claim_seq`. A refused claim is a `ClaimRefusal` (`409 lease_held`, `410 order_terminal`, with the order); `checkOutcome` refuses an outcome without `orders.result`. `decide` takes `dismissed` on an order and cancels it. |
 | `clampUrgency` | `urgency` (absent is `brief`) lowered to a ceiling (§9). |
 | `PbcpError`, `ERROR_CODES` | Refusals with their status and normative code (§7.4). |
 | `ProducerCardSchema`, `HeadFieldsSchema`, `DecisionSchema`, `HeadDescriptionSchema` | Zod schemas; types `ProducerCard`, `Card`, `Decision`, `HeadDescription`. |

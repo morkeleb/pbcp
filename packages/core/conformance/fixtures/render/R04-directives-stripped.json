@@ -1,8 +1,8 @@
 {
-  "name": "R04 click and URL-loading init directives are stripped before rendering",
+  "name": "R04 click, URL-loading init directives (one directive may span lines) and front-matter config are stripped before rendering",
   "rfc": [
-    "§3.1",
-    "§12"
+    "\u00a73.1",
+    "\u00a712"
   ],
   "steps": [
     {
@@ -81,6 +81,44 @@
         "body": {
           "text": {
             "$includes": "After the directives."
+          }
+        }
+      }
+    },
+    {
+      "op": "render",
+      "args": {
+        "body": "Front matter.\n\n```mermaid\n---\ntitle: Invoice flow\nconfig:\n  theme: base\n  themeCSS: \"@import url(https://fonts.evil.example/f.css);\"\n  flowchart:\n    htmlLabels: true\n---\nflowchart LR\n  A --> B\n```\n\nMulti-line init.\n\n```mermaid\n%%{\n  init: {\"themeCSS\": \"@import url(https://evil.example/x.css);\"}\n}%%\nflowchart LR\n  C --> D\n```\n\nAfter."
+      },
+      "expect": {
+        "status": 200,
+        "body": {
+          "stripped": {
+            "$contains": [
+              "init",
+              "htmlLabels"
+            ]
+          },
+          "fences": [
+            {
+              "type": "flowchart",
+              "class": "render",
+              "source": {
+                "$includes": "title: Invoice flow",
+                "$excludes": "config"
+              }
+            },
+            {
+              "type": "flowchart",
+              "class": "render",
+              "source": {
+                "$excludes": "evil.example",
+                "$includes": "C --> D"
+              }
+            }
+          ],
+          "text": {
+            "$includes": "Multi-line init."
           }
         }
       }

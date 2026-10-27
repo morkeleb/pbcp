@@ -29,8 +29,9 @@ export type OrderCard = HeadFields & {
 
 /** The extension field an outcome card carries (A.1, A.3). */
 export const OUTCOME_CLAIM_SEQ = 'orders.claim_seq';
-/** Marks an outcome as a failure (`failed`); absent or `done` is success. Appendix A does not say how (OPEN, Orders). */
+/** Producer-owned and required on an outcome (A.3): `done` or `failed`. */
 export const OUTCOME_RESULT = 'orders.result';
+export const OUTCOME_RESULTS = ['done', 'failed'] as const;
 
 export const isOrder = (c: { kind: string }): c is OrderCard => c.kind === 'order';
 export const isTerminal = (s: ExecState) => TERMINAL_EXEC_STATES.includes(s);
@@ -129,28 +130,41 @@ export function expireIfDue(order: OrderCard, now: string): { card: OrderCard; c
 
 export type ClaimResult =
   | { status: 200; card: OrderCard; changed: OrderCard[] }
-  /** 409: another executor holds a live lease. 410: the order is terminal. Both carry the order (A.2, A.5). */
-  | { status: 409 | 410; card: OrderCard; changed: OrderCard[] };
+  /**
+   * 409 `lease_held`: another root holds a live lease. 410 `order_terminal`: the order is terminal. The head answers
+   * with the error body plus the order (`ClaimRefusal`, A.2, A.5).
+   */
+  | { status: 409 | 410; code: 'lease_held' | 'order_terminal'; card: OrderCard; changed: OrderCard[] };
 
 function addSeconds(iso: string, s: number): string {
   return new Date(Date.parse(iso) + s * 1000).toISOString().replace(/\.000Z$/, 'Z');
 }
 
+/** A.2: `lease_seconds` is a positive integer; anything else is `400 invalid_lease`. */
+export function checkLease(leaseSeconds: unknown): number {
+  if (typeof leaseSeconds !== 'number' || !Number.isInteger(leaseSeconds) || leaseSeconds <= 0) {
+    throw new PbcpError('invalid_lease', `lease_seconds must be a positive integer, got ${JSON.stringify(leaseSeconds)}`);
+  }
+  return leaseSeconds;
+}
+
 /**
- * A.2, A.5: claim or renew. Expiry is evaluated first, in the same transition, so `changed` may hold the expired
- * order even when the claim is refused. A claim by the lease holder while its lease is live is a renewal.
+ * A.2, A.5: claim or renew. `by` is the caller's root: a lease belongs to a root, so any token under the holder's
+ * root renews it. Expiry is evaluated first, in the same transition, so `changed` may hold the expired order even
+ * when the claim is refused. A new claim increments `claim_seq`; a renewal by the holder keeps it.
  */
 export function claim(order: OrderCard, by: string, leaseSeconds: number, now: string): ClaimResult {
-  if (!Number.isInteger(leaseSeconds) || leaseSeconds <= 0) throw new PbcpError('invalid_card', 'lease_seconds must be a positive integer');
+  checkLease(leaseSeconds);
   const { card: current, changed } = expireIfDue(order, now);
-  if (isTerminal(current.exec_state)) return { status: 410, card: current, changed };
-  if (current.exec_state === 'claimed' && current.claimed_by !== by) return { status: 409, card: current, changed };
+  if (isTerminal(current.exec_state)) return { status: 410, code: 'order_terminal', card: current, changed };
+  const renewal = current.exec_state === 'claimed';
+  if (renewal && current.claimed_by !== by) return { status: 409, code: 'lease_held', card: current, changed };
   const card: OrderCard = {
     ...current,
     exec_state: 'claimed',
     claimed_by: by,
     claim_expires_at: addSeconds(now, leaseSeconds),
-    claim_seq: (current.claim_seq ?? 0) + 1,
+    claim_seq: renewal ? current.claim_seq! : (current.claim_seq ?? 0) + 1,
     changed_at: now,
   };
   return { status: 200, card, changed: [card] };
@@ -159,18 +173,36 @@ export function claim(order: OrderCard, by: string, leaseSeconds: number, now: s
 /** A.5: renewal is a claim by the holder; a renewal by anyone else is refused as a claim would be. */
 export const renew = claim;
 
+const isOrderId = (r: string) => {
+  const p = parseId(r);
+  return p?.producer === 'head' && p.namespace === 'order';
+};
+
 /** The order an outcome card names in `references`, if it is an outcome at all (it carries `orders.claim_seq`). */
 export function outcomeTarget(card: ProducerCard): string | undefined {
   if (card[OUTCOME_CLAIM_SEQ] === undefined) return undefined;
-  return card.references?.find((r) => {
-    const p = parseId(r);
-    return p?.producer === 'head' && p.namespace === 'order';
-  });
+  return card.references?.find(isOrderId);
+}
+
+/**
+ * A.3: an outcome card carries `orders.claim_seq` (a positive integer), `orders.result` (`done` or `failed`) and an
+ * order in `references`, all three or none. A head implementing the extension refuses anything else with
+ * `400 invalid_card`. Returns the order id, or undefined for a card that is not an outcome.
+ */
+export function checkOutcome(card: ProducerCard): string | undefined {
+  const seq = card[OUTCOME_CLAIM_SEQ];
+  const result = card[OUTCOME_RESULT];
+  if (seq === undefined && result === undefined) return undefined;
+  if (typeof seq !== 'number' || !Number.isInteger(seq) || seq < 1) throw new PbcpError('invalid_card', `${OUTCOME_CLAIM_SEQ} must be a positive integer`);
+  if (!(OUTCOME_RESULTS as readonly unknown[]).includes(result)) throw new PbcpError('invalid_card', `${OUTCOME_RESULT} must be done or failed`);
+  const target = card.references?.find(isOrderId);
+  if (target === undefined) throw new PbcpError('invalid_card', 'an outcome names its order in references');
+  return target;
 }
 
 /**
  * A.3: an outcome moves `exec_state` only when it comes from the current lease: the order is `claimed`, the
- * outcome's producer holds the lease, and its `orders.claim_seq` is the order's `claim_seq`. Otherwise it is
+ * outcome's producer root holds the lease, and its `orders.claim_seq` is the order's `claim_seq`. Otherwise it is
  * stale: stored by the caller as an ordinary card, the order unchanged. A terminal order never changes.
  * The head runs expireIfDue first, so a lapsed lease makes the outcome stale.
  */
