@@ -1,5 +1,46 @@
 # RFC changelog
 
+## 0.7 (2026-10-27)
+
+Draft 0.7 adds two producer-owned fields that producers were already putting in bodies and titles: `labels`, the producer's categories for a card, and `about`, the day a card concerns. It also says which day a card belongs to when it has no `about`, which 0.6 left unstated. There are no changes to the operations, the lifecycle, orders or delegation. In-process conformance: 50 → 54 cases (core C41–C44).
+
+**§2 — dates.** A date is an ISO 8601 calendar date, `YYYY-MM-DD`, with no time and no offset. Used by `about`.
+
+**§3 — the example card** carries `labels: [billing-revamp]` in both forms.
+
+**§4.1 — `labels`.**
+- **Shape:** an optional list of the producer's categories for the card (a project, a client, a mailbox), for a head to show and filter by.
+- **Rules:** each entry follows the `intent` grammar of §5 in lowercase only, 1 to 32 characters; at most 8 per card, no duplicates. Anything else is `400 invalid_card`.
+- **Head:** a head MUST show labels on the card, SHOULD let the owner filter the brief by label, and MAY apply ceilings per label (§9).
+- **Owner's labels:** labels the owner gives cards are head-owned state and never written to the card.
+- **Equality:** labels count for equality (§5). New fixtures C41, C42, C43.
+
+**§4.1 — `about`.**
+- **Meaning:** an optional date naming the local day the card concerns, when that differs from when it was sent: tomorrow's agenda, a meeting moved to Friday, prices for a day.
+- **Rules:** a `YYYY-MM-DD` date that exists; anything else, a timestamp included, is `400 invalid_card`. It is not a timestamp and has no time zone: it is the day as the producer means it.
+- **Equality:** it counts for equality. New fixture C44.
+
+**§5 — equality.** An absent `labels` equals `[]`, as an absent `references` does. Order in `labels` is significant, as in every list.
+
+**§8 — a card's day.** A head places each card on one day in its timeline and briefs:
+- **With `about`:** that day, taken as written and never converted between zones.
+- **Without `about`:** the day of `received_at` in the head's time zone, which is the owner's and set however the head chooses; the protocol carries none.
+- **Future days:** a card whose day is in the future appears on that day, and MAY also be shown earlier.
+
+**§8 — labels in a brief.** Labels are shown, not grouped. A generated brief MAY group by label only when the owner asks; by default its order is unchanged by labels. The §8 opening now names `about` and `labels` beside `thread`, `supersedes` and `references`.
+
+**§9 — ceilings per label.** A head MAY let the person set a ceiling per label, applied like the per-producer ceiling. A card under both takes the lower of the two.
+
+**§11.3 — head checklist** gains: shows each card's labels, and places each card on its day.
+
+**Connectors.**
+- **goalpath:** labels every card with the project (from `GOALPATH_LABEL` or the project's name) and, where there is one, the milestone.
+- **caldav:** sets `about` on agendas and moved events, and labels a card with its calendar.
+- **imap:** labels a card with its mailbox, then `IMAP_LABELS`.
+- **obsidian-daily:** sets `about` to the note's date.
+- **hermes skills:** tell the model to set `labels` from the project or client and `about` for a specific day.
+- **MCP and CLI:** `submit_card` describes both fields; the CLI accepts both.
+
 ## 0.6 (2026-10-27)
 
 Draft 0.6 is driven by the first real brief rendered by a head. It adds one producer-owned field and makes presentation normative where it decides whether a person can act on a card. There are no changes to orders, delegation or the operations. In-process conformance: 44 → 50 cases (core C38–C40, render R09–R11).

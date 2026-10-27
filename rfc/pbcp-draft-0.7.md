@@ -1,6 +1,6 @@
 # RFC: Personal Brief Card Protocol
 
-Oct 27, 2026 · @Morten Nielsen · Draft 0.6
+Oct 27, 2026 · @Morten Nielsen · Draft 0.7
 
 ## Abstract
 
@@ -8,7 +8,7 @@ This document specifies a protocol for crossing the authority boundary between a
 
 The core protocol is deliberately small: three operations, one document, one state machine in the core (extensions may add their own lifecycle). A conforming producer can be written in an afternoon with an HTTP client and a string template. It is the mailbox model (SMTP, IMAP) rather than the collaboration model (Google Wave): one writer per card and no concurrent editing. A card may be replaced by its producer while open; once decided it is locked, and change requires a new card. Giving work back to agents — orders, claims, delegation — is specified as an extension (Appendix A) on top of the same card primitive, so a head or producer that only needs the decision flow can ignore it.
 
-**Status:** Draft 0.6, for discussion. Two independent implementations, the in-process reference in `@pbcp/core` and the `pbcp-head` service, pass the conformance suite of Draft 0.5. Draft 0.6 is driven by the first real brief a head rendered: it adds a producer-owned `summary` (§4.1), defines a card's *lead* (§3.1), and makes how a head presents a decision card (§4.5) and what a generated brief contains (§8) normative. The questions still open are listed in `rfc/OPEN.md`; none of them affects interoperability. `rfc/CHANGELOG.md` lists every change against 0.5.
+**Status:** Draft 0.7, for discussion. Two independent implementations, the in-process reference in `@pbcp/core` and the `pbcp-head` service, pass the conformance suite of Draft 0.5. Draft 0.6 added a producer-owned `summary` (§4.1), defined a card's *lead* (§3.1), and made how a head presents a decision card (§4.5) and what a generated brief contains (§8) normative. Draft 0.7 adds two producer-owned fields found in use: `labels`, the producer's categories for a card, and `about`, the day a card concerns (§4.1); §8 now says which day a card belongs to. The questions still open are listed in `rfc/OPEN.md`; none of them affects interoperability. `rfc/CHANGELOG.md` lists every change against 0.6.
 
 ## 1. Motivation
 
@@ -69,7 +69,7 @@ The key words MUST, MUST NOT, SHOULD, SHOULD NOT and MAY are to be interpreted a
 | **Order** | A card minted by the head that asks a producer to do something. |
 | **Namespace** | The prefix of a card id that a producer owns and may write under. |
 
-Timestamps are RFC 3339 in UTC, written with the offset `Z`, `+00:00` or `-00:00`; a head MUST reject with `400` a card with any other offset, or with a date or time that does not exist (a leap second `:60` is allowed). Identifiers are ASCII, case-sensitive, and compared as exact strings. The canonical wire encoding of a card is `application/json`; the file form is markdown with YAML front matter, and the two MUST be convertible field for field. Equality between cards is semantic, judged on the parsed fields, never on bytes (§5 defines it). Every card carries `protocol: pbcp/1`; the number is the major version, and backward-compatible additions arrive as extension fields without changing it. The value is exactly `pbcp/` followed by the major version: a head MUST reject with `400` a card whose major version it does not implement, a value of any other shape (`pbcp/1.1` included), and a card without `protocol`.
+Timestamps are RFC 3339 in UTC, written with the offset `Z`, `+00:00` or `-00:00`; a head MUST reject with `400` a card with any other offset, or with a date or time that does not exist (a leap second `:60` is allowed). A date (`about`, §4.1) is an ISO 8601 calendar date, `YYYY-MM-DD`, with no time and no offset. Identifiers are ASCII, case-sensitive, and compared as exact strings. The canonical wire encoding of a card is `application/json`; the file form is markdown with YAML front matter, and the two MUST be convertible field for field. Equality between cards is semantic, judged on the parsed fields, never on bytes (§5 defines it). Every card carries `protocol: pbcp/1`; the number is the major version, and backward-compatible additions arrive as extension fields without changing it. The value is exactly `pbcp/` followed by the major version: a head MUST reject with `400` a card whose major version it does not implement, a value of any other shape (`pbcp/1.1` included), and a card without `protocol`.
 
 ## 3. Card format
 
@@ -83,6 +83,7 @@ kind: decision
 to_person: morten
 producer: hermes
 thread: gmail:19a4f2e7c3b1
+labels: [billing-revamp]
 urgency: brief
 title: Reply to Anna re invoice timing
 summary: Anna asks to pay the September invoice on the 20th instead of the 15th. The proposed reply agrees for September only.
@@ -113,6 +114,7 @@ The same card on the wire:
   "to_person": "morten",
   "producer": "hermes",
   "thread": "gmail:19a4f2e7c3b1",
+  "labels": ["billing-revamp"],
   "urgency": "brief",
   "title": "Reply to Anna re invoice timing",
   "summary": "Anna asks to pay the September invoice on the 20th instead of the 15th. The proposed reply agrees for September only.",
@@ -218,6 +220,8 @@ Set by the producer at submission. The head MUST NOT alter them.
 | `body` | yes | string | Markdown, see §3. |
 | `urgency` | no | enum | `immediate`, `brief` (default), `log`. The producer's request; the head never alters it. Where the card lands is the head-owned `delivery` (§4.2, §9). |
 | `thread` | no | string | Grouping key within the producer. Not empty. |
+| `labels` | no | list | The producer's categories for the card — a project, a client, a mailbox — for a head to show and filter by. Each entry follows the `intent` grammar of §5 in lowercase only (`a`–`z`, digits and `-`, so `billing-revamp`) and is 1 to 32 characters long; a card has at most 8 entries and no duplicates. A card that breaks any of these is rejected with `400 invalid_card`. A head MUST show a card's labels on the card and SHOULD let the owner filter the brief by label; it MAY apply ceilings per label (§9). Labels the owner gives cards, if a head offers that, are head-owned state and never written to the card. |
+| `about` | no | date | The local day the card concerns, when that differs from when it was sent: tomorrow's agenda, a meeting moved to Friday, prices for a day. An ISO 8601 calendar date, `YYYY-MM-DD`, that exists; anything else is rejected with `400 invalid_card`. It is not a timestamp and carries no time zone: it is the day as the producer means it. A head uses it to place the card in its timeline and in briefs (§8). |
 | `references` | no | list | Ids of related cards, any producer. |
 | `supersedes` | no | string | Id of an earlier card this one replaces; same namespace only. |
 | `actions` | no | list | Decision values offered, for `kind: decision` only; `artifact` and `signal` cards never carry it, and a head MUST reject one that does with `400`. Each entry is a string, or an object {id, label?, body?, default?} (§4.4). Default `[approve, reject]`. |
@@ -313,10 +317,10 @@ The `producer` segment is the producer's namespace root. A producer MUST only su
 
 **Equality.** Two cards are identical when their producer-owned fields other than `emitted_at` are equal after these rules, and only then:
 
-- an absent `urgency` equals `brief`, an absent `references` equals `[]`, and an absent `actions` on a decision card equals `[approve, reject]`;
+- an absent `urgency` equals `brief`, an absent `references` or `labels` equals `[]`, and an absent `actions` on a decision card equals `[approve, reject]`;
 - in `actions`, a string entry equals an object with that `id` and nothing else, and `default: false` equals no `default`;
 - trailing whitespace at the end of `body` is not significant;
-- member order in objects is not significant; order in lists, `references` included, is;
+- member order in objects is not significant; order in lists, `references` and `labels` included, is;
 - every other field, unknown and extension fields included, compares by value.
 
 | Stored card | Incoming card | Result |
@@ -471,13 +475,17 @@ A head MUST answer `GET /` with its description: `protocol`, the version it impl
 
 ## 8. Threads, supersession and folding
 
-Producers emit flat cards; the head does the arranging. Three producer-set fields drive it.
+Producers emit flat cards; the head does the arranging, from fields the producer sets: `thread`, `supersedes` and `references` relate cards, and `about` and `labels` place and mark them.
 
 **`thread`** groups cards from one producer. A head MUST show cards sharing a thread together, newest last, and MAY collapse all but the newest. The producer chooses the key; a mail reader would use the mail thread id, an executor the order id.
 
 **`supersedes`** establishes a successor card in the same producer namespace. A successor MAY supersede an `open` card, to replace an unresolved proposal, or a `decided` card, to ask a new question that builds on the previous one. It MUST NOT supersede a `superseded` card; naming one is rejected with `409`, so chains stay linear because only the current card can be superseded. Supersession never changes or invalidates the decision recorded on the predecessor: the head shows the successor, keeps the predecessor reachable in the thread with its decision intact, and marks it `superseded`. A superseding PUT MUST atomically store the successor and mark the predecessor; neither change is visible without the other. A PUT supersedes when it stores a new card that names `supersedes`, or replaces an open card with one that names a different `supersedes` than before; re-PUTting a successor with the same `supersedes` does not supersede again, and a PUT to a decided or superseded id never supersedes (§5 applies). To withdraw a proposal, a producer supersedes it with a `kind: signal` card whose body says so.
 
 **`references`** links cards across producers without grouping them. The head renders these as links and MAY show a referenced card's title inline.
+
+**A card's day.** A head places each card on one day in its timeline and in briefs: the card's `about` (§4.1) when it has one, else the day of its `received_at` (§4.2) in the head's time zone, which is the owner's and is set however the head chooses; the protocol carries none. `about` is taken as written, never converted between zones. A card whose day is in the future appears on that day, and a head MAY also show it earlier.
+
+**`labels`** are shown, not grouped. A head shows a card's labels on the card (§4.1). A generated brief MAY group its entries by label only when the owner asks for that; by default its order is unchanged by labels.
 
 Folding is the head's job: turning a day of cards into one readable brief, collapsing a thread of progress cards into a single line, rendering `mermaid`. A head MAY use a language model to write the brief. It MUST NOT alter card bodies or decisions while doing so, and MUST keep every card reachable in its original form.
 
@@ -495,7 +503,7 @@ Folding is the head's job: turning a day of cards into one readable brief, colla
 
 A `kind: decision` card remains open until decided, whatever its `delivery`. How a head keeps it in view (pinned, badged, listed) is the head's choice; that it stays reachable is the protocol's.
 
-**Ceilings.** Urgency is a producer's request, not a right. A head MUST let the person set a per-producer ceiling. When it stores a card's content it sets `delivery` to the card's `urgency` (absent is `brief`), lowered to the ceiling if above it, in the order `log` < `brief` < `immediate`; it MUST NOT alter `urgency` itself, which stays as the producer sent it for equality (§5) and is returned unchanged. Sync returns both, so a producer can see that it was clamped. Changing a ceiling does not revisit cards already stored. A producer whose ceiling the person has not set has the ceiling `brief`. A head's interface may present a card however it likes, but `delivery` as stored and synced changes only when the card's content is stored. This is the only defence against a noisy producer short of revoking its token.
+**Ceilings.** Urgency is a producer's request, not a right. A head MUST let the person set a per-producer ceiling. When it stores a card's content it sets `delivery` to the card's `urgency` (absent is `brief`), lowered to the ceiling if above it, in the order `log` < `brief` < `immediate`; it MUST NOT alter `urgency` itself, which stays as the producer sent it for equality (§5) and is returned unchanged. Sync returns both, so a producer can see that it was clamped. Changing a ceiling does not revisit cards already stored. A producer whose ceiling the person has not set has the ceiling `brief`. A head's interface may present a card however it likes, but `delivery` as stored and synced changes only when the card's content is stored. A head MAY also let the person set a ceiling per label (§4.1), applied the same way; a card under both takes the lower. This is the only defence against a noisy producer short of revoking its token.
 
 ## 10. Addressee
 
@@ -540,6 +548,7 @@ Everything in 11.1, plus:
 - [ ] Ignores unknown producer fields; rejects head-owned fields on PUT
 - [ ] Renders markdown; strips raw HTML
 - [ ] Shows `summary` as text, never as markdown; shows each card's lead (§3.1) in lists and briefs and does not hide it on the card
+- [ ] Shows each card's `labels` on the card, and places each card on its day: its `about`, else the day of `received_at` in the head's time zone (§4.1, §8)
 - [ ] Presents decision cards as §4.5 requires: the actions as controls in order, the `default` as primary and, with no default, no option styled or placed as primary, `dismissed` always available, the lead and the proposal visible, no required comment, and a confirmation once recorded
 - [ ] Puts every open decision card's title and lead, linked to the card, in any brief it generates, except snoozed cards, which it does not list (nor their leads) until `snoozed_until` has passed and MAY only count (§4.2, §8)
 - [ ] Lets the person set per-producer urgency ceilings, and records the clamped value as `delivery` without altering `urgency`
