@@ -67,7 +67,8 @@ export function approvalCard(i: Item, m: Milestone | undefined, a: Approval, cfg
   return card({
     ...base(cfg, now), namespace: 'approval', upstream: a.card.slice('goalpath:approval:'.length), kind: 'decision', urgency: 'brief', thread: a.thread, supersedes: a.prev,
     title: `Accept ${label(i)}?`, body, ...source(i.url, 'GoalPath item'),
-    summary: summary(`${label(i)} is ${i.status}${m ? ` in ${m.name}` : ''} and waiting for your acceptance. Accepting or rejecting sets its status in GoalPath.`),
+    // §4.1: on a decision card the summary states the proposal, so the brief's line can be decided on its own.
+    summary: summary(`${label(i)} is ${i.status}${m ? ` in ${m.name}` : ''} and waiting for your acceptance. Proposed: accept it, which sets it to Accepted in GoalPath.`),
     actions: [{ id: 'accept', label: 'Accept', body: `Sets ${i.number} to Accepted.` }, { id: 'reject', label: 'Reject', body: `Sets ${i.number} to Rejected.` }],
   });
 }
