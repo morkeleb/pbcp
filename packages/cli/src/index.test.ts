@@ -57,6 +57,16 @@ describe('pbcp submit', () => {
     expect(JSON.parse(out[1]!)).toMatchObject({ status: 200, card: { change_seq: 1 } });
   });
 
+  it('submits summary from a front-matter file and refuses a multi-line one locally (§4.1)', async () => {
+    const good = { ...sample(), summary: 'Anna asks to pay on the 20th.' };
+    const { run, out, err, stub } = setup({ 'c.md': toFrontMatter(good), 'bad.json': JSON.stringify({ ...sample(), summary: 'a\nb' }) });
+    expect(await run('submit', 'c.md')).toBe(0);
+    expect(JSON.parse(out[0]!)).toMatchObject({ status: 201, card: { summary: 'Anna asks to pay on the 20th.' } });
+    expect(await run('submit', 'bad.json')).toBe(1);
+    expect(err[0]).toMatch(/^pbcp: 400 invalid_card: /);
+    expect(stub.requests).toHaveLength(1);
+  });
+
   it('prints a 409 and exits 0', async () => {
     const { run, out, stub } = setup({ 'a.json': toJSON(sample()), 'b.json': toJSON(sample('Changed')) });
     await run('submit', 'a.json');

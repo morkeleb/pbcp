@@ -1,0 +1,121 @@
+{
+  "name": "C39 a summary with a line break, or an empty one, is refused with 400 invalid_card in either form, and nothing is stored",
+  "rfc": [
+    "\u00a74.1",
+    "\u00a77.4"
+  ],
+  "steps": [
+    {
+      "op": "put",
+      "args": {
+        "token": "hermes",
+        "card": {
+          "protocol": "pbcp/1",
+          "id": "hermes:gmail:19d2b6a1f0c4",
+          "kind": "decision",
+          "to_person": "morten",
+          "producer": "hermes",
+          "title": "Reply to Lars re contract renewal",
+          "summary": "Lars asks to renew.\nThe reply accepts.",
+          "body": "Lars (Fjord Systems) asks whether the support contract can be renewed for a year at the current price.\n\n## Proposed reply\n\n> Hi Lars, yes: one more year at the current price.",
+          "emitted_at": "2026-10-07T13:02:11Z",
+          "thread": "gmail:19d2b6a1f0c4",
+          "actions": [
+            "approve",
+            "reject"
+          ]
+        }
+      },
+      "expect": {
+        "status": 400,
+        "body": {
+          "error": "invalid_card"
+        }
+      }
+    },
+    {
+      "op": "put",
+      "args": {
+        "token": "hermes",
+        "card": {
+          "protocol": "pbcp/1",
+          "id": "hermes:gmail:19d2b6a1f0c4",
+          "kind": "decision",
+          "to_person": "morten",
+          "producer": "hermes",
+          "title": "Reply to Lars re contract renewal",
+          "summary": "Lars asks to renew.\r The reply accepts.",
+          "body": "Lars (Fjord Systems) asks whether the support contract can be renewed for a year at the current price.\n\n## Proposed reply\n\n> Hi Lars, yes: one more year at the current price.",
+          "emitted_at": "2026-10-07T13:02:11Z",
+          "thread": "gmail:19d2b6a1f0c4",
+          "actions": [
+            "approve",
+            "reject"
+          ]
+        }
+      },
+      "expect": {
+        "status": 400,
+        "body": {
+          "error": "invalid_card"
+        }
+      }
+    },
+    {
+      "op": "put",
+      "args": {
+        "token": "hermes",
+        "card": {
+          "protocol": "pbcp/1",
+          "id": "hermes:gmail:19d2b6a1f0c4",
+          "kind": "decision",
+          "to_person": "morten",
+          "producer": "hermes",
+          "title": "Reply to Lars re contract renewal",
+          "summary": "",
+          "body": "Lars (Fjord Systems) asks whether the support contract can be renewed for a year at the current price.\n\n## Proposed reply\n\n> Hi Lars, yes: one more year at the current price.",
+          "emitted_at": "2026-10-07T13:02:11Z",
+          "thread": "gmail:19d2b6a1f0c4",
+          "actions": [
+            "approve",
+            "reject"
+          ]
+        }
+      },
+      "expect": {
+        "status": 400,
+        "body": {
+          "error": "invalid_card"
+        }
+      }
+    },
+    {
+      "op": "put",
+      "args": {
+        "token": "hermes",
+        "card": "---\nprotocol: pbcp/1\nid: hermes:gmail:19d2b6a1f0c5\nkind: artifact\nto_person: morten\nproducer: hermes\ntitle: Newsletter\nsummary: \"Two\\nlines\"\nemitted_at: \"2026-10-07T13:02:11Z\"\n---\n\nQuarterly update.\n"
+      },
+      "expect": {
+        "status": 400,
+        "body": {
+          "error": "invalid_card"
+        }
+      }
+    },
+    {
+      "op": "syncAll",
+      "args": {
+        "token": "hermes",
+        "after": 0
+      },
+      "expect": {
+        "status": 200,
+        "body": {
+          "changes": {
+            "$len": 0
+          }
+        }
+      }
+    }
+  ]
+}

@@ -11,6 +11,7 @@ producer: hermes
 thread: gmail:19a4f2e7c3b1
 urgency: brief
 title: Reply to Anna re invoice timing
+summary: Anna asks to pay the September invoice on the 20th instead of the 15th. The proposed reply agrees for September only.
 actions: [approve, reject, edit]
 references: []
 emitted_at: "2026-10-07T13:02:11Z"
@@ -35,6 +36,7 @@ const RFC_WIRE: ProducerCard = {
   thread: 'gmail:19a4f2e7c3b1',
   urgency: 'brief',
   title: 'Reply to Anna re invoice timing',
+  summary: 'Anna asks to pay the September invoice on the 20th instead of the 15th. The proposed reply agrees for September only.',
   actions: ['approve', 'reject', 'edit'],
   references: [],
   emitted_at: '2026-10-07T13:02:11Z',
@@ -121,6 +123,12 @@ describe('parseCard', () => {
     expect(parseCard(minimal({ emitted_at: '2024-02-29T23:59:60Z' })).ok).toBe(true);
     expect(parseCard(minimal({ emitted_at: '2026-10-07T06:05:00.123-00:00' })).ok).toBe(true);
     refused(minimal({ title: 'two\nlines' }), 'invalid_card');
+    refused(minimal({ summary: 'two\nlines' }), 'invalid_card');
+    refused(minimal({ summary: 'carriage\rreturn' }), 'invalid_card');
+    refused(minimal({ summary: '' }), 'invalid_card');
+    refused(minimal({ summary: 42 }), 'invalid_card');
+    // §4.1: markdown in summary is a rendering rule, not a validation one.
+    expect(parseCard(minimal({ summary: 'Ship **4421** now? See [it](https://x).' })).ok).toBe(true);
     refused(minimal({ source: { label: 'no url' } }), 'invalid_card');
     refused(minimal({ actions: ['ship friday'] }), 'invalid_card');
     refused('[]', 'invalid_card');
@@ -153,6 +161,9 @@ describe('equal (§5)', () => {
 
   it('compares every other producer field', () => {
     expect(equal(base, { ...base, title: 'Other' })).toBe(false);
+    expect(equal(base, { ...base, summary: 'Ship it.' })).toBe(false);
+    expect(equal({ ...base, summary: 'a' }, { ...base, summary: 'b' })).toBe(false);
+    expect(equal({ ...base, summary: 'a' }, { ...base, summary: 'a', emitted_at: '2027-01-01T00:00:00Z' })).toBe(true);
     expect(equal(base, { ...base, body: 'Other' })).toBe(false);
     expect(equal(base, { ...base, thread: 't' })).toBe(false);
     expect(equal(base, { ...base, 'x-trace': 'a' })).toBe(false);

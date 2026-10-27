@@ -66,6 +66,8 @@ export interface RenderUnderTest {
   render(body: string): Promise<RenderResult>;
   /** Diagrams drawn since reset (cache misses). */
   draws(): Promise<number>;
+  /** The card's lead (§3.1): `summary` when present, else the body's first paragraph. `leadOf` from `@pbcp/core` is one. */
+  lead(card: { summary?: string; body: string }): Promise<{ text: string; source: 'summary' | 'body' }>;
 }
 
 export interface Step {

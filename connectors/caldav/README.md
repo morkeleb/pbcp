@@ -10,6 +10,7 @@ An example producer on `@pbcp/client`: it reads one or more CalDAV calendars and
 
 - Once a day, an `artifact` card with the day's agenda at `urgency: brief`: a table of time, title and location, then a `mermaid` `gantt` fence of the timed events (core tier, §3.1).
 - When an event's start moves to within the next 30 minutes, a `signal` card at `urgency: immediate` (§9).
+- `summary` (§4.1): on a moved signal, the event's new and old time and its location (and calendar, with several); on an agenda, the first timed event's time and location, `First: Standup, 09:15–09:30.` An empty day, or one with only all-day events, has no `summary`, since the title already says everything.
 
 It polls every 5 minutes by default, so a move is reported at most one interval after the server has it.
 

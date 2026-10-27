@@ -44,6 +44,8 @@ The producer root is `goalpath`. `<…-id>` is GoalPath's id, percent-encoded as
 - **Build.** The check name and conclusion, the PR or commit, the item and milestone; `source` is the run URL. Only one card per run id, even when the run is linked to several items. Only checks on items in `Started`, `Finished` or `Delivered` are looked at, and only `confirmed` links: `suggested` ones are heuristic. A red run is re-submitted on every pass while it is reported; the content is the same, so the head changes nothing (§5).
 - **Digest.** First one `mermaid` `gantt` (core tier, §3.1) of up to 20 milestones not Done, from forecast start (else the milestone's start, else today) to projected end, late ones tagged `crit`; then your items accepted in the last 24 hours, your open items highlighted `Blocked`, and the unplanned share of completed work for the last week and the three before. Gantt task names drop `:` `#` `;` `%`, are cut to 40 characters, and a name starting with a gantt keyword is prefixed with `· `.
 
+- **Summary.** Risk, back-on-track, approval, answered and build cards carry a one-line `summary` (§4.1) built from the milestone's or item's name, status and dates: `GP-12 Export invoices as CSV is Delivered in Billing revamp and waiting for your acceptance. …`. The digest has none; its title already says what a summary would.
+
 "Own" is a guess: a milestone you own is one listed in `GOALPATH_MILESTONES`, or else one containing an open (not Accepted) item assigned to you. Risk and build cards are limited to those; the digest's gantt shows every milestone of the project that has a forecast.
 
 ## Supersession

@@ -1,6 +1,6 @@
 import { CARD_LIMIT_BYTES, isId } from '@pbcp/core';
 import { describe, expect, it } from 'vitest';
-import { dateOf, isoWeek, namespaceOf, stripFrontMatter, toCard, unlink } from './note.js';
+import { dateOf, firstLine, isoWeek, namespaceOf, stripFrontMatter, toCard, unlink } from './note.js';
 
 const cfg = { vault: 'my-vault', toPerson: 'morten' };
 
@@ -57,8 +57,18 @@ describe('toCard', () => {
       thread: '2026-W44',
       title: 'Daily note 2026-10-26',
       body: '# Monday\n\nMet Anna about Invoices > September.',
+      summary: 'Met Anna about Invoices > September.',
     });
     expect('actions' in c).toBe(false);
+  });
+
+  it('summarises with the first line of text, or not at all (§4.1)', () => {
+    expect(firstLine('## Tasks\n\n- [x] Paid the   invoice\n- [ ] Call Lars')).toBe('Paid the invoice');
+    expect(firstLine('```\ncode\n```\n> 1. quoted item\nmore')).toBe('quoted item');
+    expect(firstLine('# Only a heading')).toBeUndefined();
+    expect(firstLine('')).toBeUndefined();
+    expect(firstLine('x'.repeat(300))).toHaveLength(280);
+    expect('summary' in toCard('# Heading only', '2026-10-26', cfg)).toBe(false);
   });
 
   it('truncates an over-long note to fit the card limit, with a note', () => {

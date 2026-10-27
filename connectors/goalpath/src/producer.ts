@@ -22,6 +22,8 @@ const late = (m: Milestone) => !!(m.projected && m.deadline && m.projected > m.d
 const label = (i: Item) => `${i.number} ${i.title}`;
 const base = (cfg: Config, now: Date) => ({ producer: 'goalpath', to_person: cfg.toPerson, emitted_at: now.toISOString() });
 const source = (url: string | undefined, label: string) => (url ? { source: { url, label } } : {});
+/** §4.1 `summary`: one line of plain text, cut to 280 characters. */
+const summary = (s: string) => ((t) => (t.length > 280 ? `${t.slice(0, 279)}…` : t))(s.replace(/\s+/g, ' ').trim());
 
 /** A risk signal when the forecast is past the deadline and differs from the chain's current card; back on track when it recovers. */
 export function riskCard(m: Milestone, prev: Risk | undefined, all: Milestone[], edges: Edge[], cfg: Config, now: Date): ProducerCard | undefined {
@@ -29,7 +31,8 @@ export function riskCard(m: Milestone, prev: Risk | undefined, all: Milestone[],
   const common = { ...base(cfg, now), namespace: 'milestone', upstream: `${enc(m.id)}.${m.projected.replace(/-/g, '')}`, kind: 'signal' as const, urgency: 'brief' as const, thread: m.id, supersedes: prev?.card, ...source(m.url, 'GoalPath milestone') };
   if (!late(m)) {
     if (!prev?.slipping) return undefined;
-    return card({ ...common, intent: 'on-track', title: `${m.name}: back on track, forecast ${short(m.projected)} (deadline ${short(m.deadline)})`, body: `The forecast is now ${m.projected}, on or before the deadline ${m.deadline}. It was ${prev.projected}.` });
+    return card({ ...common, intent: 'on-track', title: `${m.name}: back on track, forecast ${short(m.projected)} (deadline ${short(m.deadline)})`,
+      summary: summary(`${m.name} is forecast for ${m.projected} again, on or before its deadline ${m.deadline}. Nothing to decide.`), body: `The forecast is now ${m.projected}, on or before the deadline ${m.deadline}. It was ${prev.projected}.` });
   }
   if (prev?.card === `goalpath:milestone:${common.upstream}:risk`) return undefined;
   const by = Math.round((Date.parse(m.projected) - Date.parse(m.deadline)) / 86_400_000);
@@ -45,7 +48,10 @@ export function riskCard(m: Milestone, prev: Risk | undefined, all: Milestone[],
     `- Move the deadline to ${m.projected}${next.length ? ' and re-plan what depends on it' : ''}.`,
     '- Add capacity to the milestone.',
   ].join('\n');
-  return card({ ...common, intent: 'risk', title: `${m.name}: forecast ${short(m.projected)}, ${days(by)} past ${short(m.deadline)}`, body });
+  return card({
+    ...common, intent: 'risk', title: `${m.name}: forecast ${short(m.projected)}, ${days(by)} past ${short(m.deadline)}`, body,
+    summary: summary(`${m.name} is forecast for ${m.projected}, ${days(by)} past its deadline ${m.deadline}. Cut scope, move the deadline or add capacity.`),
+  });
 }
 
 export const approvalId = (itemId: string, round: number) => `goalpath:approval:${enc(itemId)}${round > 1 ? `.${round}` : ''}`;
@@ -61,6 +67,7 @@ export function approvalCard(i: Item, m: Milestone | undefined, a: Approval, cfg
   return card({
     ...base(cfg, now), namespace: 'approval', upstream: a.card.slice('goalpath:approval:'.length), kind: 'decision', urgency: 'brief', thread: a.thread, supersedes: a.prev,
     title: `Accept ${label(i)}?`, body, ...source(i.url, 'GoalPath item'),
+    summary: summary(`${label(i)} is ${i.status}${m ? ` in ${m.name}` : ''} and waiting for your acceptance. Accepting or rejecting sets its status in GoalPath.`),
     actions: [{ id: 'accept', label: 'Accept', body: `Sets ${i.number} to Accepted.` }, { id: 'reject', label: 'Reject', body: `Sets ${i.number} to Rejected.` }],
   });
 }
@@ -69,7 +76,7 @@ export function answeredCard(a: Approval, item: Item | undefined, cfg: Config, n
   const where = item ? `it is now ${item.status}` : 'it is no longer assigned to you';
   return card({
     ...base(cfg, now), namespace: 'approval', upstream: a.card.slice('goalpath:approval:'.length), intent: 'answered', kind: 'signal', urgency: 'brief', thread: a.thread, supersedes: a.card,
-    title: `${a.label}: answered in GoalPath`, body: `**${a.label}** left the acceptance queue in GoalPath; ${where}. Nothing to decide here.`,
+    title: `${a.label}: answered in GoalPath`, summary: summary(`${a.label} left the acceptance queue in GoalPath; ${where}.`), body: `**${a.label}** left the acceptance queue in GoalPath; ${where}. Nothing to decide here.`,
   });
 }
 
@@ -78,6 +85,7 @@ export function buildCard(i: Item, l: CodeLink, ch: Check, m: Milestone | undefi
   return card({
     ...base(cfg, now), namespace: 'build', upstream: enc(ch.runId), kind: 'signal', urgency: 'immediate', thread: i.milestoneId ?? cfg.projectId,
     title: `Build failed: ${ch.name} on ${l.ref} (${i.number})`,
+    summary: summary(`${ch.name} ended ${ch.conclusion} on ${l.ref}, linked to ${label(i)}${m ? ` in ${m.name}` : ''}.`),
     body: `**${ch.name}** ended \`${ch.conclusion}\` on ${ref}${l.title ? ` ${l.title}` : ''}, linked to **${label(i)}**${m ? ` in ${m.name}` : ''}.`,
     ...source(ch.url ?? l.url, 'Build run'),
   });

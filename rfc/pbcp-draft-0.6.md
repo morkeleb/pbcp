@@ -1,6 +1,6 @@
 # RFC: Personal Brief Card Protocol
 
-Oct 26, 2026 · @Morten Nielsen · Draft 0.5
+Oct 27, 2026 · @Morten Nielsen · Draft 0.6
 
 ## Abstract
 
@@ -8,7 +8,7 @@ This document specifies a protocol for crossing the authority boundary between a
 
 The core protocol is deliberately small: three operations, one document, one state machine in the core (extensions may add their own lifecycle). A conforming producer can be written in an afternoon with an HTTP client and a string template. It is the mailbox model (SMTP, IMAP) rather than the collaboration model (Google Wave): one writer per card and no concurrent editing. A card may be replaced by its producer while open; once decided it is locked, and change requires a new card. Giving work back to agents — orders, claims, delegation — is specified as an extension (Appendix A) on top of the same card primitive, so a head or producer that only needs the decision flow can ignore it.
 
-**Status:** Draft 0.5, for discussion. Two independent implementations, the in-process reference in `@pbcp/core` and the `pbcp-head` service, pass the full conformance suite, the orders extension included, and agree on every fixture call for call. Draft 0.5 writes into the text what that second implementation had to decide: the remaining rendering rules, how leases, renewals and outcomes work in the orders extension, the codes for claim refusals, and the default urgency ceiling. The questions still open are listed in `rfc/OPEN.md`; none of them affects interoperability. `rfc/CHANGELOG.md` lists every change against 0.4.
+**Status:** Draft 0.6, for discussion. Two independent implementations, the in-process reference in `@pbcp/core` and the `pbcp-head` service, pass the conformance suite of Draft 0.5. Draft 0.6 is driven by the first real brief a head rendered: it adds a producer-owned `summary` (§4.1), defines a card's *lead* (§3.1), and makes how a head presents a decision card (§4.5) and what a generated brief contains (§8) normative. The questions still open are listed in `rfc/OPEN.md`; none of them affects interoperability. `rfc/CHANGELOG.md` lists every change against 0.5.
 
 ## 1. Motivation
 
@@ -85,6 +85,7 @@ producer: hermes
 thread: gmail:19a4f2e7c3b1
 urgency: brief
 title: Reply to Anna re invoice timing
+summary: Anna asks to pay the September invoice on the 20th instead of the 15th. The proposed reply agrees for September only.
 actions: [approve, reject, edit]
 references: []
 emitted_at: "2026-10-07T13:02:11Z"
@@ -114,6 +115,7 @@ The same card on the wire:
   "thread": "gmail:19a4f2e7c3b1",
   "urgency": "brief",
   "title": "Reply to Anna re invoice timing",
+  "summary": "Anna asks to pay the September invoice on the 20th instead of the 15th. The proposed reply agrees for September only.",
   "actions": ["approve", "reject", "edit"],
   "references": [],
   "emitted_at": "2026-10-07T13:02:11Z",
@@ -155,6 +157,14 @@ A producer that draws a chart needs to know it will be drawn, on every head, on 
 **Markdown.** CommonMark plus GFM tables, task lists and fenced code. A head MUST render these. Raw HTML is stripped (§12): the tags are removed and their text kept, except that `<script>`, `<style>` and `<iframe>` elements are removed with their contents. This profile applies to a card's body and to the `body` of each choice option (§4.4), diagrams included.
 
 **Links.** A link is followed only when its URL is `http:`, `https:` or `mailto:`. Any other scheme (`javascript:`, `data:`, `file:`, anything unknown) is shown as the link's text and not linked.
+
+**Lead.** A card's *lead* is the part a person reads to decide whether to open it. When the card has a `summary` (§4.1), the lead is the `summary`, shown as text. Otherwise it is the body's first paragraph, rendered as inline markdown and found like this, line by line, so that every head picks the same one:
+
+1. Skip blank lines, ATX headings (one to six `#` followed by a space or the end of the line), thematic breaks (three or more of the same `-`, `*` or `_`, and nothing else but spaces), and fenced code blocks, `mermaid` fences included: from an opening line of three or more `` ` `` or `~` to the next line of at least as many of the same character and nothing else but spaces, or to the end of the body if there is none.
+2. The first line not skipped starts the lead. The lead runs to the line before the next blank line or the next line that starts a block, or to the end of the body. A line starts a block when it is an ATX heading, a thematic break or an opening fence, or begins with `>`, with `|`, or with a list marker (`-`, `*` or `+`, or one to nine digits and `.` or `)`) followed by a space. In steps 1 and 2 a marker may be indented by up to three spaces.
+3. Each line of the lead is trimmed of leading and trailing whitespace. A body that has no such line has an empty lead.
+
+In a list, a folded brief or a thread summary, a head MUST show at least the lead of each card, beside its title, and MAY stop there. On the card itself, a head MUST NOT hide the lead behind a gesture. A producer that does not send `summary` therefore writes its body lead-first: one opening paragraph that says what is going on and what the card wants, before any heading, table or diagram. The example in §3 does.
 
 **Images.** `![alt](url)` is rendered when `url` is `https:` (subject to the head's image policy; a head SHOULD proxy or size-limit remote images and MUST NOT send cookies when fetching them) or an inline `data:image/png;base64,…` or `data:image/svg+xml;base64,…` URI. Inline images count toward the 64 KiB card limit, which is the only size control a producer needs. Inline SVG is sanitised before display: `<script>`, event attributes, `<foreignObject>`, external `href`s and `<use>` of remote documents are removed. A `data:` image of any other type, and an image with any other scheme, is not shown: its alt text appears in its place, linked only if the URL is one a link may have (`http:`, `https:`, `mailto:`).
 
@@ -204,6 +214,7 @@ Set by the producer at submission. The head MUST NOT alter them.
 | `to_person` | yes | string | The person this card is addressed to. Required for every core kind; the orders extension forbids it on kind: order (Appendix A). |
 | `producer` | yes | string | Denormalised from the first segment of `id` for readability and filtering; the id namespace is authoritative, and a mismatch is `400`. See `id`. |
 | `title` | yes | string | One line, shown in lists and the brief. MUST NOT be empty or contain CR or LF. |
+| `summary` | no | string | One or two sentences of plain text that say what is going on and what the card wants, so that a person who reads only `title` and `summary` can tell whether to open the body. MUST NOT be empty or contain CR or LF, and SHOULD be under 280 characters; a head MAY truncate it beyond that with an ellipsis. It is not markdown: a head MUST show it as text, never render it. When present it is the card's lead (§3.1). |
 | `body` | yes | string | Markdown, see §3. |
 | `urgency` | no | enum | `immediate`, `brief` (default), `log`. The producer's request; the head never alters it. Where the card lands is the head-owned `delivery` (§4.2, §9). |
 | `thread` | no | string | Grouping key within the producer. Not empty. |
@@ -266,6 +277,16 @@ A producer that wants the person to pick between alternatives rather than approv
 One option is chosen; there is no multi-select in this version. A head MUST reject a card with two defaults or a duplicate `id` with `400`. A string entry and an object entry with the same `id` are the same option, so listing both is a duplicate. `default: false` is the same as no `default`.
 
 A decision card SHOULD contain both the evidence (what happened) and the producer's proposal (what it suggests doing), as separate sections of the body, so the person decides on the proposal with the evidence in view. The person decides on the card *as it stood when decided*; the head MUST retain that version.
+
+### 4.5 Presenting a decision
+
+A decision card exists to be decided, so how a head presents one is part of the protocol, in outcomes rather than layout. These rules apply wherever a head presents an open decision card to its owner: in the brief, in a list, and on the card itself.
+
+- **The actions are the controls.** A head MUST offer the card's `actions` (§4.4, the default `[approve, reject]` included) as controls on the card, available without a prior gesture, in the order the card gives them. The option marked `default`, or with no default the first entry, is the primary control. A head MUST NOT gather the actions behind one intermediate control (a single "decide" control that reveals them).
+- **The protocol decisions.** `dismissed` is always available, as a secondary control. Free text, recorded as `edited`, is offered as a control only when `actions` lists `edit` (§4.4). `delegated` is offered only by a head that implements Appendix B.
+- **Enough to decide.** On the card as presented, the lead (§3.1) is visible, and so is the body's proposal: the section whose heading begins with `Proposal` or `Proposed`, from that heading to the next heading of the same or a higher level, if the body has one. The rest of the body MAY sit behind a single disclosure. A head MUST NOT require the person to open the card on its own to decide it.
+- **The comment is optional.** A head MUST NOT require `comment` to record a decision. It SHOULD offer the comment behind a disclosure rather than as a field the person has to pass.
+- **Confirmation.** When the head records a decision, or an acknowledgement (§4.2), it MUST confirm that in its interface in a way the person can tell apart from a control that is merely unavailable, and SHOULD show the card's new state in place: the decision recorded, or the time of acknowledgement.
 
 ## 5. Identity and idempotency
 
@@ -460,6 +481,8 @@ Producers emit flat cards; the head does the arranging. Three producer-set field
 
 Folding is the head's job: turning a day of cards into one readable brief, collapsing a thread of progress cards into a single line, rendering `mermaid`. A head MAY use a language model to write the brief. It MUST NOT alter card bodies or decisions while doing so, and MUST keep every card reachable in its original form.
 
+**What a brief contains.** A brief the head generates (a `head:` card such as `head:daily:<date>`, or a view the head assembles) MUST include, for every open decision card, its title and its lead (§3.1), and SHOULD include, for each of the previous day's artifact and signal threads, the title and lead of the thread's newest card. Each entry MUST link to its card. Counts, charts and other aggregates MAY be added; they are never the brief on their own. Titles and leads are what make a brief readable without a language model, and a brief folded mechanically from them is complete.
+
 ## 9. Urgency and producer trust
 
 `urgency` is a delivery preference: it says where the producer asks a card to land, not how important it is. Where it actually lands is the head-owned `delivery` (§4.2), which the head sets from `urgency` and the producer's ceiling. Neither changes the card's lifecycle.
@@ -495,7 +518,7 @@ The bar is deliberately low. The checklists below are the whole of what each rol
 - [ ] Acts on decisions idempotently on its own side
 - [ ] Never includes head-owned fields on submission
 
-A mail reader is the canonical minimal producer: IMAP message id → `id` (percent-encoded or hashed, §5), thread id → `thread`, subject → `title`, headers and first lines → body. A message in the inbox is a `kind: decision` card with `actions: [archive, keep]`; every other message is a `kind: artifact` card with no `actions`. It drafts nothing and sends nothing; a producer that proposes a reply is a separate agent that `references` the mail card.
+A mail reader is the canonical minimal producer: IMAP message id → `id` (percent-encoded or hashed, §5), thread id → `thread`, subject → `title`, the first lines of the message with whitespace collapsed → `summary`, headers and first lines → body. A message in the inbox is a `kind: decision` card with `actions: [archive, keep]`; every other message is a `kind: artifact` card with no `actions`. It drafts nothing and sends nothing; a producer that proposes a reply is a separate agent that `references` the mail card.
 
 ### 11.2 An executor (orders extension)
 
@@ -516,6 +539,9 @@ Everything in 11.1, plus:
 - [ ] Retains the decided version of every card and every decision, reachable in original form (the decision log)
 - [ ] Ignores unknown producer fields; rejects head-owned fields on PUT
 - [ ] Renders markdown; strips raw HTML
+- [ ] Shows `summary` as text, never as markdown; shows each card's lead (§3.1) in lists and briefs and does not hide it on the card
+- [ ] Presents decision cards as §4.5 requires: the actions as controls in order, the primary one first, `dismissed` always available, the lead and the proposal visible, no required comment, and a confirmation once recorded
+- [ ] Puts every open decision card's title and lead, linked to the card, in any brief it generates (§8)
 - [ ] Lets the person set per-producer urgency ceilings, and records the clamped value as `delivery` without altering `urgency`
 - [ ] For the `orders` extension: mints orders, implements claim leases and lease expiry
 
@@ -550,7 +576,7 @@ Sources: [Wave Federation Protocol](https://en.wikipedia.org/wiki/Google_Wave_Fe
 
 ## 14. Open questions
 
-**Conformance suite.** Conformance is tested with fixtures: language-neutral JSON files, published with the reference implementation, that a head runs through an adapter. Protocol fixtures drive a head through describe, submit and sync, through decide with the owner's credential, and through two more actions its owner would take (presenting a card, which sets `seen_at`, and acknowledging one); they also check that a missing or invalid producer token and a producer token on decide are refused; the head under test is owned by `morten`, and paging is exercised by syncing until `next` stops moving, whatever page size the head chooses. A fixture marked `SHOULD` checks a recommendation and may fail without breaking conformance. A fixture marked with an extension (`orders`) runs only for a head that implements it, and one marked with a condition runs only for a head the condition describes (`prerender`: R07, for a head that draws diagrams before serving them); the head's adapter declares both. The adapter's test clock may be set asynchronously. A refusal that exists only in a transport (the URL id against the card id, `id_mismatch`) is left to each head's own tests. Rendering conformance (§3.1) is tested from card bodies rather than over HTTP: each fixture gives a body and the expected classification of every fence (`render`, `fallback`, `collapsed`), what was stripped (raw HTML, `click`, URL-loading `init` or front-matter `config`, `htmlLabels`), and how each image is shown; for `fallback`, that a parser message is shown (not its wording) and that the surrounding text still appears. A head passes by rendering the fixture and matching the classification; pixel output is not compared. Producer obligations (cursor handling, parking) are tested in the client library, not against a head.
+**Conformance suite.** Conformance is tested with fixtures: language-neutral JSON files, published with the reference implementation, that a head runs through an adapter. Protocol fixtures drive a head through describe, submit and sync, through decide with the owner's credential, and through two more actions its owner would take (presenting a card, which sets `seen_at`, and acknowledging one); they also check that a missing or invalid producer token and a producer token on decide are refused; the head under test is owned by `morten`, and paging is exercised by syncing until `next` stops moving, whatever page size the head chooses. A fixture marked `SHOULD` checks a recommendation and may fail without breaking conformance. A fixture marked with an extension (`orders`) runs only for a head that implements it, and one marked with a condition runs only for a head the condition describes (`prerender`: R07, for a head that draws diagrams before serving them); the head's adapter declares both. The adapter's test clock may be set asynchronously. A refusal that exists only in a transport (the URL id against the card id, `id_mismatch`) is left to each head's own tests. Rendering conformance (§3.1) is tested from card bodies rather than over HTTP: each fixture gives a body and the expected classification of every fence (`render`, `fallback`, `collapsed`), what was stripped (raw HTML, `click`, URL-loading `init` or front-matter `config`, `htmlLabels`), and how each image is shown; for `fallback`, that a parser message is shown (not its wording) and that the surrounding text still appears. A head passes by rendering the fixture and matching the classification; pixel output is not compared. The lead (§3.1) is tested the same way, from a card's `summary` and `body`: the fixture expects the lead's text and whether it came from `summary` or the body. The presentation rules of §4.5 and the brief contents of §8 are obligations on a head's interface and are not tested by fixtures. Producer obligations (cursor handling, parking) are tested in the client library, not against a head.
 
 - [ ] **Last-visit cursor.** The brief is defined by one global "since last visit" cursor. Per-producer cursors would let a person catch up on one producer without clearing the rest. Global is simpler; undecided.
 - [ ] **Withdraw.** There is no delete. Superseding with a signal is the workaround; is a first-class withdraw worth an operation?

@@ -1,7 +1,7 @@
 import { createHash } from 'node:crypto';
 import { isId } from '@pbcp/core';
 import { describe, expect, it } from 'vitest';
-import { namespaceOf, toCard } from './mail.js';
+import { namespaceOf, summaryOf, toCard } from './mail.js';
 
 const raw = (headers: Record<string, string>, body: string) =>
   `${Object.entries(headers).map(([k, v]) => `${k}: ${v}`).join('\r\n')}\r\nContent-Type: text/plain; charset=utf-8\r\n\r\n${body}`;
@@ -40,6 +40,15 @@ describe('toCard', () => {
     expect(c.body).toContain('**Date:** 2026-10-07T13:02:11.000Z');
     expect(c.body).toContain('> Hi Morten,\n> \n> Can we pay on the 20th?\n> # not a heading');
     expect(c.body).not.toContain('line 20');
+    expect(c.summary).toMatch(/^Hi Morten, Can we pay on the 20th\? # not a heading line 0 line 1 .*…$/);
+    expect(c.summary!.length).toBeLessThanOrEqual(200);
+  });
+
+  it('summarises the opening text: one line, no quoted lines, cut at a word (§4.1, §11.1)', () => {
+    expect(summaryOf('Sure, the 20th works.\r\n\r\nOn Wed, Anna wrote:\r\n> Can we pay\r\n>   on the 20th?')).toBe('Sure, the 20th works. On Wed, Anna wrote:');
+    expect(summaryOf('word '.repeat(60), 30)).toBe('word word word word word word…');
+    expect(summaryOf('x'.repeat(250))).toHaveLength(200);
+    expect(summaryOf('  \n> only quoted\n')).toBeUndefined();
   });
 
   it('is deterministic, and the id ignores mailbox and uid', async () => {
@@ -66,6 +75,7 @@ describe('toCard', () => {
     expect(isId(c.id)).toBe(true);
     expect(c.title).toBe('(no subject)');
     expect(c.body).toBe('- **From:** a@b\n- **Date:** unknown\n\n_This message has no Message-ID; its card id is not stable across moves._');
+    expect('summary' in c).toBe(false);
     expect(ref).toEqual({ mailbox: 'Lists', uid: 9, messageId: undefined });
     expect((await toCard({ mailbox: 'Lists', uid: 9, source: bare }, cfg)).card.id).toBe(c.id);
     expect((await toCard({ mailbox: 'Archive', uid: 3, source: bare }, cfg)).card.id).not.toBe(c.id);

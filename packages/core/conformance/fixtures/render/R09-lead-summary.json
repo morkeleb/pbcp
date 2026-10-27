@@ -1,0 +1,41 @@
+{
+  "name": "R09 the lead is the summary when the card has one, whatever the body starts with",
+  "rfc": [
+    "\u00a73.1",
+    "\u00a74.1"
+  ],
+  "steps": [
+    {
+      "op": "lead",
+      "args": {
+        "card": {
+          "summary": "Lars asks to renew the support contract. The proposed reply accepts.",
+          "body": "Lars (Fjord Systems) asks about the renewal.\n\n## Proposed reply\n\n> Yes."
+        }
+      },
+      "expect": {
+        "status": 200,
+        "body": {
+          "text": "Lars asks to renew the support contract. The proposed reply accepts.",
+          "source": "summary"
+        }
+      }
+    },
+    {
+      "op": "lead",
+      "args": {
+        "card": {
+          "summary": "Ship **4421** on Friday?",
+          "body": "## Evidence\n\nTests pass."
+        }
+      },
+      "expect": {
+        "status": 200,
+        "body": {
+          "text": "Ship **4421** on Friday?",
+          "source": "summary"
+        }
+      }
+    }
+  ]
+}

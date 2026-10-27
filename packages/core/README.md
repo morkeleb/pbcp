@@ -2,7 +2,7 @@
 
 The Personal Brief Card Protocol (draft 0.5), as pure functions: no I/O, no clock, no storage. A head is mostly plumbing around these calls; a producer uses them to build and check cards before sending.
 
-The specification is [`rfc/pbcp-draft-0.5.md`](https://github.com/morkeleb/pbcp/blob/main/rfc/pbcp-draft-0.5.md). Section numbers below refer to it.
+The specification is [`rfc/pbcp-draft-0.6.md`](https://github.com/morkeleb/pbcp/blob/main/rfc/pbcp-draft-0.6.md). Section numbers below refer to it.
 
 ```ts
 import { parseCard, toFrontMatter, toJSON, equal, submit, decide, checkSubmission } from '@pbcp/core';
@@ -18,6 +18,7 @@ import { parseCard, toFrontMatter, toJSON, equal, submit, decide, checkSubmissio
 | `checkSubmission`, `submit`, `decide`, `canSupersede`, `acknowledge`, `markSeen`, `snooze`, `unsnooze` | Lifecycle transitions (§5–§8). Each returns its effect, including `changed`: the cards to persist, in the order the head assigns them `change_seq`. Nothing here touches the counter. `submit(stored, incoming, now, target, ceiling?)` sets the head-owned `delivery` from the producer's urgency ceiling (§9), which the head passes in; a producer with none set has the ceiling `brief`, the default. `snooze(stored, until, now)` and `unsnooze(stored, now)` set and clear the owner-side `snoozed_until` (§4.2) on an `open` card, which takes a new `change_seq` and stays `open` (§6); a card that is not open is a 409 result carrying it, and an `until` not later than `now` is `400 invalid_snooze`. |
 | `mintOrder`, `visibleTo`, `claim`, `renew`, `expireIfDue`, `checkLease`, `checkOutcome`, `applyOutcome`, `ulid`, `ulidOf` | The orders extension (Appendix A), pure like the lifecycle: the head mints orders, keeps the wildcard eligibility snapshot per root, and applies leases and outcomes with its own clock. A lease belongs to a root; a renewal keeps `claim_seq`. A refused claim is a `ClaimRefusal` (`409 lease_held`, `410 order_terminal`, with the order); `checkOutcome` refuses an outcome without `orders.result`. `decide` takes `dismissed` on an order and cancels it. |
 | `clampUrgency` | `urgency` (absent is `brief`) lowered to a ceiling (§9). |
+| `leadOf` | A card's lead (§3.1): `{ text, source: 'summary' }` when the card has a `summary`, else the body's first paragraph by the RFC's line rule, `{ text, source: 'body' }` (empty text when there is none). It splits; it renders nothing. Heads use it so every head shows the same lead. |
 | `PbcpError`, `ERROR_CODES` | Refusals with their status and normative code (§7.4). |
 | `ProducerCardSchema`, `HeadFieldsSchema`, `DecisionSchema`, `HeadDescriptionSchema` | Zod schemas; types `ProducerCard`, `Card`, `Decision`, `HeadDescription`. |
 
@@ -30,6 +31,6 @@ import { conformanceSuite } from '@pbcp/core/conformance/vitest';
 conformanceSuite({ head: () => myHeadAdapter(), render: () => myRenderer() });
 ```
 
-The fixture format, ops and matchers are described in `conformance/README.md`. `vitest` is an optional peer dependency, needed only for `@pbcp/core/conformance/vitest`. `@pbcp/core/conformance/render` exports `referenceRenderer()`, the classifier the in-process run uses for R01–R08, so a head can run the render fixtures before it has a renderer of its own.
+The fixture format, ops and matchers are described in `conformance/README.md`. `vitest` is an optional peer dependency, needed only for `@pbcp/core/conformance/vitest`. `@pbcp/core/conformance/render` exports `referenceRenderer()`, the classifier the in-process run uses for R01–R11, so a head can run the render fixtures before it has a renderer of its own.
 
 MIT licence.

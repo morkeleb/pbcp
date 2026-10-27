@@ -1,0 +1,23 @@
+{
+  "name": "R11 without a summary, a body that opens with a mermaid fence has as its lead the first paragraph after the fence",
+  "rfc": [
+    "\u00a73.1"
+  ],
+  "steps": [
+    {
+      "op": "lead",
+      "args": {
+        "card": {
+          "body": "```mermaid\npie title Cards by producer\n  \"hermes\" : 7\n  \"goalpath\" : 3\n```\n\nTen cards yesterday; two decisions are still open.\n\n- Reply to Anna\n- Review M4"
+        }
+      },
+      "expect": {
+        "status": 200,
+        "body": {
+          "text": "Ten cards yesterday; two decisions are still open.",
+          "source": "body"
+        }
+      }
+    }
+  ]
+}

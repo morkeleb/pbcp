@@ -58,6 +58,7 @@ describe('agendaCard', () => {
     const c = agendaCard(occurrences([vcal(standup), ...others], from, to), '2026-10-26', cfg, now);
     expect(isId(c.id)).toBe(true);
     expect(c).toMatchObject({ id: 'cal:work:2026-10-26', kind: 'artifact', urgency: 'brief', thread: 'day-2026-10-26', title: 'Mon 26 Oct: 4 events, first at 09:15' });
+    expect(c.summary).toBe('First: Standup, 09:15–09:30.');
     expect('actions' in c).toBe(false);
     expect(c.body).toBe(
       [
@@ -86,6 +87,8 @@ describe('agendaCard', () => {
     const allDay = agendaCard(occurrences([others[0]!], from, to), '2026-10-26', cfg, now);
     expect(allDay.title).toBe('Mon 26 Oct: 1 event');
     expect(allDay.body).not.toContain('mermaid');
+    expect('summary' in allDay).toBe(false);
+    expect('summary' in agendaCard([], '2026-10-26', cfg, now)).toBe(false);
   });
 });
 
@@ -112,6 +115,7 @@ describe('plan', () => {
     expect(cards[0]!.id).toMatch(/^cal:work:[0-9a-f]{16}-20261026T0820Z:moved$/);
     expect(isId(cards[0]!.id)).toBe(true);
     expect(cards[0]!.body).toBe('**Standup** now starts at 09:20–09:35 (was 09:15).');
+    expect(cards[0]!.summary).toBe('Standup now starts at 09:20–09:35 (was 09:15).');
     expect(next.seen).toEqual({ 'standup@example.com/2026-10-26T09:15:00': '2026-10-26T08:20:00.000Z' });
     expect(plan([at('2026-10-26T08:20:00Z')], next, cfg, nine).cards).toEqual([]);
     expect(plan([at('2026-10-26T08:25:00Z')], next, cfg, nine).cards[0]!.id).not.toBe(cards[0]!.id);
@@ -216,6 +220,7 @@ describe('several calendars', () => {
     const c = agendaCard(tagged(ics), '2026-10-26', two, now);
     expect(isId(c.id)).toBe(true);
     expect(c).toMatchObject({ id: 'cal:agenda:2026-10-26', kind: 'artifact', urgency: 'brief', thread: 'day-2026-10-26', title: 'Mon 26 Oct: 6 events, first at 09:00, 2 overlaps' });
+    expect(c.summary).toBe('First: Dentist, 09:00–09:45, Clinic (Home | family).');
     expect(c.body).toBe(
       [
         '| Time | Calendar | Event | Where |',
@@ -284,6 +289,7 @@ describe('several calendars', () => {
     expect(cards[0]!.id).toMatch(/^cal:work:[0-9a-f]{16}-20261026T0820Z:moved$/);
     expect(cards[0]).toMatchObject({ title: 'Moved: Planning now at 09:20 (Work)', thread: 'day-2026-10-26' });
     expect(cards[0]!.body).toBe('**Planning** now starts at 09:20–10:00 (was 09:15).\n\nCalendar: Work');
+    expect(cards[0]!.summary).toBe('Planning now starts at 09:20–10:00 (was 09:15), in Work.');
   });
 
   it('parses CALDAV_CALENDARS and refuses lists that cannot work', () => {

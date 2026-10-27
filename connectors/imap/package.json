@@ -1,6 +1,6 @@
 {
   "name": "@pbcp/connector-imap",
-  "version": "0.6.0",
+  "version": "0.7.0",
   "private": true,
   "description": "Example producer: unseen IMAP mail to cards.",
   "license": "MIT",

@@ -1,6 +1,6 @@
 # PBCP Reference Implementation — Repo Skeleton
 
-Oct 26, 2026 · @Morten Nielsen · Companion to RFC Draft 0.5
+Oct 26, 2026 · @Morten Nielsen · Companion to RFC Draft 0.6
 
 ## Layout
 
@@ -56,6 +56,7 @@ export type State = 'open' | 'decided' | 'superseded';
 export interface ProducerCard {          // §4.1 — what a producer sends
   protocol: 'pbcp/1';
   id: string; kind: Kind; producer: string; title: string; body: string;
+  summary?: string;                           // one line, plain text; the card's lead when present (§3.1)
   to_person?: string; to_producer?: string;   // exactly one, by kind
   urgency?: Urgency; thread?: string; references?: string[];
   supersedes?: string; actions?: string[]; emitted_at: string;
@@ -77,6 +78,7 @@ export const parseCard: (input: unknown | string) => Result<ProducerCard, PbcpEr
 export const toFrontMatter: (c: ProducerCard) => string;
 export const toJSON: (c: ProducerCard) => string;
 export const equal: (a: ProducerCard, b: ProducerCard) => boolean;   // §5: all producer fields except emitted_at
+export const leadOf: (c: { summary?: string; body: string }) => { text: string; source: 'summary' | 'body' };  // §3.1
 
 // id.ts
 export const parseId: (id: string) => { producer: string; namespace: string; upstream: string; intent?: string } | null;
@@ -322,8 +324,11 @@ Each fixture is `{ name, steps: [{ op, args, expect }] }`. The first release car
 | C35 | Order: a second token under the holding root renews and posts the outcome | A.1–A.3 |
 | C36 | Order: outcome ids per claim; only the current claim's outcome moves `exec_state` | A.3, A.4 |
 | C37 | Snooze sets `snoozed_until` with a new `change_seq`; the card stays `open` and in sync; clearing it takes another | §4.2, §6 |
+| C38 | `summary` round-trips and counts for equality: identical re-PUT is a no-op, a changed summary replaces an open card (200), and is 409 once decided | §4.1, §5 |
+| C39 | A `summary` with CR or LF, or an empty one, is 400 `invalid_card` in both forms; nothing is stored | §4.1 |
+| C40 | `summary` in the file form is stored and synced | §3, §4.1 |
 
-Rendering is tested from fixture bodies rather than over HTTP (RFC §3.1): the runner takes a `render(body) → classified fences + text` adapter and checks classification, not pixels.
+Rendering is tested from fixture bodies rather than over HTTP (RFC §3.1): the runner takes a `render(body) → classified fences + text` adapter and checks classification, not pixels. The same adapter's `lead(card) → { text, source }` is checked by R09–R11.
 
 | # | Case | RFC |
 | --- | --- | --- |
@@ -334,6 +339,9 @@ Rendering is tested from fixture bodies rather than over HTTP (RFC §3.1): the r
 | R05 | Raw HTML in the body is stripped; `![](http://…)` is shown as a link, `https:` and data:image/png as images; inline SVG has script and foreignObject removed. R08: image with alt fallback after a renderable fence is hidden; after an unrenderable fence it replaces the fallback block | §3.1 |
 | R06 | Ninth fence is collapsed, not dropped | §3.1 |
 | R07 | Identical fence in two cards yields one cached render | §3.1 |
+| R09 | The lead is `summary` when present, whatever the body starts with | §3.1, §4.1 |
+| R10 | Without `summary`, the lead is the first paragraph, after any leading heading | §3.1 |
+| R11 | Without `summary`, a body that opens with a mermaid fence has the first paragraph after it as its lead | §3.1 |
 
 The suite is the CI gate for `apps/head` and the compatibility badge for third-party heads.
 

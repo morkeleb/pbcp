@@ -71,7 +71,7 @@ Each pass runs in this order, so `onDecision` never runs while `produce()` is su
 
 ## card()
 
-`card({ producer, namespace, upstream, intent?, kind, to_person, title, body, ... })` builds the id `producer:namespace:upstream[:intent]` (§5), fills `protocol` and `emitted_at`, and validates the result, so connectors never assemble ids or protocol fields by hand. `upstream` is used as given; encode an arbitrary key with `encodeUpstream` from `@pbcp/core`.
+`card({ producer, namespace, upstream, intent?, kind, to_person, title, summary?, body, ... })` builds the id `producer:namespace:upstream[:intent]` (§5), fills `protocol` and `emitted_at`, and validates the result, so connectors never assemble ids or protocol fields by hand. `upstream` is used as given; encode an arbitrary key with `encodeUpstream` from `@pbcp/core`.
 
 ## Stores
 
@@ -89,6 +89,10 @@ Writes to one store are applied in the order they are made, through a temp file 
 ## Testing
 
 `@pbcp/client/testing` exports `stubHead()`, an in-memory head behind a `fetch` function, for testing producers and tools without a server. Its rules are `@pbcp/core`'s own transitions (submit, supersession, decide, acknowledge, snooze), so a connector sees the protocol's answers. Producer tokens are any `Bearer` value; the owner endpoints take `Session owner` (or `ownerCredential`). `stub.decideHere(id, decision)` decides as the owner without HTTP, `stub.script(status, body)` scripts the next response, and `stub.requests` records every request.
+
+## Migrating from 0.6
+
+- Cards take an optional `summary` (RFC §4.1): one line of plain text. Nothing else changes.
 
 ## Migrating from 0.5
 

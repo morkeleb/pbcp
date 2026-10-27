@@ -60,6 +60,10 @@ describe('goalpath producer', () => {
     expect(approval).toMatchObject({ kind: 'decision', urgency: 'brief', thread: M(4), title: 'Accept GP-12 Export invoices as CSV?' });
     expect(approval.actions).toEqual([{ id: 'accept', label: 'Accept', body: 'Sets GP-12 to Accepted.' }, { id: 'reject', label: 'Reject', body: 'Sets GP-12 to Rejected.' }]);
     expect(approval.body).toMatch(/## Proposal/);
+    // §4.1: one line of plain text from the item's title and status.
+    expect(approval.summary).toMatch(/^GP-12 Export invoices as CSV is \w+ in Billing revamp and waiting for your acceptance\. /);
+    expect(risk.summary).toBe('Billing revamp is forecast for 2026-11-24, 11 days past its deadline 2026-11-13. Cut scope, move the deadline or add capacity.');
+    expect(build.summary).toMatch(/^ci \/ test ended \w+ on #91, linked to GP-14 /);
 
     expect(build).toMatchObject({ kind: 'signal', urgency: 'immediate', thread: M(4), title: 'Build failed: ci / test on #91 (GP-14)', source: { url: 'https://git.example/acme/billing/actions/runs/118842' } });
     // Tickets (GP-15 NotStarted, GP-16 green with a failing *suggested* link) and the Accepted ones never become cards.

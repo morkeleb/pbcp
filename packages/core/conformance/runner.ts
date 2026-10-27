@@ -108,6 +108,9 @@ export async function runFixture(fixture: Fixture, adapters: Adapters): Promise<
       case 'render':
         res = { status: 200, body: await needRender().render(String(args.body)) };
         break;
+      case 'lead':
+        res = { status: 200, body: await needRender().lead(args.card as { summary?: string; body: string }) };
+        break;
       case 'draws':
         res = { status: 200, body: { count: await needRender().draws() } };
         break;
