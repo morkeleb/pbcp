@@ -1,5 +1,5 @@
 import { fileURLToPath } from 'node:url';
-import { HeadClient, memoryStore, producerPass, type Parked } from '@pbcp/client';
+import { HeadClient, memoryStore, producerPass, type Parked, type SubmitResponse } from '@pbcp/client';
 import { stubHead } from '@pbcp/client/testing';
 import { isId, type ProducerCard } from '@pbcp/core';
 import { describe, expect, it } from 'vitest';
@@ -25,17 +25,21 @@ function setup(now = '2026-10-26T12:00:00Z') {
   const errors: unknown[] = [];
   const parked: Parked[] = [];
   const attempts = new Map<string, number>();
+  const answers: [string, number][] = [];
   let seen = 0;
   /** One pass; returns the cards PUT during it. */
   const pass = async () => {
-    await producerPass({ ...producer, head, store, onError: (e) => errors.push(e), onParked: (p) => void parked.push(p) }, undefined, attempts);
+    const onSubmitted = (c: ProducerCard, r: SubmitResponse) => (answers.push([c.id, r.status]), producer.onSubmitted(c, r));
+    await producerPass({ ...producer, onSubmitted, head, store, onError: (e) => errors.push(e), onParked: (p) => void parked.push(p) }, undefined, attempts);
     const puts = stub.requests.filter((r) => r.method === 'PUT').map((r) => r.body as ProducerCard);
     return puts.slice(seen, (seen = puts.length));
   };
   const items = (data.list_my_items as { items: Record<string, unknown>[] }).items;
   const item = (n: string) => items.find((i) => i.id === I(n))!;
   const forecast = (n: number) => (data.get_milestone_forecast as Record<string, Record<string, unknown>>)[M(n)]!;
-  return { stub, gp, store, pass, errors, parked, item, forecast, at: (t: string) => void (clock = new Date(t)) };
+  /** A process restart: what runProducer keeps in memory (parked and 409-answered cards) is gone; the store stays. */
+  const restart = () => attempts.clear();
+  return { stub, gp, store, pass, errors, parked, answers, restart, item, forecast, at: (t: string) => void (clock = new Date(t)) };
 }
 
 describe('goalpath producer', () => {
@@ -93,19 +97,26 @@ describe('goalpath producer', () => {
     expect(stub.cards.get(again!.id)!.state).toBe('open');
   });
 
-  it('known gap: a risk chain back at a projected date it already used gets a 409 result every pass, never parked', async () => {
-    const { pass, forecast, stub, store, errors, parked } = setup();
+  it('known gap: a risk chain back at a projected date it already used gets a 409 once per process, never parked', async () => {
+    const { pass, forecast, stub, store, errors, parked, answers, restart } = setup();
     await pass();
     forecast(4).projectedCompletionDate = '2026-11-12';
     const [back] = await pass();
     forecast(4).projectedCompletionDate = '2026-11-24'; // the date of the first, now superseded, risk card
-    for (let n = 0; n < 7; n++) {
-      const [again] = await pass();
-      expect(again).toMatchObject({ id: RISK, supersedes: back!.id });
-    }
+    const riskPuts = () => stub.requests.filter((r) => r.method === 'PUT' && r.url.endsWith(encodeURIComponent(RISK))).length;
+    const [again] = await pass();
+    expect(again).toMatchObject({ id: RISK, supersedes: back!.id });
     // The head answers 409 with the stored, superseded card: a result, not a refusal, so nothing is counted or parked.
-    const last = stub.requests.filter((r) => r.method === 'PUT' && r.url.endsWith(encodeURIComponent(RISK))).length;
-    expect(last).toBe(8);
+    expect(answers.filter(([id]) => id === RISK)).toEqual([[RISK, 201], [RISK, 409]]);
+    // The client does not send the same content again while the loop runs.
+    for (let n = 0; n < 7; n++) expect((await pass()).map((c) => c.id)).toEqual([BUILD]);
+    expect(riskPuts()).toBe(2);
+    // After a restart the 409 is seen once more, then suppressed again.
+    restart();
+    expect((await pass()).map((c) => c.id)).toEqual([RISK, BUILD]);
+    expect((await pass()).map((c) => c.id)).toEqual([BUILD]);
+    expect(riskPuts()).toBe(3);
+    expect(answers.filter(([id, s]) => id === RISK && s === 409)).toHaveLength(2);
     expect(stub.cards.get(RISK)!.state).toBe('superseded');
     expect(stub.cards.get(back!.id)!.state).toBe('open');
     expect(errors).toEqual([]);

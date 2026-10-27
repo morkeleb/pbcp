@@ -18,7 +18,7 @@ An example executor on `runExecutor` from `@pbcp/client` (RFC Appendix A.4, "To-
 | `TODOIST_PROJECT` | the Inbox | project id for new tasks |
 | `TODOIST_POLL_S` | `60` | seconds between checks of a waiting task |
 | `PBCP_HEAD_URL`, `PBCP_TOKEN` | – | the head and this executor's token (root `todoist`) |
-| `PBCP_STORE` | `pbcp-todoist.json` | the sync cursor (`fileStore`) |
+| `PBCP_STORE` | `pbcp-todoist.json` | the sync cursor and, per running order, the id of its task (`fileStore`) |
 | `PBCP_LEASE_S` | `60` | lease length in seconds, renewed every half lease and at every check (A.5) |
 | `PBCP_CONCURRENCY` | `50` | orders waiting at once; orders wait days for the person, so one must not block the next |
 
@@ -34,21 +34,23 @@ An example executor on `runExecutor` from `@pbcp/client` (RFC Appendix A.4, "To-
 
 **Due line.** The first line of the body of the form `due: <when>` (any case, leading spaces allowed) is removed from the description and `<when>` is sent as `due_string`, which Todoist parses as natural language: `due: tomorrow 9am`, `Due: 2026-11-02`, `due: every friday`. Later `due:` lines stay in the description.
 
-**Idempotency.** The key is the order id (A.4), written into the description as `pbcp: <order id>`. Before creating, the connector looks through the open tasks labelled `pbcp` for one whose description contains that line, and uses it if found, so an order claimed again after a crash does not get a second task. Removing the label or the line in Todoist defeats this. Completed tasks are not searched: if the executor is down when the person completes the task and the lease lapses, the re-claim creates a new task.
+**Idempotency.** The key is the order id (A.4). Once a task is created, its id is kept in the executor's order state (`ctx.state`, in `PBCP_STORE` under `orders`, keyed by order id) until the order's outcome is accepted. An order claimed again after a crash reads the task from there and checks it, so a task completed (or deleted) while the executor was down is reported as such on the re-claim, not created again.
+
+The order id is also written into the description as `pbcp: <order id>`. When there is no state for the order (a crash between creating the task and recording it, or a lost store file), the connector looks through the open tasks labelled `pbcp` for one whose description contains that line and uses it. That fallback sees open tasks only: a task completed in that narrow window, or after the store file was lost, gets a second task on re-claim. Removing the label or the line in Todoist defeats the fallback, not the state.
 
 ## Outcome
 
-The connector checks the task every `TODOIST_POLL_S`, renewing the lease first (`ctx.checkpoint()`); the wait is interrupted by a cancel. A Todoist error during a check is logged and retried at the next one. When the task is created, a progress card `todoist:order:<ulid>:progress-1` says `Added to Todoist: <content>` (not repeated on a re-claim that finds the task).
+The connector checks the task every `TODOIST_POLL_S`, renewing the lease first (`ctx.checkpoint()`); the wait is interrupted by a cancel. A Todoist error during a check is logged and retried at the next one. When the task is created, a progress card `todoist:order:<ulid>:progress-<claim_seq>-1` says `Added to Todoist: <content>` (not repeated on a re-claim that finds the task).
 
-| In Todoist | Outcome `todoist:order:<ulid>:outcome` | `exec_state` |
+| In Todoist | Outcome `todoist:order:<ulid>:outcome-<claim_seq>` | `exec_state` |
 |---|---|---|
-| Completed | `signal`, `Done: <task content as it is now>`, body `Completed in Todoist at <time>.` | `done` |
+| Completed | `signal` with `orders.result: done`, `Done: <task content as it is now>`, body `Completed in Todoist at <time>.` | `done` |
 | Deleted | `signal` with `orders.result: failed`, `Not done: <order title>`, saying the task was deleted without being completed | `failed` |
 | (the person dismisses the order) | `signal` with `orders.result: failed`, `Stopped: <order title>`, saying the task was deleted | stays `cancelled` (the outcome is stale by design, A.5) |
 
-Every outcome carries `references: [<order id>]`, `thread: <order id>` and the `orders.claim_seq` of the latest renewal.
+Every outcome carries `references: [<order id>]`, `thread: <order id>`, `orders.result` and the `orders.claim_seq` of the claim it reports on (A.3). Ids are per claim, so a re-claim after a lapsed lease (`claim_seq` 2) writes `outcome-2` beside any earlier run's cards; `runExecutor` builds the ids and fields.
 
-**Cancellation.** When renewal answers `410`, the task is deleted rather than completed, so it neither stays on the list nor shows in the person's completed history; that is the roll-back of A.5. If the delete fails, the executor's own `Stopped` outcome is posted instead, listing `Added to Todoist` as done. On shutdown (`SIGINT`, `SIGTERM`) or a lease lost to another executor the task is left alone: the next claim finds it by its marker.
+**Cancellation.** When renewal answers `410`, the task is deleted rather than completed, so it neither stays on the list nor shows in the person's completed history; that is the roll-back of A.5. If the delete fails, the executor's own `Stopped` outcome is posted instead, listing `Added to Todoist` as done. On shutdown (`SIGINT`, `SIGTERM`) or a lease lost to another executor the task is left alone: the next claim finds it through the order state (or its marker). Waits between checks use `ctx.sleep`, which a cancel, a lost lease or shutdown interrupts at once.
 
 ## API
 
