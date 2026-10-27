@@ -121,6 +121,12 @@ describe('plan', () => {
     expect(plan([at('2026-10-26T08:25:00Z')], next, cfg, nine).cards[0]!.id).not.toBe(cards[0]!.id);
   });
 
+  it('names the day, readably, of a previous start or an end on another day', () => {
+    const late = { ...at('2026-10-26T08:20:00Z'), end: new Date('2026-10-26T23:30:00Z') };
+    const moved = plan([late], { ...prev, seen: { [late.key]: '2026-10-25T08:15:00.000Z' } }, cfg, nine).cards[0]!;
+    expect(moved.body).toBe('**Standup** now starts at 09:20–Tue 27 Oct 00:30 (was Sun 25 Oct 09:15).');
+  });
+
   it('ignores a move further out, a first sighting and a past start', () => {
     expect(plan([at('2026-10-26T10:00:00Z')], prev, cfg, nine).cards).toEqual([]);
     expect(plan([at('2026-10-26T08:20:00Z')], { ...prev, seen: {} }, cfg, nine).cards).toEqual([]);

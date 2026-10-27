@@ -518,7 +518,7 @@ The bar is deliberately low. The checklists below are the whole of what each rol
 - [ ] Acts on decisions idempotently on its own side
 - [ ] Never includes head-owned fields on submission
 
-A mail reader is the canonical minimal producer: IMAP message id → `id` (percent-encoded or hashed, §5), thread id → `thread`, subject → `title`, the first lines of the message with whitespace collapsed → `summary`, headers and first lines → body. A message in the inbox is a `kind: decision` card with `actions: [archive, keep]`; every other message is a `kind: artifact` card with no `actions`. It drafts nothing and sends nothing; a producer that proposes a reply is a separate agent that `references` the mail card.
+A mail reader is the canonical minimal producer: IMAP message id → `id` (percent-encoded or hashed, §5), thread id → `thread`, subject → `title`, the first lines of the message with whitespace collapsed → `summary`, headers and first lines → body. A message in the inbox is a `kind: decision` card with `actions: [{ "id": "archive", "default": true }, "keep"]`, so a bare approve gesture (§4.4) archives it; every other message is a `kind: artifact` card with no `actions`. A new message in a thread that has an open mail card supersedes that card (§8), so a thread is decided once, on its latest message, and the decision applies to the messages it superseded. A predecessor decided before the successor reached the head keeps its decision (§8), and the reader acts on that decision for that card's own message. It drafts nothing and sends nothing; a producer that proposes a reply is a separate agent that `references` the mail card.
 
 ### 11.2 An executor (orders extension)
 

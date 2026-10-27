@@ -14,7 +14,7 @@ Milestone 1 only. Do not start milestone 2 or 3 work (brief folding, orders, exe
 1. `packages/core` — pure functions, no I/O: card schema (Zod), parse/serialize (JSON ⇄ YAML front matter), id grammar, semantic equality, the core lifecycle transitions (`submit`, `decide`, `canSupersede`). Conformance cases **C01–C15** and **R01–R08** must pass in-process.
 2. `packages/core/conformance` — JSON fixtures + a vitest runner that takes a `HeadUnderTest` adapter. The fixtures are the protocol's real definition; write them from the RFC, not from the implementation.
 3. `packages/client` — `HeadClient` + `runProducer` (durable cursor loop). No executor yet.
-4. `connectors/imap` — a producer on `@pbcp/client`, under 100 lines, that turns unseen mail into cards: inbox messages are `kind: decision` with `actions: [archive, keep]`, everything else is `kind: artifact` with no actions (RFC §11.1). It is a reader: no model, no SMTP, no reply drafting.
+4. `connectors/imap` — a producer on `@pbcp/client`, under 100 lines, that turns unseen mail into cards: inbox messages are `kind: decision` with `actions: [{id: archive, default: true}, keep]`, everything else is `kind: artifact` with no actions (RFC §11.1). It is a reader: no model, no SMTP, no reply drafting.
 
 ## Rules
 

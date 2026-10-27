@@ -25,6 +25,8 @@ Draft 0.6 is driven by the first real brief rendered by a head. It adds one prod
 - **§4.5 — no default, no primary.** Only the option marked `default` is the primary control. With no default, a head MUST give the options equal weight and MUST NOT style or place one as primary, consistent with §4.4's rule that there is no bare approve without a default. The merged text made the first entry primary, which contradicted §4.4. The render adapter cannot express how a control is weighted, so there is no fixture; the rule is in the §11.3 head checklist.
 - **§4.5 — the proposal heading is matched case-insensitively**: `Proposal`, `Proposed`, `PROPOSED REPLY`. No core helper matches it.
 - **§4.1 — `summary` on a decision card SHOULD state the proposal**, not only the topic, so that a brief's decision line can be decided on its own. The §3 example's `summary` already does. The hermes skills and the goalpath connector follow it.
+- **§11.1 — one decision per mail thread** (after first use on a phone). A new message in a thread that has an open mail card supersedes that card (§8), so the thread is decided once, on its latest message, and the decision applies to the messages it superseded. A predecessor decided before the successor reached the head keeps its decision, as §8 already requires, and the reader acts on it for that message.
+- **§11.1 — archive is the default** (after first use on a phone). Inbox cards are `actions: [{ "id": "archive", "default": true }, "keep"]`, so a bare approve gesture (§4.4) archives the message.
 
 **Conformance**
 

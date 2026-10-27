@@ -15,7 +15,17 @@ export function taskFor(order: OrderCard): NewTask {
   return { content: order.title, description: [body, marker(order.id)].filter(Boolean).join('\n\n'), ...(due ? { due_string: due } : {}) };
 }
 
-export function todoistRun(src: TodoistSource, opts: { pollMs?: number; onError?: (e: unknown) => void } = {}) {
+/** A local time a person reads at a glance: `today 09:12` on `now`'s day, else `Mon 26 Oct 16:00`. With no `zone`, UTC and
+ *  named (`today 08:12 UTC`). An unparseable time is given as it came. */
+export function readable(iso: string, now: Date, zone?: string): string {
+  const [d, timeZone] = [new Date(iso), zone ?? 'UTC'];
+  if (Number.isNaN(+d)) return iso;
+  const p = Object.fromEntries(new Intl.DateTimeFormat('en-GB', { timeZone, weekday: 'short', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit', hourCycle: 'h23' }).formatToParts(d).map((x) => [x.type, x.value]));
+  const day = (x: Date) => x.toLocaleDateString('en-CA', { timeZone });
+  return `${day(d) === day(now) ? 'today' : `${p.weekday} ${p.day} ${p.month}`} ${p.hour}:${p.minute}${zone ? '' : ' UTC'}`;
+}
+
+export function todoistRun(src: TodoistSource, opts: { pollMs?: number; onError?: (e: unknown) => void; now?: () => Date; timeZone?: string } = {}) {
   return async (order: OrderCard, ctx: ExecCtx): Promise<Outcome> => {
     // A.4: a re-claim finds the earlier run's task in ctx.state, completed or not; failing that, by its marker while open.
     const known = await ctx.state.get<{ task: string }>();
@@ -31,7 +41,7 @@ export function todoistRun(src: TodoistSource, opts: { pollMs?: number; onError?
         await ctx.checkpoint(); // the lease renewal, and the cancellation check
         // A Todoist error while waiting is retried at the next poll, not turned into a failed order.
         const now = await src.get(task.id).catch((e) => void (opts.onError ?? console.error)(e));
-        if (now?.state === 'done') return { kind: 'signal', title: `Done: ${now.content}`, body: `Completed in Todoist${now.completedAt ? ` at ${now.completedAt}` : ''}.` };
+        if (now?.state === 'done') return { kind: 'signal', title: `Done: ${now.content}`, body: `Completed in Todoist${now.completedAt ? `, ${readable(now.completedAt, opts.now?.() ?? new Date(), opts.timeZone)}` : ''}.` };
         if (now?.state === 'deleted') return { kind: 'failed', title: `Not done: ${order.title}`, body: `The Todoist task "${task.content}" was deleted without being completed.` };
         await ctx.sleep(opts.pollMs ?? 60_000);
       }
