@@ -33,7 +33,7 @@ describe('@pbcp/mcp', () => {
     const { call, stub } = await setup({ executors: ['hermes', 'cal'] });
     const o = stub.order({ to_producer: '*', title: 'Book the dentist', body: '' });
     expect(await call('claim_order', { id: o.id })).toMatchObject({ isError: false, json: { order: { exec_state: 'claimed', claimed_by: 'hermes', claim_seq: 1 } } });
-    expect((await call('claim_order', { id: o.id, lease_seconds: 30 })).json.order.claim_seq).toBe(2);
+    expect((await call('claim_order', { id: o.id, lease_seconds: 30 })).json.order.claim_seq).toBe(1); // a renewal keeps claim_seq
     const cal = await setup({ stub, token: 'cal' });
     expect(await cal.call('claim_order', { id: o.id })).toMatchObject({ isError: true, json: { status: 409, error: 'lease_held', order: { claimed_by: 'hermes' } } });
     stub.decideHere(o.id, { decision: 'dismissed' });
@@ -46,7 +46,7 @@ describe('@pbcp/mcp', () => {
     const o = stub.order({ to_producer: 'hermes', title: 'Water the plants', body: '' });
     const seq = (await call('claim_order', { id: o.id })).json.order.claim_seq;
     const ulid = o.id.split(':')[2]!;
-    const res = await call('submit_card', { card: card({ producer: 'hermes', namespace: 'order', upstream: ulid, intent: 'outcome', kind: 'signal', to_person: 'morten', title: 'Watered', body: '', thread: o.id, references: [o.id], 'orders.claim_seq': seq }) });
+    const res = await call('submit_card', { card: card({ producer: 'hermes', namespace: 'order', upstream: ulid, intent: `outcome-${seq}`, kind: 'signal', to_person: 'morten', title: 'Watered', body: '', thread: o.id, references: [o.id], 'orders.claim_seq': seq, 'orders.result': 'done' }) });
     expect(res.json.status).toBe(201);
     expect(stub.cards.get(o.id)).toMatchObject({ exec_state: 'done' });
   });
