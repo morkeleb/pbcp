@@ -17,11 +17,30 @@ An example producer on `@pbcp/client`: it turns unseen IMAP mail into cards (RFC
 | `IMAP_USER`, `IMAP_PASSWORD` | – | |
 | `IMAP_MAILBOXES` | `INBOX` | comma-separated |
 | `IMAP_ARCHIVE` | `Archive` | target of `archive` |
+| `IMAP_SOURCE_URL` | – | template for a link to the message, with `{message_id}` and `{uid}`; when set, every card gets `source` (see below) |
+| `IMAP_SOURCE_LABEL` | `Open in mail` | the link's label |
 | `IMAP_TZ` | UTC | IANA zone for times in card text, e.g. `Europe/Copenhagen`; a name the runtime does not know stops the connector at startup |
 | `PBCP_HEAD_URL`, `PBCP_TOKEN` | – | the head and this producer's token |
 | `PBCP_TO_PERSON` | the head's `owner` | read once from `GET /` at startup when unset |
 | `PBCP_MAIL_ACCOUNT` | `IMAP_USER` | source of the id namespace |
 | `PBCP_STORE` | `PBCP_CURSOR` if set, else `pbcp-imap.store.json` | one file: the sync cursor and the producer state |
+
+## Link to the message
+
+With `IMAP_SOURCE_URL` set, every card (inbox decisions and artifacts alike) carries `source: { url, label }` (RFC §4.1, §11.1), so the head can open the message in the person's mail client. In the template:
+
+- `{message_id}` is the `Message-ID` without its angle brackets, percent-encoded (`<CA+abc=def@mail.example.com>` → `CA%2Babc%3Ddef%40mail.example.com`).
+- `{uid}` is the message's IMAP uid in the mailbox it was read from.
+
+A message with no Message-ID gets no `source` when the template uses `{message_id}`. The link counts for card equality like any field, so changing the template re-sends open cards with the new link and is refused (`409`) on decided ones; that is harmless.
+
+For Gmail:
+
+```
+IMAP_SOURCE_URL='https://mail.google.com/mail/u/0/#search/rfc822msgid:{message_id}'
+```
+
+`u/0` is the first signed-in Google account in the browser; use `u/1` and so on for another.
 
 ## Ids
 

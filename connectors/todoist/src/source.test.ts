@@ -1,11 +1,18 @@
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
-import { restSource } from './source.js';
+import { restSource, task } from './source.js';
 
 const recorded = JSON.parse(readFileSync(fileURLToPath(new URL('../fixtures/tasks.json', import.meta.url)), 'utf8')) as { results: Record<string, unknown>[] };
 
 describe('restSource', () => {
+  it('links a task: the url from the API when given, else the web app task address, and none once deleted', () => {
+    expect(task({ id: '6Xfx0001', content: 'x', url: 'https://todoist.example/t/1' }).url).toBe('https://todoist.example/t/1');
+    expect(task({ id: '6Xfx0001', content: 'x' }).url).toBe('https://app.todoist.com/app/task/6Xfx0001');
+    expect(task({ id: '6Xfx0001', is_deleted: true }).url).toBeUndefined();
+    expect(task(undefined, 'gone').url).toBeUndefined();
+  });
+
   it('pages through labelled tasks, posts new ones with the label and project, and reads 404 as deleted', async () => {
     const calls: [string, string, unknown][] = [];
     const fake: typeof fetch = async (url, init) => {

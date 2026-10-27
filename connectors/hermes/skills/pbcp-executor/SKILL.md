@@ -29,6 +29,7 @@ An order is a card of `kind: order` the person gave through their head (RFC Appe
   "body": "What you did, with links. If you stopped early: what was done and what was not.",
   "thread": "<order id>",
   "references": ["<order id>"],
+  "source": { "url": "<link to what you made or changed, e.g. the calendar event>", "label": "Open in Calendar" },
   "orders.claim_seq": 1,
   "orders.result": "done",
   "emitted_at": "<now, UTC>"
@@ -36,6 +37,7 @@ An order is a card of `kind: order` the person gave through their head (RFC Appe
 ```
 
 - `summary` is one sentence of plain text on one line saying what you did, or why you could not; it is what the person reads in the brief. If the outcome is a decision card (below), the summary states what you propose, so the person can decide from it alone.
+- `source` opens the thing the outcome is about: the event you booked, the mail you sent or drafted, the document you wrote. The `label` names where it opens ("Open in Calendar", "Open in Gmail", "Open in Docs"). For a Gmail message, use `https://mail.google.com/mail/u/0/#search/rfc822msgid:<Message-ID>`, the Message-ID without its angle brackets, percent-encoded. Leave it out when there is no URL to give; never guess one.
 - Times in the title, summary and body are local and readable ("today 09:12", "Mon 26 Oct 16:00"), never ISO timestamps.
 - `orders.claim_seq` is the `claim_seq` your claim returned. `orders.result` is required: `"done"`, or `"failed"` if you could not do it or stopped because of a `410` (say why in the body).
 - If the result needs the person's approval before it takes effect (a draft to send), make the outcome `kind: "decision"` with `actions`, and act on it later as `pbcp-escalate` describes.

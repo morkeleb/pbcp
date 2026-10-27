@@ -7,7 +7,7 @@ type Time = InstanceType<typeof ICAL.Time>; type Event = InstanceType<typeof ICA
 /** A configured calendar: `name` is shown to the person, `slug` is its namespace (§5). */
 export interface Calendar { name: string; slug: string }
 /** One occurrence; `key` is UID/RECURRENCE-ID. An all-day one carries its local dates, end exclusive. */
-export interface Occurrence { key: string; title: string; location?: string; start: Date; end: Date; allDay?: { from: string; to: string }; calendar?: Calendar }
+export interface Occurrence { key: string; title: string; location?: string; url?: string; start: Date; end: Date; allDay?: { from: string; to: string }; calendar?: Calendar }
 /** With one calendar the cards are exactly those of a single-calendar producer; with several, one agenda merges them. */
 export interface Config { calendars: Calendar[]; toPerson: string; tz: string; agendaAt?: string; leadMinutes?: number }
 /** `agenda`: the last day an agenda was produced; `seen`: last-seen start per occurrence key, for the fetch window only. */
@@ -49,7 +49,10 @@ export function occurrences(ics: string[], from: Date, to: Date, cap = 10_000): 
     const [start, end] = [s.toJSDate(), e.toJSDate()];
     if (start >= to || (end <= from && start < from) || ev.component.getFirstPropertyValue('status') === 'CANCELLED') return;
     const location = ev.location ? oneLine(ev.location) : undefined;
-    out.push({ key: `${ev.uid}/${rid?.toString() ?? ''}`, title: oneLine(ev.summary ?? ''), location, start, end, allDay: s.isDate ? { from: s.toString(), to: e.toString() } : undefined });
+    // The event's own URL property (RFC 5545 §3.8.4.6), when it is a web link; the card's `source` (§4.1).
+    const raw = ev.component.getFirstPropertyValue('url');
+    const url = typeof raw === 'string' && /^https?:\/\//i.test(raw.trim()) ? raw.trim() : undefined;
+    out.push({ key: `${ev.uid}/${rid?.toString() ?? ''}`, title: oneLine(ev.summary ?? ''), location, ...(url ? { url } : {}), start, end, allDay: s.isDate ? { from: s.toString(), to: e.toString() } : undefined });
   };
   for (const text of ics) {
     const comp = new ICAL.Component(ICAL.parse(text));
@@ -133,6 +136,7 @@ export function movedCard(o: Occurrence, was: Date, cfg: Config, now: Date): Pro
     summary: clip(`${o.title} now starts at ${timeOf(o.start, cfg.tz)}–${at(o.end)} (was ${at(was)})${o.location ? `, ${o.location}` : ''}${cal ? `, in ${cal.name}` : ''}.`),
     body: [`**${o.title}** now starts at ${timeOf(o.start, cfg.tz)}–${at(o.end)} (was ${at(was)}).`]
       .concat(cal ? ['', `Calendar: ${cal.name}`] : [], o.location ? ['', `Where: ${o.location}`] : []).join('\n'),
+    ...(o.url ? { source: { url: o.url, label: 'Calendar event' } } : {}),
     emitted_at: now.toISOString(),
   });
 }

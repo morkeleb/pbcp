@@ -30,6 +30,7 @@ Call `submit_card` with a card object like this:
   "actions": ["approve", "reject", "edit"],
   "thread": "<a key shared by cards about the same matter>",
   "urgency": "brief",
+  "source": { "url": "https://mail.google.com/mail/u/0/#search/rfc822msgid:CA%2Babc%3Ddef%40mail.example.com", "label": "Open in Gmail" },
   "emitted_at": "<now, UTC, e.g. 2026-10-26T13:02:11Z>"
 }
 ```
@@ -37,7 +38,8 @@ Call `submit_card` with a card object like this:
 - **id** is deterministic: the same upstream event always gives the same id (a mail's thread id, an issue number), never a random value. Segments use letters, digits and `-`; the upstream key may also use `_` and `.`, and anything else is percent-encoded. Add an intent suffix when one event needs two cards (`:reply`, `:calendar`).
 - **summary** is one or two sentences of plain text, on one line, that say what is going on and what you want from the person. It is what they read in the brief before deciding whether to open the card, so write it for someone who reads nothing else. No markdown, no line breaks, under 280 characters. On a decision card, state your proposal in it, not only the topic: "Anna asks to pay on the 20th. I propose agreeing for September only", not "Anna asks about invoice timing". The person should be able to decide from the summary alone. Put a summary on every card you send, signals and artifacts included.
 - **Times** in the title, summary and body are written as a person reads them on a phone, in their local time: "today 09:12", "Mon 26 Oct 16:00". Never an ISO timestamp such as `2026-10-26T15:00:00Z`; that form belongs only in `emitted_at`.
-- **body** is markdown: the evidence first, then the proposal under a heading that begins with `Proposal` or `Proposed`, quoted exactly as you would send it. Keep it short; link the source with `source: { "url": ..., "label": ... }`.
+- **body** is markdown: the evidence first, then the proposal under a heading that begins with `Proposal` or `Proposed`, quoted exactly as you would send it. Keep it short.
+- **source** opens the thing the card is about, so the person can check it in one tap: the mail thread, the calendar event, the document, the issue. The `label` names where it opens ("Open in Gmail", "Open in Calendar", "Open in Docs"). For a Gmail message, use `https://mail.google.com/mail/u/0/#search/rfc822msgid:<Message-ID>`, with the Message-ID header's value without its angle brackets, percent-encoded (`<CA+abc=def@mail.example.com>` becomes `CA%2Babc%3Ddef%40mail.example.com`). Set `source` whenever you can form a URL; leave it out rather than guess one.
 - **actions** are what the person can choose. Include `edit` when the proposal is text they may want to change.
 - Do not add `state`, `decision` or other fields the head sets; they are refused.
 

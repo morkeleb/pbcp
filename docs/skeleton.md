@@ -183,10 +183,11 @@ export interface ExecCtx {
   progress(note: string): Promise<void>;  // PUTs me:order:<ulid>:progress-<n>, urgency log, thread = order id
   signal: AbortSignal;                 // aborted on cancel or lease loss, for long awaits
 }
-export type Outcome =
+export type Outcome = (
   | { kind: 'signal'; title: string; body: string }                       // done, nothing to decide
   | { kind: 'decision'; title: string; body: string; actions?: string[] }  // done, needs approval
-  | { kind: 'failed'; title: string; body: string };
+  | { kind: 'failed'; title: string; body: string }
+) & { source?: { url: string; label?: string } };                        // §4.1, e.g. the task the executor made
 // runExecutor mints me:order:<ulid>:outcome-<claim_seq> with references=[order.id], orders.claim_seq and orders.result;
 // a Cancelled thrown from run() becomes a 'failed' outcome describing what was and was not done.
 

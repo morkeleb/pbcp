@@ -61,5 +61,6 @@ Calls made, all unverified without credentials:
 - `POST /api/v1/tasks` with `content`, `description`, `due_string`, `labels`, `project_id`.
 - `GET /api/v1/tasks/{id}`: assumed to return completed tasks too, with `checked: true` and `completed_at`; `404` or `is_deleted: true` is read as deleted. If it returns `404` for completed tasks (as REST v2 did), completion would be misread as deletion.
 - `DELETE /api/v1/tasks/{id}`.
+- **Task link.** The Done outcome links to the task (`source`, RFC §4.1, labelled `Todoist task`). The task's `url` is used when the API returns one; otherwise the link is `https://app.todoist.com/app/task/<id>`, the web app's task address, which is assumed rather than documented by the API. Not-done and cancelled outcomes have no link, since the task is gone.
 
 The normaliser in `src/source.ts` also accepts REST v2's `is_completed` and bare-array pages.
