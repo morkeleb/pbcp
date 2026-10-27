@@ -1,0 +1,5 @@
+node_modules/
+dist/
+.astro/
+# written at build time only when CUSTOM_DOMAIN is set
+public/CNAME

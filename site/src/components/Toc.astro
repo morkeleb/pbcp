@@ -1,0 +1,11 @@
+---
+import type { TocEntry } from '../lib/markdown';
+interface Props { entries: TocEntry[]; open?: boolean }
+const { entries, open = false } = Astro.props;
+---
+<details class="toc" open={open}>
+  <summary>Contents</summary>
+  <ol>
+    {entries.map((e) => <li class={`d${e.depth}`}><a href={`#${e.id}`}>{e.text}</a></li>)}
+  </ol>
+</details>

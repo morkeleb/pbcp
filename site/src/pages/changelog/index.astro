@@ -1,0 +1,18 @@
+---
+import { resolve } from 'node:path';
+import Base from '../../layouts/Base.astro';
+import Toc from '../../components/Toc.astro';
+import { REPO_ROOT, REPO_URL, href } from '../../config';
+import { readRepo, render } from '../../lib/markdown';
+
+// `§` references in the changelog point at the current draft's sections.
+const { html, toc } = render(readRepo(resolve(REPO_ROOT, 'rfc/CHANGELOG.md')), { sectionsOn: href('/rfc/') });
+---
+<Base title="Changelog" path="/changelog/" description="Every change to the Personal Brief Card Protocol between drafts.">
+  <p class="muted">
+    Rendered from <a href={`${REPO_URL}/blob/main/rfc/CHANGELOG.md`}><code>rfc/CHANGELOG.md</code></a>.
+    Section references point at the <a href={href('/rfc/')}>current draft</a>.
+  </p>
+  <Toc entries={toc.filter((e) => e.depth === 2)} />
+  <article set:html={html} />
+</Base>

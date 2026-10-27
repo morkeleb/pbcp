@@ -1,0 +1,59 @@
+---
+import { Marked } from 'marked';
+import Base from '../layouts/Base.astro';
+import { RFC_FILE, href } from '../config';
+import { exampleCard, problem } from '../lib/rfc';
+
+const md = new Marked({ gfm: true });
+const problemHtml = md.parseInline(problem()) as string;
+---
+<Base title="Protocol" path="/" description="A small HTTP protocol for the decisions agents, scripts and tools need from one person: cards in, decisions out.">
+  <h1>Personal Brief Card Protocol</h1>
+  <p class="lede">
+    A protocol for the point where software has to stop and ask a person. A producer submits a <em>card</em> to the
+    person's <em>head</em>; the person decides; the producer reads the decision and carries on.
+  </p>
+
+  <h2>The problem</h2>
+  <blockquote><p set:html={problemHtml} /></blockquote>
+  <p class="muted">From §1 of the RFC.</p>
+
+  <h2>Who it is for</h2>
+  <p>
+    Someone whose agents, scripts and tools each need a decision from them: a mail agent with a reply to approve, a
+    project tracker with a milestone at risk, a calendar with a clash. Each one sends a card to the same head, so the
+    person has one place to decide and one record of what they decided. The protocol is strictly personal; team work
+    stays in team tools.
+  </p>
+
+  <h2>A card</h2>
+  <p>A card is a markdown file with a small YAML header, or the same fields as JSON on the wire. This is the example from §3:</p>
+  <pre><code>{exampleCard()}</code></pre>
+  <p>
+    The producer mints the <code>id</code>, so sending the same card twice is harmless. Once the person decides, the card
+    is locked; a change needs a new card that supersedes it.
+  </p>
+
+  <h2>Three operations</h2>
+  <table>
+    <thead><tr><th>Operation</th><th>Request</th><th>Who</th></tr></thead>
+    <tbody>
+      <tr><td>Submit</td><td><code>PUT /cards/&#123;id&#125;</code></td><td>A producer, with its token</td></tr>
+      <tr><td>Sync</td><td><code>GET /changes?after=&#123;seq&#125;</code></td><td>A producer, with its token</td></tr>
+      <tr><td>Decide</td><td><code>POST /cards/&#123;id&#125;/decision</code></td><td>The person, through the head</td></tr>
+    </tbody>
+  </table>
+  <p>
+    <code>GET /</code> describes the head: whose it is, and which extensions it implements. The head never calls a
+    producer, so a producer needs no inbound port. Giving work back to agents (orders) is an extension on the same card.
+  </p>
+
+  <p><a class="cta" href={href('/rfc/')}>Read the RFC, draft {RFC_FILE.version}</a></p>
+
+  <ul class="links">
+    <li><a href={href('/producers/')}>Producers</a> <span class="muted">— send a first card with curl, <code>@pbcp/client</code> or the MCP server.</span></li>
+    <li><a href={href('/connectors/')}>Connectors</a> <span class="muted">— the example producers in the repository and their settings.</span></li>
+    <li><a href={href('/heads/')}>Heads</a> <span class="muted">— what a head is, and the conformance suite.</span></li>
+    <li><a href={href('/changelog/')}>Changelog</a> <span class="muted">— every change between drafts.</span></li>
+  </ul>
+</Base>

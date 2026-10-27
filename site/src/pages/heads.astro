@@ -1,0 +1,75 @@
+---
+import { readdirSync } from 'node:fs';
+import { resolve } from 'node:path';
+import Base from '../layouts/Base.astro';
+import { HEAD_OPENAPI_URL, HEAD_REPO_URL, REPO_ROOT, REPO_URL, href } from '../config';
+import { rfcSections } from '../lib/markdown';
+
+const sec = rfcSections();
+const rfc = (n: string) => `${href('/rfc/')}#${sec.get(n)}`;
+const count = (dir: string) => readdirSync(resolve(REPO_ROOT, 'packages/core/conformance/fixtures', dir)).filter((f) => f.endsWith('.json')).length;
+const [core, render] = [count('core'), count('render')];
+
+const adapter = `// conformance.test.ts — run with vitest
+import { conformanceSuite } from '@pbcp/core/conformance/vitest';
+import type { HeadUnderTest } from '@pbcp/core/conformance';
+
+// Your head, reached however you like: in process, or over HTTP against a test instance.
+const myHead = (): HeadUnderTest => ({
+  reset: async () => { /* empty the head */ },
+  token: async (root, opts) => { /* mint a producer token bound to root */ return '…'; },
+  describe: (token) => fetch(\`\${BASE}/\`, { headers: auth(token) }),
+  put: (token, card) => fetch(\`\${BASE}/cards/\${encodeURIComponent((card as { id: string }).id)}\`, { method: 'PUT', headers: { ...auth(token), 'content-type': 'application/json' }, body: JSON.stringify(card) }),
+  changes: (token, after) => fetch(\`\${BASE}/changes?after=\${after}\`, { headers: auth(token) }),
+  decide: (id, d) => /* as the owner, with your head's owner credential */ fetch(…),
+  // …decideWithToken, seen, acknowledge, snooze, clock, and order and claim for the orders extension
+});
+
+conformanceSuite({ head: myHead, extensions: ['orders'] });`;
+---
+<Base title="Heads" path="/heads/" description="What a head is, and how to check one against the protocol's conformance suite.">
+  <h1>Heads</h1>
+  <p class="lede">
+    A head stores cards for exactly one person, shows them, and records what that person decides. Producers talk to
+    it; it never talks to them.
+  </p>
+  <p>
+    A head is a role, not a product: a hosted service, a local daemon, an MCP server or a plugin in another tool can
+    each be one. What makes it a head is that it implements submit, sync and describe for producers and decide for
+    its owner, with the status and error codes of <a href={rfc('7')}>§7</a>, and keeps every decided card in the form
+    it was decided on. The full list is the head checklist in <a href={rfc('11.3')}>§11.3</a>. How it presents a
+    decision (<a href={rfc('4.5')}>§4.5</a>) and what its brief contains (<a href={rfc('8')}>§8</a>) are part of it.
+  </p>
+
+  <h2>The conformance suite</h2>
+  <p>
+    The protocol is defined, executably, by JSON fixtures in
+    <a href={`${REPO_URL}/tree/main/packages/core/conformance`}><code>packages/core/conformance</code></a>:
+    {core} protocol cases run against a head and {render} rendering cases run against its renderer. They are plain
+    JSON, so a head in any language can run them; the repository's vitest runner is one consumer, not the definition.
+  </p>
+  <p>
+    To run them from TypeScript, implement <code>HeadUnderTest</code> for your head and hand it to
+    <code>conformanceSuite</code>. Each fixture starts from an empty head, mints the tokens it needs, and checks status
+    codes, error codes and returned cards.
+  </p>
+  <pre><code>{adapter}</code></pre>
+  <ul>
+    <li>Drop <code>extensions</code> for a head without the orders extension (Appendix A); those fixtures are skipped.</li>
+    <li><code>should: false</code> skips the fixtures that check recommendations rather than requirements.</li>
+    <li>Pass <code>render</code> as well to run the rendering fixtures against your renderer.</li>
+  </ul>
+  <p>
+    The fixture format, every op and the conventions (the owner is <code>morten</code>; tokens are named by their root)
+    are in the suite's <a href={`${REPO_URL}/blob/main/packages/core/conformance/README.md`}>README</a>.
+  </p>
+
+  <h2>The reference head</h2>
+  <p>
+    <a href={HEAD_REPO_URL}><code>pbcp-head</code></a> implements the protocol with the orders extension, the daily
+    brief and a web app. It runs the whole suite over HTTP in its own tests
+    (<a href={`${HEAD_REPO_URL}/blob/main/test/conformance/conformance.test.ts`}><code>test/conformance</code></a>),
+    which is a complete example of an HTTP adapter. Its API for the owner's apps is described by an
+    <a href={HEAD_OPENAPI_URL}>OpenAPI document</a>; that API is the head's own, not part of the protocol.
+  </p>
+</Base>

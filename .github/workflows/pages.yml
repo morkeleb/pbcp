@@ -1,0 +1,56 @@
+# Builds the documentation site in site/ and publishes it with GitHub Pages. This is the repository's only
+# workflow, and it is only for Pages: no tests, no lint.
+#
+# Optional repository variables (Settings → Secrets and variables → Actions → Variables):
+#   SITE_URL          the published URL; default https://morkeleb.github.io/pbcp, or https://CUSTOM_DOMAIN
+#   CUSTOM_DOMAIN     a custom domain; the build then writes the CNAME file Pages needs
+#   HEAD_OPENAPI_URL  the reference head's OpenAPI document, linked from /llms.txt
+
+name: Pages
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+      - run: corepack enable
+      - name: Install
+        working-directory: site
+        run: pnpm install --ignore-workspace --frozen-lockfile
+      - name: Build
+        working-directory: site
+        env:
+          SITE_URL: ${{ vars.SITE_URL }}
+          CUSTOM_DOMAIN: ${{ vars.CUSTOM_DOMAIN }}
+          HEAD_OPENAPI_URL: ${{ vars.HEAD_OPENAPI_URL }}
+        run: pnpm build
+      - uses: actions/upload-pages-artifact@v5
+        with:
+          path: site/dist
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v5
