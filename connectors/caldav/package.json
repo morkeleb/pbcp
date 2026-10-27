@@ -1,6 +1,6 @@
 {
   "name": "@pbcp/connector-caldav",
-  "version": "0.7.0",
+  "version": "0.8.0",
   "private": true,
   "description": "Example producer: a CalDAV day agenda to a brief card.",
   "license": "MIT",

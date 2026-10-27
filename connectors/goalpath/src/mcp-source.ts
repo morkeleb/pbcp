@@ -17,7 +17,7 @@ export function toolResult(res: unknown): unknown {
 
 /** The GoalPath MCP over streamable HTTP with a bearer token. */
 export async function mcpSource(url: string, token: string, projectId: string): Promise<GoalPathSource & { close(): Promise<void> }> {
-  const client = new Client({ name: 'pbcp-goalpath', version: '0.7.0' });
+  const client = new Client({ name: 'pbcp-goalpath', version: '0.8.0' });
   await client.connect(new StreamableHTTPClientTransport(new URL(url), { requestInit: { headers: { authorization: `Bearer ${token}` } } }));
   const call = async (name: string, args: Record<string, unknown>) => toolResult(await client.callTool({ name, arguments: args }));
   return { ...toolSource(call, projectId), close: () => client.close() };

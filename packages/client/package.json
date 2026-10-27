@@ -1,6 +1,6 @@
 {
   "name": "@pbcp/client",
-  "version": "0.7.0",
+  "version": "0.8.0",
   "description": "PBCP client: HeadClient and the durable-cursor producer loop.",
   "license": "MIT",
   "type": "module",
