@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto';
 import { HeadClient, memoryStore, producerPass, type Parked } from '@pbcp/client';
 import { stubHead } from '@pbcp/client/testing';
 import { isId } from '@pbcp/core';
@@ -54,8 +55,10 @@ describe('occurrences', () => {
 });
 
 describe('agendaCard', () => {
-  it('renders the day as a table and a gantt fence', () => {
-    const c = agendaCard(occurrences([vcal(standup), ...others], from, to), '2026-10-26', cfg, now);
+  it('renders the day as a table, and a gantt fence with CALDAV_CHART', () => {
+    const occ = occurrences([vcal(standup), ...others], from, to);
+    expect(agendaCard(occ, '2026-10-26', cfg, now).body).not.toContain('mermaid');
+    const c = agendaCard(occ, '2026-10-26', { ...cfg, chart: true }, now);
     expect(isId(c.id)).toBe(true);
     expect(c).toMatchObject({ id: 'cal:work:2026-10-26', kind: 'artifact', urgency: 'brief', thread: 'day-2026-10-26', title: 'Mon 26 Oct: 4 events, first at 09:15' });
     expect(c.summary).toBe('First: Standup, 09:15–09:30.');
@@ -85,7 +88,7 @@ describe('agendaCard', () => {
 
   it('says so on an empty day, and leaves out the gantt for all-day only', () => {
     expect(agendaCard([], '2026-10-26', cfg, now)).toMatchObject({ title: 'Mon 26 Oct: nothing scheduled', body: 'Nothing scheduled.' });
-    const allDay = agendaCard(occurrences([others[0]!], from, to), '2026-10-26', cfg, now);
+    const allDay = agendaCard(occurrences([others[0]!], from, to), '2026-10-26', { ...cfg, chart: true }, now);
     expect(allDay.title).toBe('Mon 26 Oct: 1 event');
     expect(allDay.body).not.toContain('mermaid');
     expect('summary' in allDay).toBe(false);
@@ -106,10 +109,10 @@ describe('ganttTitle and slug', () => {
 
 describe('plan', () => {
   const at = (iso: string): Occurrence => ({ key: 'standup@example.com/2026-10-26T09:15:00', title: 'Standup', start: new Date(iso), end: new Date(+new Date(iso) + 15 * 60_000) });
-  const prev: State = { agenda: '2026-10-26', seen: { 'standup@example.com/2026-10-26T09:15:00': '2026-10-26T08:15:00.000Z' } };
+  const prev: State = { agenda: '2026-10-26', seen: { 'standup@example.com/2026-10-26T09:15:00': { start: '2026-10-26T08:15:00.000Z', title: 'Standup' } } };
   const nine = new Date('2026-10-26T08:00:00Z');
 
-  it('signals a move into the next 30 minutes, once per new start', () => {
+  it('signals a move, once per new start', () => {
     const { cards, next } = plan([at('2026-10-26T08:20:00Z')], prev, cfg, nine);
     expect(cards).toHaveLength(1);
     expect(cards[0]).toMatchObject({ kind: 'signal', urgency: 'immediate', thread: 'day-2026-10-26', title: 'Moved: Standup now at 09:20', about: '2026-10-26', labels: ['work'] });
@@ -117,14 +120,14 @@ describe('plan', () => {
     expect(isId(cards[0]!.id)).toBe(true);
     expect(cards[0]!.body).toBe('**Standup** now starts at 09:20–09:35 (was 09:15).');
     expect(cards[0]!.summary).toBe('Standup now starts at 09:20–09:35 (was 09:15).');
-    expect(next.seen).toEqual({ 'standup@example.com/2026-10-26T09:15:00': '2026-10-26T08:20:00.000Z' });
+    expect(next.seen).toEqual({ 'standup@example.com/2026-10-26T09:15:00': { start: '2026-10-26T08:20:00.000Z', title: 'Standup', moved: cards[0]!.id } });
     expect(plan([at('2026-10-26T08:20:00Z')], next, cfg, nine).cards).toEqual([]);
     expect(plan([at('2026-10-26T08:25:00Z')], next, cfg, nine).cards[0]!.id).not.toBe(cards[0]!.id);
   });
 
   it('names the day, readably, of a previous start or an end on another day', () => {
     const late = { ...at('2026-10-26T08:20:00Z'), end: new Date('2026-10-26T23:30:00Z') };
-    const moved = plan([late], { ...prev, seen: { [late.key]: '2026-10-25T08:15:00.000Z' } }, cfg, nine).cards[0]!;
+    const moved = plan([late], { ...prev, seen: { [late.key]: { start: '2026-10-25T08:15:00.000Z', title: 'Standup' } } }, cfg, nine).cards[0]!;
     expect(moved.body).toBe('**Standup** now starts at 09:20–Tue 27 Oct 00:30 (was Sun 25 Oct 09:15).');
   });
 
@@ -137,10 +140,40 @@ describe('plan', () => {
     expect(parsed('mailto:x@y')).toBeUndefined();
   });
 
-  it('ignores a move further out, a first sighting and a past start', () => {
-    expect(plan([at('2026-10-26T10:00:00Z')], prev, cfg, nine).cards).toEqual([]);
+  it('ignores a first sighting and a move to a past start', () => {
     expect(plan([at('2026-10-26T08:20:00Z')], { ...prev, seen: {} }, cfg, nine).cards).toEqual([]);
     expect(plan([at('2026-10-26T07:50:00Z')], prev, cfg, nine).cards).toEqual([]);
+  });
+
+  it('reads a start kept alone by an earlier version', () => {
+    const old = { agenda: '2026-10-26', seen: { [at('2026-10-26T08:15:00Z').key]: '2026-10-26T08:15:00.000Z' } } as unknown as State;
+    expect(plan([at('2026-10-26T08:20:00Z')], old, cfg, nine).cards.map((c) => c.title)).toEqual(['Moved: Standup now at 09:20']);
+  });
+
+  it('reports a move in the next 7 days, with an urgency by how soon it is', () => {
+    const thursday = { ...prev, seen: { [at('x').key]: { start: '2026-10-29T08:15:00.000Z', title: 'Standup' } } };
+    const moved = (iso: string) => plan([at(iso)], thursday, cfg, nine).cards[0]!;
+    expect(moved('2026-10-26T10:00:00Z')).toMatchObject({ urgency: 'immediate', title: 'Moved: Standup now at 11:00' });
+    expect(moved('2026-10-26T12:00:00Z')).toMatchObject({ urgency: 'brief', title: 'Moved: Standup now at 13:00' });
+    expect(moved('2026-10-27T12:00:00Z')).toMatchObject({ urgency: 'brief', title: 'Moved: Standup now at Tue 27 Oct 13:00', about: '2026-10-27', thread: 'day-2026-10-27' });
+    const friday = moved('2026-10-30T12:00:00Z');
+    expect(friday).toMatchObject({ urgency: 'log', title: 'Moved: Standup now at Fri 30 Oct 13:00', about: '2026-10-30' });
+    expect(friday.summary).toBe('Standup now starts at Fri 30 Oct 13:00–13:15 (was Thu 29 Oct 09:15).');
+    // The old start is the sooner one: a meeting moved away from the next hour is still news now.
+    const away = plan([at('2026-10-30T12:00:00Z')], { ...prev, seen: { [at('x').key]: { start: '2026-10-26T08:30:00.000Z', title: 'Standup' } } }, cfg, nine);
+    expect(away.cards[0]!.urgency).toBe('immediate');
+  });
+
+  it('supersedes the card of the earlier move, and references the agenda of the day it left or joined', () => {
+    const first = plan([at('2026-10-26T10:00:00Z')], prev, cfg, nine);
+    expect(first.cards[0]!.references).toEqual(['cal:work:2026-10-26']);
+    expect('supersedes' in first.cards[0]!).toBe(false);
+    const second = plan([at('2026-10-27T10:00:00Z')], first.next, cfg, nine);
+    expect(second.cards[0]).toMatchObject({ supersedes: first.cards[0]!.id, references: ['cal:work:2026-10-26'] });
+    expect(second.next.seen[at('x').key]!.moved).toBe(second.cards[0]!.id);
+    const third = plan([at('2026-10-28T10:00:00Z')], second.next, cfg, nine);
+    expect(third.cards[0]!.supersedes).toBe(second.cards[0]!.id);
+    expect('references' in third.cards[0]!).toBe(false); // no agenda for Tue or Wed yet
   });
 
   it('produces the agenda once a day, from agendaAt', () => {
@@ -148,6 +181,61 @@ describe('plan', () => {
     const { cards, next } = plan([], { seen: {} }, { ...cfg, agendaAt: '06:00' }, now);
     expect(cards.map((c) => c.id)).toEqual(['cal:work:2026-10-26']);
     expect(plan([], next, cfg, now).cards).toEqual([]);
+  });
+});
+
+describe('new and cancelled', () => {
+  const nine = new Date('2026-10-26T08:00:00Z');
+  const event = (key: string, iso: string, title = 'Dentist'): Occurrence => ({ key, title, location: 'Clinic', start: new Date(iso), end: new Date(+new Date(iso) + 45 * 60_000) });
+  const was = { agenda: '2026-10-26', until: '2026-11-02T07:55:00.000Z', seen: {} } satisfies State;
+  const id = (key: string, intent: string) => `cal:work:${createHash('sha256').update(key).digest('hex').slice(0, 16)}:${intent}`;
+
+  it('signals an event that appears inside last pass\'s window, once', () => {
+    const { cards, next } = plan([event('dentist/', '2026-10-26T13:00:00Z')], was, cfg, nine);
+    expect(cards).toHaveLength(1);
+    expect(cards[0]).toMatchObject({
+      id: id('dentist/', 'new'), kind: 'signal', urgency: 'brief', title: 'New: Dentist, today 14:00', about: '2026-10-26', thread: 'day-2026-10-26',
+      labels: ['work'], references: ['cal:work:2026-10-26'], summary: 'Dentist is on the calendar, today 14:00–14:45, Clinic.',
+    });
+    expect(isId(cards[0]!.id)).toBe(true);
+    expect(cards[0]!.body).toBe('**Dentist** is on the calendar, today 14:00–14:45.\n\nWhere: Clinic');
+    expect(plan([event('dentist/', '2026-10-26T13:00:00Z')], next, cfg, nine).cards).toEqual([]);
+    expect(plan([event('dentist/', '2026-10-30T13:00:00Z')], was, cfg, nine).cards[0]).toMatchObject({ urgency: 'log', title: 'New: Dentist, Fri 30 Oct 14:00' });
+    expect('references' in plan([event('dentist/', '2026-10-30T13:00:00Z')], was, cfg, nine).cards[0]!).toBe(false);
+  });
+
+  it('does not call new what only came into the window, what has passed, or anything on the first pass', () => {
+    expect(plan([event('dentist/', '2026-11-02T09:00:00Z')], was, cfg, nine).cards).toEqual([]);
+    expect(plan([event('dentist/', '2026-10-26T07:00:00Z')], was, cfg, nine).cards).toEqual([]);
+    expect(plan([event('dentist/', '2026-10-26T13:00:00Z')], { agenda: '2026-10-26', seen: {} }, cfg, nine).cards).toEqual([]);
+  });
+
+  it('tells a new series once, at its first occurrence', () => {
+    const series = ['26', '27', '28'].map((d) => event(`gym/2026-10-${d}T18:00:00`, `2026-10-${d}T17:00:00Z`, 'Gym'));
+    expect(plan(series, was, cfg, nine).cards.map((c) => c.title)).toEqual(['New: Gym, today 18:00']);
+  });
+
+  it('signals an event that is gone before it began, and not one that has passed', () => {
+    const seen = { 'dentist/': { start: '2026-10-27T13:00:00.000Z', title: 'Dentist' }, 'past/': { start: '2026-10-26T07:00:00.000Z', title: 'Past' }, 'trip/': { start: '2026-10-25T23:00:00.000Z', title: 'Trip', all: '2026-10-26' } };
+    const { cards, next } = plan([], { ...was, seen }, cfg, nine);
+    expect(cards.map((c) => [c.id, c.urgency, c.title])).toEqual([
+      [id('dentist/', 'cancelled'), 'brief', 'Cancelled: Dentist, Tue 27 Oct 14:00'],
+      [id('trip/', 'cancelled'), 'immediate', 'Cancelled: Trip, today, all day'],
+    ]);
+    expect(cards[0]).toMatchObject({ about: '2026-10-27', thread: 'day-2026-10-27', summary: 'Dentist, Tue 27 Oct 14:00, is no longer on the calendar.' });
+    expect(cards[1]!.references).toEqual(['cal:work:2026-10-26']);
+    expect(next.seen).toEqual({});
+    expect(plan([], { agenda: '2026-10-26', seen }, cfg, nine).cards).toEqual([]);
+  });
+
+  it('keeps each calendar\'s namespace with several calendars', () => {
+    const two = { calendars: [{ name: 'Work', slug: 'work' }, { name: 'Home', slug: 'home' }], toPerson: 'morten', tz };
+    const seen = { 'home:dentist/': { start: '2026-10-27T13:00:00.000Z', title: 'Dentist' } };
+    expect(plan([], { ...was, seen }, two, nine).cards).toEqual([]); // a store made for one calendar
+    const gone = plan([], { ...was, several: true, seen }, two, nine).cards[0]!;
+    expect(gone).toMatchObject({ id: id('dentist/', 'cancelled').replace('cal:work:', 'cal:home:'), title: 'Cancelled: Dentist, Tue 27 Oct 14:00 (Home)', labels: ['home'] });
+    const added = plan([{ ...event('dentist/', '2026-10-26T13:00:00Z'), calendar: two.calendars[1]! }], { ...was, several: true }, two, nine).cards[0]!;
+    expect(added).toMatchObject({ id: id('dentist/', 'new').replace('cal:work:', 'cal:home:'), references: ['cal:agenda:2026-10-26'], summary: 'Dentist is on the calendar, today 14:00–14:45, Clinic, in Home.' });
   });
 });
 
@@ -233,7 +321,7 @@ describe('several calendars', () => {
     two.calendars.flatMap((c) => occurrences(texts[c.slug] ?? [], from, to).map((o) => ({ ...o, calendar: c })));
 
   it('merges the day into one agenda with a calendar column, a gantt section per calendar, and overlaps marked', () => {
-    const c = agendaCard(tagged(ics), '2026-10-26', two, now);
+    const c = agendaCard(tagged(ics), '2026-10-26', { ...two, chart: true }, now);
     expect(isId(c.id)).toBe(true);
     expect(c).toMatchObject({ id: 'cal:agenda:2026-10-26', kind: 'artifact', urgency: 'brief', thread: 'day-2026-10-26', title: 'Mon 26 Oct: 6 events, first at 09:00, 2 overlaps' });
     expect(c.summary).toBe('First: Dentist, 09:00–09:45, Clinic (Home | family).');
@@ -289,7 +377,7 @@ describe('several calendars', () => {
   });
 
   it('leaves out the section of a calendar with nothing timed that day', () => {
-    const c = agendaCard(tagged({ work: ics.work! }), '2026-10-26', two, now);
+    const c = agendaCard(tagged({ work: ics.work! }), '2026-10-26', { ...two, chart: true }, now);
     expect(c.body).toContain('  section Work');
     expect(c.body).not.toContain('section Home');
     expect(agendaCard([], '2026-10-26', two, now)).toMatchObject({ id: 'cal:agenda:2026-10-26', title: 'Mon 26 Oct: nothing scheduled', body: 'Nothing scheduled.' });

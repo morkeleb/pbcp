@@ -8,14 +8,23 @@ type Time = InstanceType<typeof ICAL.Time>; type Event = InstanceType<typeof ICA
 export interface Calendar { name: string; slug: string }
 /** One occurrence; `key` is UID/RECURRENCE-ID. An all-day one carries its local dates, end exclusive. */
 export interface Occurrence { key: string; title: string; location?: string; url?: string; start: Date; end: Date; allDay?: { from: string; to: string }; calendar?: Calendar }
-/** With one calendar the cards are exactly those of a single-calendar producer; with several, one agenda merges them. */
-export interface Config { calendars: Calendar[]; toPerson: string; tz: string; agendaAt?: string; leadMinutes?: number }
-/** `agenda`: the last day an agenda was produced; `seen`: last-seen start per occurrence key, for the fetch window only. */
-export interface State { agenda?: string; seen: Record<string, string> }
+/** With one calendar the cards are exactly those of a single-calendar producer; with several, one agenda merges them.
+ *  `chart` adds a gantt chart to the agenda; the event list is the content. */
+export interface Config { calendars: Calendar[]; toPerson: string; tz: string; agendaAt?: string; chart?: boolean }
+/** An occurrence as last seen: its start, title, all-day date and the id of the last move reported for it. */
+export interface Seen { start: string; title: string; all?: string; moved?: string }
+/** `agenda`: the last day an agenda was produced; `until`: the end of the last pass's window; `seen`: every occurrence in that
+ *  window, keyed per calendar when `several`. */
+export interface State { agenda?: string; until?: string; several?: boolean; seen: Record<string, Seen> }
+
+const DAY = 86_400_000;
+/** How far ahead new, moved and cancelled events are reported, and so the fetch window: yesterday to a week ahead. */
+export const windowOf = (now: Date) => ({ from: new Date(+now - DAY), to: new Date(+now + 7 * DAY) });
 
 const local = (d: Date, tz: string) => d.toLocaleString('sv-SE', { timeZone: tz }); // "YYYY-MM-DD HH:MM:SS"
 const dateOf = (d: Date, tz: string) => local(d, tz).slice(0, 10);
 const timeOf = (d: Date, tz: string) => local(d, tz).slice(11, 16);
+const dayName = (day: string) => new Date(`${day}T12:00:00Z`).toLocaleDateString('en-GB', { timeZone: 'UTC', weekday: 'short', day: 'numeric', month: 'short' });
 const oneLine = (s: string) => s.replace(/\s+/g, ' ').trim() || '(untitled)';
 /** §4.1 `summary`: plain text on one line, at most 280 characters. */
 const clip = (s: string) => (s.length > 280 ? `${s.slice(0, 279)}…` : s);
@@ -28,6 +37,7 @@ export const slug = (name: string) => name.toLowerCase().replace(/[^a-z0-9]+/g, 
 export const ganttTitle = (s: string) => oneLine(s.replace(/[:#;%]/g, ' ')).replace(KEYWORD, '· $1').slice(0, 40);
 const cell = (s: string) => s.replace(/\s+/g, ' ').trim().replace(/\|/g, '\\|');
 const several = (cfg: Config) => cfg.calendars.length > 1;
+const agendaNs = (cfg: Config) => (several(cfg) ? 'agenda' : cfg.calendars[0]!.slug);
 /** §4.1 `labels`: a calendar's name as a label (its slug, cut to 32 characters), at most 8 per card. */
 const labelsOf = (cals: Calendar[]) => ({ labels: [...new Set(cals.map((c) => c.slug.slice(0, 32).replace(/-+$/, '') || 'calendar'))].slice(0, 8) });
 
@@ -96,7 +106,7 @@ export function agendaCard(occ: Occurrence[], day: string, cfg: Config, now: Dat
   const timed = events.filter((o) => !o.allDay);
   const clash = multi ? overlaps(events) : [];
   const marked = new Set(clash.flat());
-  const label = new Date(`${day}T12:00:00Z`).toLocaleDateString('en-GB', { timeZone: 'UTC', weekday: 'short', day: 'numeric', month: 'short' });
+  const label = dayName(day);
   const count = events.length === 1 ? '1 event' : `${events.length} events`;
   const time = (o: Occurrence) => (o.allDay ? 'all day' : span(o).join('–')) + (marked.has(o) ? ' ⚠' : '');
   const task = (o: Occurrence) => `  ${ganttTitle(o.title)} :${marked.has(o) ? 'crit, ' : ''}${span(o).join(', ')}`;
@@ -113,11 +123,11 @@ export function agendaCard(occ: Occurrence[], day: string, cfg: Config, now: Dat
       ? ['| Time | Calendar | Event | Where |', '| --- | --- | --- | --- |', ...events.map((o) => `| ${time(o)} | ${cell(o.calendar?.name ?? '')} | ${cell(o.title)} | ${cell(o.location ?? '')} |`)]
       : ['| Time | Event | Where |', '| --- | --- | --- |', ...events.map((o) => `| ${time(o)} | ${cell(o.title)} | ${cell(o.location ?? '')} |`)]),
     ...(clash.length ? ['', '⚠ Overlapping across calendars:', '', ...clash.map(([a, b]) => both(a, b))] : []),
-    ...(timed.length ? ['', '```mermaid', 'gantt', `  title ${label}`, '  dateFormat HH:mm', '  axisFormat %H:%M', ...sections, '```'] : []),
+    ...(timed.length && cfg.chart ? ['', '```mermaid', 'gantt', `  title ${label}`, '  dateFormat HH:mm', '  axisFormat %H:%M', ...sections, '```'] : []),
   ].join('\n');
   const overlapNote = clash.length === 0 ? '' : clash.length === 1 ? ', 1 overlap' : `, ${clash.length} overlaps`;
   return card({
-    producer: 'cal', namespace: multi ? 'agenda' : cfg.calendars[0]!.slug, upstream: day, kind: 'artifact', urgency: 'brief', to_person: cfg.toPerson, thread: `day-${day}`,
+    producer: 'cal', namespace: agendaNs(cfg), upstream: day, kind: 'artifact', urgency: 'brief', to_person: cfg.toPerson, thread: `day-${day}`,
     about: day, ...labelsOf(cfg.calendars), // §4.1: the day the agenda is for, and every calendar it merges
     title: events.length === 0 ? `${label}: nothing scheduled` : `${label}: ${count}${timed[0] ? `, first at ${span(timed[0])[0]}` : ''}${overlapNote}`,
     // The first timed event, where it is cheap to say; an empty or all-day-only day has nothing the title does not say.
@@ -126,40 +136,81 @@ export function agendaCard(occ: Occurrence[], day: string, cfg: Config, now: Dat
   });
 }
 
-/** An occurrence whose start changed to within the lead time; one id per move. */
-export function movedCard(o: Occurrence, was: Date, cfg: Config, now: Date): ProducerCard {
-  const day = dateOf(o.start, cfg.tz);
-  const cal = several(cfg) ? o.calendar : undefined;
-  // Another day reads `Sun 25 Oct 09:15`, never an ISO timestamp.
-  const at = (d: Date) => (dateOf(d, cfg.tz) === day ? '' : `${d.toLocaleDateString('en-GB', { timeZone: cfg.tz, weekday: 'short', day: 'numeric', month: 'short' })} `) + timeOf(d, cfg.tz);
+/** §9: within two hours is immediate, today or tomorrow is for the brief, later is a log. */
+function urgencyOf(at: Date, day: string, cfg: Config, now: Date): 'immediate' | 'brief' | 'log' {
+  const tomorrow = new Date(Date.parse(`${dateOf(now, cfg.tz)}T12:00:00Z`) + DAY).toISOString().slice(0, 10);
+  return +at - +now <= 2 * 3_600_000 ? 'immediate' : day <= tomorrow ? 'brief' : 'log';
+}
+
+interface Signal { intent: 'new' | 'moved' | 'cancelled'; upstream: string; cal: Calendar; event: string; title: string; text: string; day: string; at: Date; location?: string; url?: string; supersedes?: string; agenda?: string }
+
+/** A signal about one event: its calendar's namespace and label, threaded and dated by its day, and pointing at that day's agenda when it exists. */
+function eventCard(s: Signal, cfg: Config, now: Date): ProducerCard {
+  const cal = several(cfg) ? s.cal : undefined;
   return card({
-    producer: 'cal', namespace: (o.calendar ?? cfg.calendars[0]!).slug, upstream: `${hash(o.key)}-${o.start.toISOString().replace(/[-:]/g, '').slice(0, 13)}Z`, intent: 'moved',
-    kind: 'signal', urgency: 'immediate', to_person: cfg.toPerson, thread: `day-${day}`,
-    about: day, ...labelsOf([o.calendar ?? cfg.calendars[0]!]), // §4.1: the event's new local day, and its calendar
-    title: `Moved: ${o.title} now at ${timeOf(o.start, cfg.tz)}${cal ? ` (${cal.name})` : ''}`,
-    summary: clip(`${o.title} now starts at ${timeOf(o.start, cfg.tz)}–${at(o.end)} (was ${at(was)})${o.location ? `, ${o.location}` : ''}${cal ? `, in ${cal.name}` : ''}.`),
-    body: [`**${o.title}** now starts at ${timeOf(o.start, cfg.tz)}–${at(o.end)} (was ${at(was)}).`]
-      .concat(cal ? ['', `Calendar: ${cal.name}`] : [], o.location ? ['', `Where: ${o.location}`] : []).join('\n'),
-    ...(o.url ? { source: { url: o.url, label: 'Calendar event' } } : {}),
+    producer: 'cal', namespace: s.cal.slug, upstream: s.upstream, intent: s.intent, kind: 'signal', urgency: urgencyOf(s.at, s.day, cfg, now), to_person: cfg.toPerson,
+    thread: `day-${s.day}`, about: s.day, ...labelsOf([s.cal]), // §4.1: the event's local day, and its calendar
+    title: `${s.title}${cal ? ` (${cal.name})` : ''}`,
+    summary: clip(`${s.event}${s.text}${s.location ? `, ${s.location}` : ''}${cal ? `, in ${cal.name}` : ''}.`),
+    body: [`**${s.event}**${s.text}.`].concat(cal ? ['', `Calendar: ${cal.name}`] : [], s.location ? ['', `Where: ${s.location}`] : []).join('\n'),
+    ...(s.url ? { source: { url: s.url, label: 'Calendar event' } } : {}),
+    ...(s.agenda ? { references: [s.agenda] } : {}), ...(s.supersedes ? { supersedes: s.supersedes } : {}),
     emitted_at: now.toISOString(),
   });
 }
 
-/** One pass: today's agenda if not yet produced (and past `agendaAt`), plus a signal per occurrence moved into the lead window. */
+/** One pass: today's agenda if not yet produced (and past `agendaAt`), and a signal for each event in the window that is new,
+ *  moved or gone since the last pass. New and cancelled are told once per series and pass, at its first occurrence. */
 export function plan(occ: Occurrence[], prev: State, cfg: Config, now: Date): { cards: ProducerCard[]; next: State } {
-  const day = dateOf(now, cfg.tz);
-  const due = prev.agenda !== day && timeOf(now, cfg.tz) >= (cfg.agendaAt ?? '00:00');
-  const cards = due ? [agendaCard(occ, day, cfg, now)] : [];
-  const seen: Record<string, string> = {};
+  const today = dateOf(now, cfg.tz);
+  const due = prev.agenda !== today && timeOf(now, cfg.tz) >= (cfg.agendaAt ?? '00:00');
+  const cards = due ? [agendaCard(occ, today, cfg, now)] : [];
+  const agenda = due ? today : prev.agenda;
+  const linked = (...days: string[]) => (agenda && days.includes(agenda) ? `cal:${agendaNs(cfg)}:${agenda}` : undefined);
+  // `Fri 30 Oct 09:20`, or the time alone on `day`; an all-day event's day, `all day`.
+  const on = (d: Date, day: string) => (dateOf(d, cfg.tz) === day ? '' : `${dayName(dateOf(d, cfg.tz))} `) + timeOf(d, cfg.tz);
+  const when = (s: Seen) => (s.all ? `${s.all === today ? 'today' : dayName(s.all)}, all day` : `${dateOf(new Date(s.start), cfg.tz) === today ? 'today ' : ''}${on(new Date(s.start), today)}`);
+  const dayOf = (s: Seen) => s.all ?? dateOf(new Date(s.start), cfg.tz);
+  const ahead = (s: Seen) => (s.all ? s.all >= today : Date.parse(s.start) > +now);
   // With several calendars a UID may sit in more than one, so the state key carries the namespace (which has no `:`).
   const keyOf = (o: Occurrence) => (several(cfg) && o.calendar ? `${o.calendar.slug}:${o.key}` : o.key);
+  const calOf = (k: string) => (several(cfg) ? cfg.calendars.find((c) => k.startsWith(`${c.slug}:`)) : undefined) ?? cfg.calendars[0]!;
+  // Without last pass's window, or with its keys made for another number of calendars, nothing is new or gone.
+  const until = prev.until && !!prev.several === several(cfg) ? Date.parse(prev.until) : undefined;
+  const told = new Set<string>();
+  const once = (what: string, k: string) => { const t = `${what} ${k.slice(0, k.lastIndexOf('/'))}`; return !told.has(t) && !!told.add(t); };
+  // Earlier versions kept the start alone; such an entry has no title, but it is only read for moves.
+  const before = Object.fromEntries(Object.entries(prev.seen).map(([k, v]) => [k, typeof v === 'string' ? { start: v, title: '' } : v]));
+  const seen: Record<string, Seen> = {};
   for (const o of occ) {
     const k = keyOf(o);
-    const [was, lead] = [prev.seen[k], +o.start - +now];
-    seen[k] = o.start.toISOString();
-    if (!o.allDay && was !== undefined && was !== seen[k] && lead > 0 && lead <= (cfg.leadMinutes ?? 30) * 60_000) cards.push(movedCard(o, new Date(was), cfg, now));
+    const [p, s] = [before[k], { start: o.start.toISOString(), title: o.title, ...(o.allDay ? { all: o.allDay.from } : {}) }];
+    seen[k] = { ...s, ...(p?.moved ? { moved: p.moved } : {}) };
+    const at = { cal: o.calendar ?? cfg.calendars[0]!, event: o.title, location: o.location, url: o.url, upstream: hash(o.key) };
+    // New: absent last pass although inside its window; on the first pass, or one that has only come into the window, nothing is.
+    if (!p && until && +o.start < until && ahead(s) && once('new', k)) {
+      const end = o.allDay ? '' : `–${timeOf(o.end, cfg.tz)}`;
+      cards.push(eventCard({ ...at, intent: 'new', title: `New: ${o.title}, ${when(s)}`, text: ` is on the calendar, ${when(s)}${end}`, day: dayOf(s), at: o.start, agenda: linked(dayOf(s)) }, cfg, now));
+    } else if (p && !o.allDay && p.start !== s.start && ahead(s)) {
+      const [was, day] = [new Date(p.start), dayOf(s)];
+      const soon = [o.start, was].filter((d) => +d > +now).sort((a, b) => +a - +b)[0]!;
+      const moved = eventCard({
+        ...at, intent: 'moved', upstream: `${at.upstream}-${s.start.replace(/[-:]/g, '').slice(0, 13)}Z`, title: `Moved: ${o.title} now at ${on(o.start, today)}`,
+        text: ` now starts at ${on(o.start, today)}–${on(o.end, day)} (was ${on(was, day)})`, day, at: soon, agenda: linked(day, dateOf(was, cfg.tz)),
+        supersedes: p.moved, // a later move replaces the earlier one's card (§8)
+      }, cfg, now);
+      cards.push(moved);
+      seen[k]!.moved = moved.id;
+    }
   }
-  return { cards, next: { agenda: due ? day : prev.agenda, seen } };
+  // Gone: seen last pass, still ahead, and no longer there (deleted, STATUS:CANCELLED, or moved out of the window).
+  for (const [k, p] of Object.entries(before)) {
+    if (k in seen || !until || !ahead(p) || !once('cancelled', k)) continue;
+    const key = several(cfg) ? k.slice(k.indexOf(':') + 1) : k;
+    cards.push(eventCard({ cal: calOf(k), event: p.title || '(untitled)', upstream: hash(key), intent: 'cancelled', title: `Cancelled: ${p.title || '(untitled)'}, ${when(p)}`,
+      text: `, ${when(p)}, is no longer on the calendar`, day: dayOf(p), at: new Date(p.start), agenda: linked(dayOf(p)) }, cfg, now));
+  }
+  return { cards, next: { agenda, until: windowOf(now).to.toISOString(), ...(several(cfg) ? { several: true } : {}), seen } };
 }
 
 /** `fetch` returns the iCalendar texts of one configured calendar for the window. */
@@ -174,7 +225,7 @@ export function calendarProducer(src: Source, cfg: Config): Pick<ProducerOptions
     onParked: (p, e) => { if (p.from === 'submit') parked.add(p.card.id); console.error(`pbcp: parked ${p.card.id}`, e); },
     async *produce() {
       const now = src.now?.() ?? new Date();
-      const [from, to] = [new Date(+now - 86_400_000), new Date(+now + 2 * 86_400_000)];
+      const { from, to } = windowOf(now);
       const occ = (await Promise.all(cfg.calendars.map(async (cal) => occurrences(await src.fetch(cal, from, to), from, to).map((o) => ({ ...o, calendar: cal }))))).flat();
       const { cards, next } = plan(occ, (await src.state.get('state')) ?? { seen: {} }, cfg, now);
       answered.clear();

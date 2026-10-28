@@ -31,6 +31,6 @@ const cal = calendarProducer({
     const objects = await dav.fetchCalendarObjects({ calendar, timeRange: { start: from.toISOString(), end: to.toISOString() } });
     return objects.map((o) => (typeof o.data === 'string' ? o.data : '')).filter(Boolean);
   },
-}, { calendars: chosen.map(({ name, slug }) => ({ name, slug })), toPerson, tz, agendaAt: env('CALDAV_AGENDA_AT', '06:00') });
+}, { calendars: chosen.map(({ name, slug }) => ({ name, slug })), toPerson, tz, agendaAt: env('CALDAV_AGENDA_AT', '06:00'), chart: /^(1|true|yes|on)$/i.test(process.env.CALDAV_CHART ?? '') });
 const run = runProducer({ ...cal, head, store, onDecision: async () => {}, intervalMs: Number(env('CALDAV_INTERVAL_S', '300')) * 1000 });
 for (const sig of ['SIGINT', 'SIGTERM'] as const) process.once(sig, () => void run.stop().then(() => process.exit(0)));
