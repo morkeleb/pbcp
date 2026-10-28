@@ -1,0 +1,21 @@
+{
+  "name": "@pbcp/connector-hermes",
+  "version": "0.8.0",
+  "private": true,
+  "description": "Hermes Agent plugin: @pbcp/mcp as the MCP server, plus two skills. The package holds only its setup text, connect().",
+  "license": "MIT",
+  "type": "module",
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json"
+  },
+  "exports": {
+    "./connect": {
+      "source": "./src/connect.ts",
+      "types": "./dist/src/connect.d.ts",
+      "default": "./dist/src/connect.js"
+    }
+  },
+  "dependencies": {
+    "@pbcp/client": "workspace:*"
+  }
+}

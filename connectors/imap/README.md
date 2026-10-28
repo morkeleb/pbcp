@@ -10,6 +10,23 @@ An example producer on `@pbcp/client`: it turns unseen IMAP mail into cards (RFC
 - `summary` (RFC §4.1) is the opening plain text with quoted lines (`>`) left out and whitespace collapsed, cut at a word to at most 200 characters, ending in `…` when cut. A message with no text has no `summary`.
 - On a decision, `archive` moves the card's messages to the archive folder and `keep` marks them `\Seen`. A message that is already gone is not an error. Nothing else is done to the mailbox.
 
+## Setup
+
+<!-- setup: generated from src/connect.ts by scripts/readme-setup.ts; edit the template there, not this section -->
+
+The token is bound to the root `mail` (RFC §12): every card id this connector mints starts with `mail:`.
+
+```sh
+pnpm install && pnpm --filter @pbcp/connector-imap build
+export PBCP_HEAD_URL='<head url>' PBCP_TO_PERSON='<owner>' PBCP_TOKEN='<token>'
+export IMAP_HOST=imap.example.com IMAP_USER=me@example.com IMAP_PASSWORD=…
+node connectors/imap/dist/src/index.js
+```
+
+The other settings are optional; they are under [Configuration](#configuration).
+
+<!-- /setup -->
+
 ## Configuration
 
 | Variable | Default | |

@@ -73,6 +73,19 @@ Each pass runs in this order, so `onDecision` never runs while `produce()` is su
 
 `card({ producer, namespace, upstream, intent?, kind, to_person, title, summary?, body, ... })` builds the id `producer:namespace:upstream[:intent]` (§5), fills `protocol` and `emitted_at`, and validates the result, so connectors never assemble ids or protocol fields by hand. `upstream` is used as given; encode an arbitrary key with `encodeUpstream` from `@pbcp/core`.
 
+## Snippets
+
+Text for a person to paste, built from the code so it cannot drift from it. The head's settings page, the docs site and each connector's `connect()` use these.
+
+```ts
+producerConfig({ api, owner, token }); // → { PBCP_HEAD_URL, PBCP_TO_PERSON, PBCP_TOKEN }: the three values, as the connectors read them
+curlSnippet({ api, owner, token });     // a curl that PUTs the §3 example card addressed to owner (its id is under the root hermes)
+curlSnippet({ api, owner, token, card }); // … or any card, as it is
+exportLine(producerConfig(c));         // export PBCP_HEAD_URL='…' PBCP_TO_PERSON='…' PBCP_TOKEN='…'
+```
+
+`api` is where the head serves the producer operations: its description's `api` (§7.5), or the URL the description is read from. Every value is single-quoted for the shell (`shellQuote`), and the card goes through a quoted heredoc, so nothing in it is expanded.
+
 ## Stores
 
 `fileStore(path)` keeps the cursor and the connector's own state in one JSON file, `{ "after": n, "state": { namespace: { key: value } } }`; a missing file is cursor 0 and no state, and a 0.3 cursor file `{ "after": n }` reads as is. `memoryStore()` is the same in memory. Both are a `StateStore`:

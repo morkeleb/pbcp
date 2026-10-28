@@ -8,7 +8,7 @@ The protocol's documentation site: a static site built with Astro to `site/dist`
 | `/rfc/` | the newest `rfc/pbcp-draft-*.md`, rendered with a table of contents, an anchor per heading, and `§` references linked |
 | `/rfc.md` | the same file, byte for byte |
 | `/changelog/` | `rfc/CHANGELOG.md`, with `§` references pointing at the current draft |
-| `/producers/` | the quickstart; its snippets are in `src/lib/snippets.ts` |
+| `/producers/` | the three values, a first card from `curlSnippet` and the environment from `producerConfig` (both `@pbcp/client`, read from source), and a link to each connector's generated Setup section |
 | `/connectors/` | one row per `connectors/*/README.md`: its first paragraph, and the first column of its Configuration (or Credentials) table, else the variables its first shell block exports |
 | `/heads/` | what a head is, the conformance suite, the reference head |
 | `/llms.txt` | a short index for agents |
@@ -20,6 +20,7 @@ Everything is read from the repository when the site is built, so a change to th
 Node 22.23.4 or later (the workflow uses 24).
 
 ```sh
+pnpm install      # at the repository root: the site reads @pbcp/core and @pbcp/client from source
 cd site
 pnpm install --ignore-workspace
 pnpm build        # → site/dist

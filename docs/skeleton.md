@@ -29,16 +29,18 @@ pbcp/
 │   │       ├── head.ts        HeadClient: submit, sync, claim, renew, decide
 │   │       ├── producer.ts    durable-cursor loop, cursor store interface
 │   │       ├── executor.ts    order loop: claim → run → renew → outcome, A.5 built in
+│   │       ├── snippets.ts    producerConfig, curlSnippet: text to paste, built from the code
 │   │       └── index.ts
 │   ├── cli/                   @pbcp/cli — `pbcp` command over HeadClient: describe, submit, sync, decide
 │   └── mcp/                   @pbcp/mcp — MCP server adapter over HeadClient
-├── connectors/                examples, each < 100 lines on @pbcp/client
+├── connectors/                examples, each < 100 lines on @pbcp/client; src/connect.ts is a connector's setup text
 │   ├── imap/                  mailbox → decision cards
 │   ├── caldav/                day agenda → artifact card
 │   ├── obsidian-daily/        yesterday's note → log card
 │   ├── n8n/                   n8n-nodes-pbcp: trigger + two action nodes
-│   ├── hermes/                Hermes Agent plugin: mcp.json + two skills
+│   ├── hermes/                Hermes Agent plugin: mcp.json + two skills; src/connect.ts is its setup text
 │   └── goalpath/              project tracker → head: risk signals, approvals; orders → reprioritise
+├── scripts/                   readme-setup.ts: writes each connector's README Setup from its connect(), run by the build
 └── site/                      the documentation site; not a package and not in the pnpm workspace (own lockfile).
                                Astro, renders rfc/ and the connector READMEs at build time; built to site/dist and
                                published with GitHub Pages by .github/workflows/pages.yml, the repo's only workflow

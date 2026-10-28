@@ -1,90 +1,82 @@
 ---
+import { curlSnippet, producerConfig } from '@pbcp/client';
 import Base from '../layouts/Base.astro';
 import { HEAD_REPO_URL, REPO_URL, href } from '../config';
-import * as s from '../lib/snippets';
+import { connectors } from '../lib/connectors';
 import { rfcSections } from '../lib/markdown';
 
 const sec = rfcSections();
 const rfc = (n: string) => `${href('/rfc/')}#${sec.get(n)}`;
+// The same placeholders as the connectors' READMEs; the text below is what the packages produce.
+const placeholders = { api: '<head url>', owner: '<owner>', token: '<token>' };
+const config = JSON.stringify(producerConfig(placeholders), null, 2);
+const curl = curlSnippet(placeholders);
+const withSetup = connectors().filter((c) => c.setup);
 ---
-<Base title="Producers" path="/producers/" description="Send a first card to a head with curl, with @pbcp/client, or through the MCP server, and read the decision back.">
+<Base title="Producers" path="/producers/" description="What a producer needs to reach a head, a first card with curl, and where each connector's setup is.">
   <h1>Producers</h1>
   <p class="lede">
-    A producer is anything that sends cards: an agent, a script, a mail reader. It needs an HTTP client, a token,
-    and somewhere to keep one number.
-  </p>
-  <p>
-    The snippets below run as written against a head once two variables are set. The shell ones need
-    <code>curl</code> and <code>jq</code>.
-  </p>
-  <pre><code>{s.env}</code></pre>
-
-  <h2>1. Read the owner</h2>
-  <p>
-    <code>GET /</code> describes the head (<a href={rfc('7.5')}>§7.5</a>). Its <code>owner</code> is the person the head
-    stores cards for, and every card you send is addressed to it in <code>to_person</code>.
-  </p>
-  <pre><code>{s.describe}</code></pre>
-  <p class="muted">A head may require the producer token for <code>GET /</code>; mint the token first (step 2) and add <code>-H "Authorization: Bearer $PBCP_TOKEN"</code> if yours does.</p>
-
-  <h2>2. Get a token</h2>
-  <p>
-    Each producer holds a bearer token, issued by the head and bound to one namespace root: every id it sends
-    starts with that root (<a href={rfc('12')}>§12</a>). How a head issues tokens is up to the head. On the
-    <a href={HEAD_REPO_URL}>reference head</a>, for the root <code>demo</code>:
-  </p>
-  <pre><code>{s.mint}</code></pre>
-  <p>Set <code>PBCP_TOKEN</code> to the printed value.</p>
-
-  <h2>3. Send a card</h2>
-  <p>
-    Submit is a <code>PUT</code> to the card's id (<a href={rfc('7.1')}>§7.1</a>). The id is
-    <code>root:namespace:key</code>, minted by you, so the same event always gives the same id
-    (<a href={rfc('5')}>§5</a>).
-  </p>
-  <pre><code>{s.put}</code></pre>
-  <p>The head answers <code>201</code> with the stored card, now carrying the fields it owns: <code>state</code>, <code>change_seq</code> and <code>delivery</code>.</p>
-  <pre><code>{s.putAgain}</code></pre>
-
-  <h2>4. Read the decision</h2>
-  <p>
-    The person decides in the head. You read decisions by syncing (<a href={rfc('7.2')}>§7.2</a>): every card in your
-    namespace that changed after a cursor, in order. Start at <code>0</code>, or at the head's <code>seq</code> from
-    step 1 to see only what happens from now on.
-  </p>
-  <pre><code>{s.sync}</code></pre>
-  <pre><code>{s.syncNext}</code></pre>
-  <p>
-    Act on a decision in a way that is safe to repeat, and move the cursor only after you have: the same change can
-    reach you twice.
+    A producer is anything that sends cards: an agent, a script, a mail reader. It needs three values from the head,
+    and an HTTP client.
   </p>
 
-  <h2>With @pbcp/client</h2>
-  <p>
-    <a href={`${REPO_URL}/tree/main/packages/client`}><code>@pbcp/client</code></a> wraps the same three calls, builds
-    ids, and checks a card before it is sent. Its <code>runProducer</code> is the loop above with a durable cursor.
-  </p>
-  <pre><code>{s.clientInstall}</code></pre>
-  <pre><code>{s.client}</code></pre>
+  <h2>Three values</h2>
+  <ul>
+    <li>
+      <strong>The head URL.</strong> Where the head serves the producer operations: its <code>api</code>
+      (<a href={rfc('7.5')}>§7.5</a>), or else the URL its description is read from. <code>GET</code> on the origin
+      returns the description.
+    </li>
+    <li>
+      <strong>The owner.</strong> The person the head stores cards for, the <code>owner</code> in its description. Every
+      card is addressed to it in <code>to_person</code> (<a href={rfc('10')}>§10</a>).
+    </li>
+    <li>
+      <strong>A token.</strong> Issued by the head and bound to one namespace root: every id the producer sends starts
+      with that root (<a href={rfc('12')}>§12</a>). How a head issues tokens is up to the head; the
+      <a href={HEAD_REPO_URL}>reference head</a> mints them on its settings page, one per producer, shown once and
+      revocable.
+    </li>
+  </ul>
+  <p>As the environment the repository's connectors read, from <code>producerConfig</code> in <code>@pbcp/client</code>:</p>
+  <pre><code>{config}</code></pre>
 
-  <h2>With the MCP server</h2>
+  <h2>A first card</h2>
   <p>
-    <a href={`${REPO_URL}/tree/main/packages/mcp`}><code>@pbcp/mcp</code></a> gives an agent the producer's side as
-    tools: <code>submit_card</code>, <code>poll_changes</code> and, on a head with orders, <code>claim_order</code>. It
-    holds a producer token, so it cannot decide.
+    Submit is a <code>PUT</code> to the card's id (<a href={rfc('7.1')}>§7.1</a>). This sends the example card from
+    <a href={rfc('3')}>§3</a>, addressed to the owner. Its id is under the root <code>hermes</code>, so it needs a token
+    bound to that root. It is the output of <code>curlSnippet</code> in <code>@pbcp/client</code>, which takes any other
+    card too.
   </p>
-  <pre><code>{s.mcpRun}</code></pre>
-  <p>As an MCP server entry in a client's configuration:</p>
-  <pre><code>{s.mcpConfig}</code></pre>
-  <p>The input for <code>submit_card</code>, with your owner id in <code>to_person</code>:</p>
-  <pre><code>{s.mcpSubmit}</code></pre>
-  <p>and for <code>poll_changes</code>; call it again with the returned <code>next</code> until it stops moving:</p>
-  <pre><code>{s.mcpPoll}</code></pre>
+  <pre><code>{curl}</code></pre>
+  <p>
+    The head answers <code>201</code> with the stored card, now carrying the fields it owns. The same command again
+    answers <code>200</code> and changes nothing: the id names the card (<a href={rfc('5')}>§5</a>).
+  </p>
+
+  <h2>Reading the decision</h2>
+  <p>
+    The person decides in the head. A producer reads decisions with <code>GET /changes?after=</code>
+    (<a href={rfc('7.2')}>§7.2</a>): every card in its namespace that changed after a cursor, in order. It keeps the
+    returned <code>next</code> and passes it back, and acts on each decision in a way that is safe to repeat.
+    <a href={`${REPO_URL}/tree/main/packages/client`}><code>@pbcp/client</code></a>'s <code>runProducer</code> is that
+    loop with a durable cursor; <a href={`${REPO_URL}/tree/main/packages/mcp`}><code>@pbcp/mcp</code></a> gives an agent
+    the same operations as tools.
+  </p>
+
+  <h2>Connectors</h2>
+  <p>
+    Each connector's README has a Setup section with the three values in place and whatever else it needs. It is
+    generated from the connector's own <code>connect()</code>, so it matches the code.
+  </p>
+  <ul class="links">
+    {withSetup.map((c) => <li><a href={c.setup}><code>{c.dir}</code> setup</a> <span class="muted">— {c.settings.filter((s) => !s.startsWith('PBCP_')).slice(0, 4).join(', ') || 'no further settings'}</span></li>)}
+  </ul>
+  <p>The <a href={href('/connectors/')}>connectors page</a> lists every connector and its settings.</p>
 
   <h2>Next</h2>
   <ul>
     <li><a href={rfc('11.1')}>§11.1</a>, the producer checklist.</li>
-    <li><a href={href('/connectors/')}>Connectors</a>, complete producers to read or copy.</li>
     <li><a href={href('/rfc/')}>The RFC</a>, for threads, supersession and urgency.</li>
   </ul>
 </Base>
