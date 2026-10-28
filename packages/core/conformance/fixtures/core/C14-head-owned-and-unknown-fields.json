@@ -5,6 +5,12 @@
     "§4.2",
     "A.1"
   ],
+  "covers": [
+    "§3.1 MUST ignore producer-owned fields",
+    "§3.1 MUST reject any field in the head-owned set",
+    "§4.2 A producer MUST NOT include them",
+    "§A.1 which a producer MUST NOT submit"
+  ],
   "steps": [
     {
       "op": "put",

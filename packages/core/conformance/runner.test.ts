@@ -201,6 +201,46 @@ describe('the fixtures catch broken heads', () => {
     await fails(core.C44, { head: sabotage(h, { put }) });
   });
 
+  it('C45: making a title one line instead of refusing it', async () => {
+    const h = inProcessHead();
+    const put: HeadUnderTest['put'] = async (t, c) => {
+      const title = (c as { title?: unknown }).title;
+      return h.put(t, typeof title === 'string' ? { ...(c as object), title: title.replace(/\s+/g, ' ').trim() || 'Untitled' } : c);
+    };
+    await fails(core.C45, { head: sabotage(h, { put }) });
+  });
+
+  it('C46: storing a kind it does not implement as a signal', async () => {
+    const h = inProcessHead();
+    const put: HeadUnderTest['put'] = async (t, c) => h.put(t, (c as { kind?: unknown }).kind === 'memo' ? { ...(c as object), kind: 'signal' } : c);
+    await fails(core.C46, { head: sabotage(h, { put }) });
+  });
+
+  it('C47: ignoring body in the header', async () => {
+    const h = inProcessHead();
+    const put: HeadUnderTest['put'] = async (t, c) => h.put(t, typeof c === 'string' ? c.replace(/^body:.*\n/m, '') : c);
+    await fails(core.C47, { head: sabotage(h, { put }) });
+  });
+
+  it('C48: marking a card seen when it is synced', async () => {
+    const h = inProcessHead();
+    const changes: HeadUnderTest['changes'] = async (t, after) => {
+      const r = await h.changes(t, after);
+      for (const ch of (r.body as { changes?: { card: { id: string; seen_at?: string } }[] }).changes ?? []) if (!ch.card.seen_at) await h.seen(ch.card.id);
+      return r;
+    };
+    await fails(core.C48, { head: sabotage(h, { changes }) });
+  });
+
+  it('R12: falling back on an extended-tier type', async () => {
+    const r = referenceRenderer();
+    const draw: RenderUnderTest['render'] = async (body) => {
+      const out = await r.render(body);
+      return { ...out, fences: out.fences.map((f) => (f.type === 'classDiagram' ? { ...f, class: 'fallback', message: 'diagram not supported' } : f)) };
+    };
+    await fails(render.R12, { render: { ...r, render: draw } });
+  });
+
   it('R09–R11: leads that ignore summary, keep headings or keep fences', async () => {
     const r = referenceRenderer();
     const firstLines = (b: string) => b.split('\n\n')[0]!;

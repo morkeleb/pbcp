@@ -4,6 +4,10 @@
     "§5",
     "§2"
   ],
+  "covers": [
+    "§3 but MUST accept JSON",
+    "§4.1 The head MUST NOT alter them"
+  ],
   "steps": [
     {
       "op": "put",

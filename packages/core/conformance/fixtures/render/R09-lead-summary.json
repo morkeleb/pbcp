@@ -4,6 +4,10 @@
     "\u00a73.1",
     "\u00a74.1"
   ],
+  "covers": [
+    "§3.1 MUST show at least the lead",
+    "§4.1 MUST show it as text"
+  ],
   "steps": [
     {
       "op": "lead",

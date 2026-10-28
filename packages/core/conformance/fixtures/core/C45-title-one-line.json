@@ -1,0 +1,9 @@
+{
+  "name": "C45 an empty title or one with a line break is 400 invalid_card, and nothing is stored",
+  "rfc": ["§4.1"], "covers": ["§4.1 title: MUST NOT be empty or contain CR or LF"],
+  "steps": [
+    { "op": "put", "args": { "token": "hermes", "card": { "protocol": "pbcp/1", "id": "hermes:note:t1", "kind": "signal", "to_person": "morten", "producer": "hermes", "title": "", "body": "x", "emitted_at": "2026-10-07T13:02:11Z" } }, "expect": { "status": 400, "body": { "error": "invalid_card" } } },
+    { "op": "put", "args": { "token": "hermes", "card": { "protocol": "pbcp/1", "id": "hermes:note:t1", "kind": "signal", "to_person": "morten", "producer": "hermes", "title": "Build\nfailed", "body": "x", "emitted_at": "2026-10-07T13:02:11Z" } }, "expect": { "status": 400, "body": { "error": "invalid_card" } } },
+    { "op": "syncAll", "args": { "token": "hermes", "after": 0 }, "expect": { "status": 200, "body": { "changes": { "$len": 0 } } } }
+  ]
+}

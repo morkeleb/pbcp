@@ -3,6 +3,10 @@
   "rfc": [
     "§8"
   ],
+  "covers": [
+    "§8 MUST NOT supersede a superseded card",
+    "§6 cross-namespace supersede"
+  ],
   "steps": [
     {
       "op": "put",

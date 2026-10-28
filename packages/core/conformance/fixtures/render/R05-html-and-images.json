@@ -5,6 +5,10 @@
     "§3.1",
     "§12"
   ],
+  "covers": [
+    "§3 a head MUST strip raw HTML",
+    "§3.1 MUST NOT send cookies"
+  ],
   "steps": [
     {
       "op": "render",

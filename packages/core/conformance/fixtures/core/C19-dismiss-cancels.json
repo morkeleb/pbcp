@@ -4,6 +4,13 @@
     "A.1",
     "A.5"
   ],
+  "covers": [
+    "§7.3 MUST be one of the card's actions",
+    "§A.1 MUST atomically set exec_state",
+    "§A.1 MUST NOT be claimed again",
+    "§A.5 A renewal on an order whose",
+    "§A.5 A claim on a cancelled order"
+  ],
   "extension": "orders",
   "steps": [
     {

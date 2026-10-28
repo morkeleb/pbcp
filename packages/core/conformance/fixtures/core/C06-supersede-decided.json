@@ -5,6 +5,10 @@
     "§6",
     "§5"
   ],
+  "covers": [
+    "§4.4 MUST retain that version",
+    "§8 atomically store the successor"
+  ],
   "steps": [
     {
       "op": "put",

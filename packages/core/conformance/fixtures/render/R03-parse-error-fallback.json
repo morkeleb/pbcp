@@ -3,6 +3,9 @@
   "rfc": [
     "\u00a73.1"
   ],
+  "covers": [
+    "§3.1 This profile is the contract"
+  ],
   "steps": [
     {
       "op": "render",

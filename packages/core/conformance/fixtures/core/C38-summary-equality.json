@@ -4,6 +4,10 @@
     "\u00a74.1",
     "\u00a75"
   ],
+  "covers": [
+    "§4.4 MUST retain that version",
+    "§7.2 MUST increase whenever its current representation changes"
+  ],
   "steps": [
     {
       "op": "put",

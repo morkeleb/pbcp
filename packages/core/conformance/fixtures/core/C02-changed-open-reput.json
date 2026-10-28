@@ -5,6 +5,10 @@
     "§6",
     "§7.2"
   ],
+  "covers": [
+    "§5 MUST clear seen_at",
+    "§7.2 MUST increase whenever its current representation changes"
+  ],
   "steps": [
     {
       "op": "clock",

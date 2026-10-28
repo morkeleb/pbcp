@@ -5,6 +5,9 @@
     "\u00a76",
     "\u00a77.2"
   ],
+  "covers": [
+    "§7.2 MUST increase whenever its current representation changes"
+  ],
   "steps": [
     {
       "op": "clock",

@@ -5,6 +5,9 @@
     "§6",
     "§7.1"
   ],
+  "covers": [
+    "§4.4 MUST retain that version"
+  ],
   "steps": [
     {
       "op": "put",

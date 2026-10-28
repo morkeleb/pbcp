@@ -3,6 +3,10 @@
   "rfc": [
     "A.3"
   ],
+  "covers": [
+    "§A.3 it MUST carry both",
+    "§A.3 MUST NOT change exec_state"
+  ],
   "extension": "orders",
   "steps": [
     {

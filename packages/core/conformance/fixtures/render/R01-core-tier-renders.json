@@ -3,6 +3,10 @@
   "rfc": [
     "§3.1"
   ],
+  "covers": [
+    "§3.1 This profile is the contract",
+    "§3.1 Core | flowchart"
+  ],
   "steps": [
     {
       "op": "render",

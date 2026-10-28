@@ -6,6 +6,10 @@
     "\u00a74.1",
     "\u00a710"
   ],
+  "covers": [
+    "§5 only submit ids under its own root",
+    "§10 MUST reject others with 403"
+  ],
   "steps": [
     {
       "op": "put",

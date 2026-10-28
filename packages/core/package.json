@@ -29,6 +29,7 @@
   "files": [
     "dist",
     "conformance/fixtures",
+    "conformance/untested.json",
     "conformance/README.md",
     "README.md",
     "LICENSE"

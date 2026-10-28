@@ -1,0 +1,9 @@
+{
+  "name": "R12 an extended-tier diagram renders (SHOULD)",
+  "rfc": ["§3.1"],
+  "covers": ["§3.1 Extended | classDiagram"],
+  "level": "SHOULD",
+  "steps": [
+    { "op": "render", "args": { "body": "Before.\n\n```mermaid\nclassDiagram\n  class Card\n  class Head\n  Head --> Card\n```\n\nAfter." }, "expect": { "status": 200, "body": { "fences": [{ "type": "classDiagram", "class": "render" }], "text": { "$includes": "After." } } } }
+  ]
+}
