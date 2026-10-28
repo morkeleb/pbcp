@@ -20,7 +20,7 @@ export function slug(text: string, seen: Map<string, number>): string {
 const plain = (t: Tokens.Heading) => t.text.replace(/`([^`]*)`/g, '$1').replace(/\*\*([^*]*)\*\*|\*([^*]*)\*/g, '$1$2');
 
 /** The section number a heading starts with: `7.1 Submit` → `7.1`, `Appendix A. Extension: Orders` → `A`, `A.2 Claims…` → `A.2`. */
-const sectionNumber = (text: string) => /^(?:Appendix\s+([A-Z])\.|(\d+(?:\.\d+)*|[A-Z](?:\.\d+)+)\.?\s)/.exec(text)?.slice(1).find(Boolean);
+const sectionNumber = (text: string) => /^(?:Appendix\s+([A-Z])\.|(\d+(?:\.\d+)*[a-z]?|[A-Z](?:\.\d+)+)\.?\s)/.exec(text)?.slice(1).find(Boolean);
 
 function headings(tokens: Token[]): { token: Tokens.Heading; id: string; text: string }[] {
   const seen = new Map<string, number>();
@@ -41,7 +41,7 @@ export function rfcSections(): Map<string, string> {
 function linkSections(html: string, sections: Map<string, string>, page: string): string {
   return html
     .split(/(<pre[\s\S]*?<\/pre>|<code[\s\S]*?<\/code>|<a\s[\s\S]*?<\/a>|<h[1-6][^>]*>[\s\S]*?<\/h[1-6]>)/)
-    .map((part, i) => (i % 2 ? part : part.replace(/§(\d+(?:\.\d+)*)/g, (m, n: string) => {
+    .map((part, i) => (i % 2 ? part : part.replace(/§(\d+(?:\.\d+)*[a-z]?)(?![a-z])/g, (m, n: string) => {
       const id = sections.get(n);
       return id ? `<a href="${page}#${id}">${m}</a>` : m;
     })))

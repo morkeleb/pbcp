@@ -42,5 +42,6 @@ An order is a card of `kind: order` the person gave through their head (RFC Appe
 - Times in the title, summary and body are local and readable ("today 09:12", "Mon 26 Oct 16:00"), never ISO timestamps.
 - `orders.claim_seq` is the `claim_seq` your claim returned. `orders.result` is required: `"done"`, or `"failed"` if you could not do it or stopped because of a `410` (say why in the body).
 - If the result needs the person's approval before it takes effect (a draft to send), make the outcome `kind: "decision"` with `actions`, and act on it later as `pbcp-escalate` describes.
+- `kind` is what the outcome asks of the person: `decision` to choose, `signal` to know that something happened (a booking made, a failure), `artifact` to read something you made (a report, a record of what you did). `urgency` is when they should see it: `brief` (the default) waits for their next brief, `immediate` interrupts and is only for what cannot wait or concerns the next few hours, and `log` is only recorded, for a routine record such as a completed task.
 
 Failure is an outcome card, never silence. An order may reach you twice (a lease can lapse and be claimed again, with a new `claim_seq` and so a new outcome id), so make any side effect idempotent on the order id: check whether you already did it before doing it again.
