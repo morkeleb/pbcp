@@ -73,7 +73,7 @@ describe('todoist executor', () => {
     t.src.complete(id);
     await t.ex.idle();
     const out = t.outcome(o)!;
-    expect(out).toMatchObject({ kind: 'signal', title: 'Done: Book the dentist', references: [o.id], thread: o.id });
+    expect(out).toMatchObject({ kind: 'artifact', urgency: 'log', title: 'Done: Book the dentist', references: [o.id], thread: o.id });
     expect(out.body).toBe('Completed in Todoist, today 08:00.');
     expect(out.source).toEqual({ url: `https://app.todoist.com/app/task/${id}`, label: 'Todoist task' });
     expect(out['orders.result']).toBe('done');

@@ -44,7 +44,7 @@ export function todoistRun(src: TodoistSource, opts: { pollMs?: number; onError?
         await ctx.checkpoint(); // the lease renewal, and the cancellation check
         // A Todoist error while waiting is retried at the next poll, not turned into a failed order.
         const now = await src.get(task.id).catch((e) => void (opts.onError ?? console.error)(e));
-        if (now?.state === 'done') return { kind: 'signal', title: `Done: ${now.content}`, ...(now.url ? { source: { url: now.url, label: 'Todoist task' } } : {}), body: `Completed in Todoist${now.completedAt ? `, ${readable(now.completedAt, opts.now?.() ?? new Date(), opts.timeZone)}` : ''}.` };
+        if (now?.state === 'done') return { kind: 'artifact', urgency: 'log', title: `Done: ${now.content}`, ...(now.url ? { source: { url: now.url, label: 'Todoist task' } } : {}), body: `Completed in Todoist${now.completedAt ? `, ${readable(now.completedAt, opts.now?.() ?? new Date(), opts.timeZone)}` : ''}.` };
         if (now?.state === 'deleted') return { kind: 'failed', title: `Not done: ${order.title}`, body: `The Todoist task "${task.content}" was deleted without being completed.` };
         await ctx.sleep(opts.pollMs ?? 60_000);
       }

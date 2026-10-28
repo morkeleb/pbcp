@@ -72,6 +72,23 @@ const fromSourceHtml = new Marked({ gfm: true }).parse(fromSource()) as string;
     the same operations as tools.
   </p>
 
+  <h2>Kind and urgency</h2>
+  <p>
+    <code>kind</code> is what the card asks of the person (<a href={rfc('4.1a')}>§4.1a</a>): a <code>decision</code> to
+    choose, with <code>actions</code>, open until decided; a <code>signal</code> to know that something happened; an
+    <code>artifact</code> to read something made for them. <code>urgency</code> is when: <code>immediate</code>
+    interrupts, <code>brief</code> waits for the next brief, <code>log</code> is recorded and never surfaced on its own
+    (<a href={rfc('9')}>§9</a>). The two are independent.
+  </p>
+  <ul>
+    <li>A decision is <code>brief</code>, unless it cannot wait.</li>
+    <li>A signal is <code>brief</code>, and <code>immediate</code> when it concerns the next few hours.</li>
+    <li>
+      An artifact is <code>brief</code> when it is read daily (a report, an agenda, a digest), and <code>log</code> when
+      it is a routine record (a commit, a completed task, a producer connecting).
+    </li>
+  </ul>
+
   <h2>Until the packages are published</h2>
   <div set:html={fromSourceHtml} />
   <p>

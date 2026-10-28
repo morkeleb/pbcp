@@ -51,6 +51,8 @@ Give every card a "summary" (§4.1): one or two sentences of plain text on one l
 
 Set "labels" (§4.1) to the project, client or mailbox the card concerns, so the person can filter by them: a list of up to 8, each 1–32 lowercase letters, digits or "-" (["billing-revamp"]). Set "about" to the day the card is about, as YYYY-MM-DD, when that is not today: tomorrow's agenda, a meeting moved to Friday. Either one broken is refused with 400 invalid_card.
 
+Set "kind" by what the card asks of the person: "decision" to choose (with "actions"; open until they decide), "signal" to know that something happened, "artifact" to read something made for them (a report, a record). Set "urgency" by when they should see it: "brief" (the default) waits for their next brief, "immediate" interrupts and is only for a decision that cannot wait or a signal about the next few hours, and "log" is only recorded, for routine records such as a completed task.
+
 Leave out "to_person": the server addresses the card to the person the head is for.
 
 Returns { status, id, state, change_seq, card }: the head's answer, with the card as it stored it. That answer is the confirmation that the card landed. 201: new card stored. 200: already current; read card.state and card.decision, since the person may already have answered. 409: the person already decided an earlier version; card carries that decision. Never re-submit the same id after a 409; submit a new card with "supersedes" set to the old id if you still need an answer.`;

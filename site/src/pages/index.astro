@@ -2,13 +2,75 @@
 import { Marked } from 'marked';
 import Base from '../layouts/Base.astro';
 import { RFC_FILE, href } from '../config';
+import { rfcSections } from '../lib/markdown';
 import { exampleCard, problem } from '../lib/rfc';
 
 const md = new Marked({ gfm: true });
 const problemHtml = md.parseInline(problem()) as string;
+const sec = rfcSections();
+const rfc = (n: string) => `${href('/rfc/')}#${sec.get(n)}`;
+// The diagram's boxes: a serif title and subtitle lines, the same in both layouts.
+const boxes = [
+  { title: 'Producers', wide: ['mail · calendar ·', 'project tools ·', 'agents · scripts'], tall: ['mail · calendar · project tools ·', 'agents · scripts'] },
+  { title: 'Personal head', wide: ['stores cards ·', 'builds the brief ·', 'records decisions'], tall: ['stores cards · builds the brief ·', 'records decisions'] },
+  { title: 'Person', wide: ['reads · decides ·', 'orders'], tall: ['reads · decides · orders'] },
+];
+const label = 'Producers send cards to the personal head with PUT /cards/{id} and read changes back with GET /changes; the head sends the person a brief, and the person sends back decisions. Every connection starts at the producer.';
 ---
 <Base title="Protocol" path="/" description="A small HTTP protocol for the decisions agents, scripts and tools need from one person: cards in, decisions out.">
   <h1>Personal Brief Card Protocol</h1>
+  <p class="lede">
+    Agents and tools share one person's decision interface without sharing a workflow engine or giving up ownership of
+    their own data: the head records what reached the person and what they decided, and each producer stays
+    authoritative for its own domain.
+  </p>
+
+  <figure class="flow">
+    <svg class="wide" viewBox="0 0 680 206" role="img" aria-label={label}>
+      <defs>
+        <marker id="head-w" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M0,0.5 L7,4 L0,7.5" class="tip" /></marker>
+      </defs>
+      {boxes.map((b, i) => (
+        <g transform={`translate(${i * 265 + 0.5}, 0.5)`}>
+          <rect width="149" height="112" rx="6" class="box" />
+          <text x="75" y="34" class="title">{b.title}</text>
+          {b.wide.map((l, j) => <text x="75" y={58 + j * 17} class="sub">{l}</text>)}
+        </g>
+      ))}
+      <line x1="156" y1="40" x2="259" y2="40" class="arrow" marker-end="url(#head-w)" />
+      <text x="207" y="31" class="code">PUT /cards/&#123;id&#125;</text>
+      <line x1="259" y1="76" x2="156" y2="76" class="arrow" marker-end="url(#head-w)" />
+      <text x="207" y="94" class="code">GET /changes</text>
+      <line x1="421" y1="40" x2="524" y2="40" class="arrow" marker-end="url(#head-w)" />
+      <text x="472" y="31" class="code">brief</text>
+      <line x1="524" y1="76" x2="421" y2="76" class="arrow" marker-end="url(#head-w)" />
+      <text x="472" y="94" class="code">decision</text>
+      <path d="M75,120 C75,160 340,160 340,120" class="arrow loop" marker-end="url(#head-w)" />
+      <text x="207" y="182" class="note">every connection starts at the producer</text>
+    </svg>
+    <svg class="tall" viewBox="0 0 328 470" role="img" aria-label={label}>
+      <defs>
+        <marker id="head-t" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M0,0.5 L7,4 L0,7.5" class="tip" /></marker>
+      </defs>
+      {boxes.map((b, i) => (
+        <g transform={`translate(0.5, ${[0, 200, 370][i]! + 0.5})`}>
+          <rect width="327" height="88" rx="6" class="box" />
+          <text x="164" y="32" class="title">{b.title}</text>
+          {b.tall.map((l, j) => <text x="164" y={56 + j * 17} class="sub">{l}</text>)}
+        </g>
+      ))}
+      <text x="164" y="112" class="note">every connection starts at the producer</text>
+      <line x1="134" y1="126" x2="134" y2="196" class="arrow" marker-end="url(#head-t)" />
+      <text x="126" y="166" class="code end">PUT /cards/&#123;id&#125;</text>
+      <line x1="194" y1="196" x2="194" y2="126" class="arrow" marker-end="url(#head-t)" />
+      <text x="202" y="166" class="code start">GET /changes</text>
+      <line x1="134" y1="294" x2="134" y2="366" class="arrow" marker-end="url(#head-t)" />
+      <text x="126" y="335" class="code end">brief</text>
+      <line x1="194" y1="366" x2="194" y2="294" class="arrow" marker-end="url(#head-t)" />
+      <text x="202" y="335" class="code start">decision</text>
+    </svg>
+  </figure>
+
   <p class="lede">
     A protocol for the point where software has to stop and ask a person. A producer submits a <em>card</em> to the
     person's <em>head</em>; the person decides; the producer reads the decision and carries on.
@@ -48,6 +110,34 @@ const problemHtml = md.parseInline(problem()) as string;
     producer, so a producer needs no inbound port. Giving work back to agents (orders) is an extension on the same card.
   </p>
 
+  <h2>Why it is shaped this way</h2>
+  <dl class="why">
+    <dt>Identity gives idempotency</dt>
+    <dd>
+      The producer mints the id, so a retry re-sends the same id and gets <code>200</code>, never a duplicate.
+      <a href={rfc('5')}>§5</a>
+    </dd>
+    <dt>One writer per card</dt>
+    <dd>
+      A producer owns its namespace and is the only one writing there, so there is no conflict handling.
+      <a href={rfc('5')}>§5</a>, <a href={rfc('10')}>§10</a>
+    </dd>
+    <dt>Pull, never push</dt>
+    <dd>
+      Every connection starts at the producer, so an agent inside a locked network needs one egress rule.
+      <a href={rfc('12')}>§12</a>
+    </dd>
+    <dt>A decision is a record</dt>
+    <dd>
+      A card is locked once decided; a change is a new card that supersedes it. <a href={rfc('6')}>§6</a>
+    </dd>
+    <dt>Presentation is part of the contract</dt>
+    <dd>
+      The lead, the proposal and the controls are specified, so every head shows a card the same way.
+      <a href={rfc('3.1')}>§3.1</a>, <a href={rfc('4.5')}>§4.5</a>
+    </dd>
+  </dl>
+
   <p><a class="cta" href={href('/rfc/')}>Read the RFC, draft {RFC_FILE.version}</a></p>
 
   <ul class="links">
@@ -57,3 +147,24 @@ const problemHtml = md.parseInline(problem()) as string;
     <li><a href={href('/changelog/')}>Changelog</a> <span class="muted">— every change between drafts.</span></li>
   </ul>
 </Base>
+
+<style>
+  .flow { margin: 8px 0 24px; }
+  .flow svg { display: block; width: 100%; height: auto; overflow: visible; }
+  .flow .tall { display: none; max-width: 328px; margin: 0 auto; }
+  @media (max-width: 560px) {
+    .flow .wide { display: none; }
+    .flow .tall { display: block; }
+  }
+  .flow .box { fill: var(--surface); stroke: var(--border); stroke-width: 1; }
+  .flow .title { font: 500 19px var(--serif); fill: var(--text); text-anchor: middle; }
+  .flow .sub { font: 400 12px var(--sans); fill: var(--muted); text-anchor: middle; }
+  .flow .code { font: 400 11.5px var(--mono); fill: var(--muted); text-anchor: middle; }
+  .flow .code.end { text-anchor: end; }
+  .flow .code.start { text-anchor: start; }
+  .flow .note { font: 400 12px var(--sans); fill: var(--muted); text-anchor: middle; }
+  .flow .arrow { stroke: var(--muted); stroke-width: 1; fill: none; }
+  .flow .tip { fill: none; stroke: var(--muted); stroke-width: 1; }
+  .why dt { font-weight: 600; margin-top: 14px; }
+  .why dd { margin: 2px 0 0; }
+</style>

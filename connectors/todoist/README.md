@@ -60,7 +60,7 @@ The connector checks the task every `TODOIST_POLL_S`, renewing the lease first (
 
 | In Todoist | Outcome `todoist:order:<ulid>:outcome-<claim_seq>` | `exec_state` |
 |---|---|---|
-| Completed | `signal` with `orders.result: done`, `Done: <task content as it is now>`, body `Completed in Todoist, <time>.`, the time in `TODOIST_TZ`: `today 09:12`, or `Mon 26 Oct 16:00` on another day; with `TODOIST_TZ` unset, in UTC with the zone named: `today 08:12 UTC` | `done` |
+| Completed | `artifact` at `urgency: log` with `orders.result: done` (a completed task is a routine record, RFC §4.1a), `Done: <task content as it is now>`, body `Completed in Todoist, <time>.`, the time in `TODOIST_TZ`: `today 09:12`, or `Mon 26 Oct 16:00` on another day; with `TODOIST_TZ` unset, in UTC with the zone named: `today 08:12 UTC` | `done` |
 | Deleted | `signal` with `orders.result: failed`, `Not done: <order title>`, saying the task was deleted without being completed | `failed` |
 | (the person dismisses the order) | `signal` with `orders.result: failed`, `Stopped: <order title>`, saying the task was deleted | stays `cancelled` (the outcome is stale by design, A.5) |
 

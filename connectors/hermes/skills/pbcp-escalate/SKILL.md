@@ -11,7 +11,7 @@ You have two tools from the `pbcp` MCP server: `submit_card` and `poll_changes`.
 
 Before any action that leaves the user's own space — sending a message or email, paying or spending, deleting or overwriting something that is not a scratch file, accepting or declining on the user's behalf, or promising anything to anyone — do not act. Submit a decision card instead, then stop working on that thread until the person answers.
 
-Anything that only informs (a summary, a finished report, a heads-up) needs no answer: send it as `kind: signal` or `kind: artifact` with `urgency: log` (read later) or `brief` (today's brief). Use `immediate` only for something the person must see within minutes.
+`kind` is what the card asks of the person: `decision` to choose (it carries `actions` and stays open until they decide), `signal` to know that something happened, `artifact` to read something made for them (a report, a summary, a record); only a decision needs an answer. `urgency` is when they should see it: `brief` (the default) waits for their next brief, `immediate` interrupts and is only for a decision that cannot wait or a signal about the next few hours, and `log` is only recorded, for routine records such as a finished task.
 
 ## Writing a decision card
 

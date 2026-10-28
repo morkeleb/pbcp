@@ -30,6 +30,15 @@ describe('@pbcp/mcp', () => {
     expect(tools.map((t) => t.name).sort()).toEqual(['claim_order', 'poll_changes', 'submit_card']);
   });
 
+  it('tells the model how to pick a kind and an urgency (RFC §4.1a)', async () => {
+    const { client } = await setup();
+    const submit = (await client.listTools()).tools.find((t) => t.name === 'submit_card')!.description!;
+    expect(submit).toContain('"decision" to choose');
+    expect(submit).toContain('"signal" to know');
+    expect(submit).toContain('"artifact" to read');
+    expect(submit).toContain('"log" is only recorded');
+  });
+
   it('claims and renews an order, and reports 409 and 410 as tool errors with their code', async () => {
     const { call, stub } = await setup({ executors: ['hermes', 'cal'] });
     const o = stub.order({ to_producer: '*', title: 'Book the dentist', body: '' });

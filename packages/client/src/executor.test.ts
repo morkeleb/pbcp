@@ -51,6 +51,18 @@ describe('executor', () => {
     const k = o.id.split(':')[2];
     expect(t.stub.cards.get(`hermes:order:${k}:progress-1-1`)).toMatchObject({ kind: 'signal', urgency: 'log', thread: o.id, references: [o.id], title: 'Called the clinic', to_person: 'morten' });
     expect(t.stub.cards.get(`hermes:order:${k}:outcome-1`)).toMatchObject({ kind: 'signal', thread: o.id, references: [o.id], 'orders.claim_seq': 1, 'orders.result': 'done', title: 'Booked Tuesday 09:00' });
+    expect('urgency' in t.stub.cards.get(`hermes:order:${k}:outcome-1`)!).toBe(false);
+    expect(t.order(o.id)).toMatchObject({ exec_state: 'done' });
+    expect(t.errors).toEqual([]);
+  });
+
+  it('posts an artifact outcome at the urgency it names (§4.1a: a routine record is a log)', async () => {
+    const t = setup({ executors: ['hermes'] });
+    const o = t.stub.order({ to_producer: 'hermes', title: 'Water the plants', body: '' });
+    const ex = executor(t.base({ run: async () => ({ kind: 'artifact', urgency: 'log', title: 'Done: Water the plants', body: 'Completed.' }) }));
+    await ex.pass();
+    await ex.idle();
+    expect(t.stub.cards.get(`hermes:order:${o.id.split(':')[2]}:outcome-1`)).toMatchObject({ kind: 'artifact', urgency: 'log', 'orders.result': 'done' });
     expect(t.order(o.id)).toMatchObject({ exec_state: 'done' });
     expect(t.errors).toEqual([]);
   });
