@@ -18,6 +18,6 @@ export function connect(c: Connection): string {
     'node connectors/caldav/dist/src/index.js',
     FENCE,
     '',
-    'Several calendars, the agenda time and the rest are under [Configuration](#configuration).',
+    'Several calendars, the agenda time, the optional chart and the rest are under [Configuration](#configuration).',
   ].join('\n');
 }

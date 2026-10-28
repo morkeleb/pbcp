@@ -49,6 +49,7 @@ Draft 0.7 adds two producer-owned fields that producers were already putting in 
 - **§9 — label ceilings.** A label's ceiling applies to every card carrying the label, whichever producer sent it. A card under several ceilings, its producer's and its labels', takes the lowest.
 - **OPEN.md 4.** Whether a card's day is fixed when it is stored or follows a later change of the head's time zone is left open, with the reference head's choice: fixed at storage.
 - **OPEN.md 5.** A producer read of its own card (`GET /cards/{id}` under the token's root) is recorded as a candidate for 0.8, from the first producers to connect (issue #22). Until then a producer confirms a card from the answer to its PUT (`201` or `200` with the stored card) and through sync; `@pbcp/client`, `@pbcp/mcp` and the site now say so.
+- **§3 — the example's `source`** (illustrative, not normative). The example card's `source.url`, in both forms, is now the Gmail message search the connectors and the hermes skills use, `https://mail.google.com/mail/u/0/#search/rfc822msgid:<Message-ID>`, instead of an `#inbox/<thread>` link, and the wire form gives it in full. `exampleCard` in `@pbcp/core`, and the snippets made from it, follow.
 
 ## 0.6 (2026-10-27)
 

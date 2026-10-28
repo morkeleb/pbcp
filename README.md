@@ -10,7 +10,7 @@ The Personal Brief Card Protocol: the RFC (`rfc/`), the packages that implement 
 | `packages/mcp` | `@pbcp/mcp` | MCP server over stdio: `submit_card`, `poll_changes`. |
 | `connectors/imap` | — | Example producer: unseen mail to cards. |
 | `connectors/obsidian-daily` | — | Example producer: daily notes to log artifacts. |
-| `connectors/caldav` | — | Example producer: the day's agenda, and signals for meetings moved to start soon. |
+| `connectors/caldav` | — | Example producer: the day's agenda, and signals for events in the next week that are new, moved or cancelled. |
 | `connectors/hermes` | — | Hermes Agent plugin: `@pbcp/mcp` plus two skills. |
 | `connectors/n8n` | `n8n-nodes-pbcp` | n8n community nodes: a polling trigger on sync, and a submit action. |
 | `connectors/goalpath` | — | Example producer: milestone risk, approvals, red builds and a nightly digest from GoalPath. |
