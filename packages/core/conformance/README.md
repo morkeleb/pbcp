@@ -17,6 +17,7 @@ The fixtures in `fixtures/` are the protocol's executable definition. They are p
 - A fixture with `"level": "SHOULD"` checks a recommendation, not a requirement. A head may fail it and still conform; runners report it separately (`conformanceSuite({ should: false })` skips them).
 - A fixture with `"condition": "prerender"` (R07) applies only to heads that draw diagrams before serving them (RFC §3.1 "Determinism"); `conformanceSuite({ prerender: false })` skips it.
 - `HeadUnderTest.clock.set()` may return a promise; the runner awaits it before the next step.
+- `covers` lists the requirements a fixture exercises, each as `§<section>` and words from one MUST, MUST NOT, SHOULD or SHOULD NOT sentence of that section; every fixture has at least one. `untested.json` lists the sentences no fixture covers, with why. `scripts/conformance-map.ts` makes RFC §14's coverage table from both, and `coverage.test.ts` fails when a reference names no sentence, or the table is out of date.
 - `"instance": "second"` beside `"token"` mints a further token under the same root, for fixtures that act as two installations of one producer (C35).
 
 ## Fixture shape
@@ -25,6 +26,7 @@ The fixtures in `fixtures/` are the protocol's executable definition. They are p
 {
   "name": "C01 identical re-PUT returns 200 with the same change_seq",
   "rfc": ["§5"],
+  "covers": ["§3 but MUST accept JSON"],
   "level": "MUST",
   "steps": [
     { "op": "put", "args": { "token": "hermes", "card": { "...": "..." } },
@@ -111,7 +113,7 @@ Dot-separated: `body.change_seq`, `body.changes.0.seq`. A segment `[k=v]` select
 
 ## Reference renderer
 
-`@pbcp/core/conformance/render` exports `referenceRenderer()`, the `RenderUnderTest` the in-process run uses. It classifies without drawing, so a head can run R01–R11 against it before its own renderer exists. Its `lead` is core's `leadOf`; a head that uses `leadOf` passes R09–R11 by delegating to it.
+`@pbcp/core/conformance/render` exports `referenceRenderer()`, the `RenderUnderTest` the in-process run uses. It classifies without drawing, so a head can run the render fixtures against it before its own renderer exists. Its `lead` is core's `leadOf`; a head that uses `leadOf` passes R09–R11 by delegating to it.
 
 ## Cases
 
@@ -156,6 +158,14 @@ Dot-separated: `body.change_seq`, `body.changes.0.seq`. A segment `[k=v]` select
 | C38 | `summary` round-trips and counts for equality: identical re-PUT is a no-op, a changed summary replaces an open card (200), and is 409 once decided | §4.1, §5 |
 | C39 | A `summary` with CR or LF, or an empty one, is 400 `invalid_card` in both forms; nothing is stored | §4.1 |
 | C40 | `summary` in the file form is stored and synced | §3, §4.1 |
+| C41 | `labels` round-trip in both forms and compare as a set; a different set replaces an open card and is 409 once decided | §3, §4.1, §5 |
+| C42 | At most eight labels and no duplicates → else 400 `invalid_card` | §4.1 |
+| C43 | Each label is 1–32 lowercase letters, digits or `-` → else 400 `invalid_card` | §4.1, §5 |
+| C44 | `about` round-trips and counts for equality; a date that does not exist, a timestamp or another format → 400 `invalid_card` | §2, §4.1, §5 |
+| C45 | An empty `title` or one with a line break → 400 `invalid_card`; nothing is stored | §4.1 |
+| C46 | A `kind` the head does not implement → 400 `unsupported_kind`; nothing is stored | §4.1, §7.4 |
+| C47 | A front-matter header containing `body` → 400 `invalid_card`; nothing is stored | §3 |
+| C48 | Syncing a card does not set `seen_at` or take a `change_seq` | §4.2, §7.2 |
 | R01 | Each core-tier type renders; the text around it is intact | §3.1 |
 | R02 | An unknown diagram type falls back with its label; text intact | §3.1 |
 | R03 | A fence with a parse error falls back with a parser message (shown, its wording the renderer's); the other fences still render | §3.1 |
@@ -167,5 +177,6 @@ Dot-separated: `body.change_seq`, `body.changes.0.seq`. A segment `[k=v]` select
 | R09 | The lead is `summary` when present, whatever the body starts with | §3.1, §4.1 |
 | R10 | Without `summary`, the lead is the first paragraph, after any leading heading | §3.1 |
 | R11 | Without `summary`, a body that opens with a mermaid fence has the first paragraph after it as its lead | §3.1 |
+| R12 | An extended-tier diagram (`classDiagram`) renders (SHOULD) | §3.1 |
 
 C23 (a parked change advances the cursor and is reported, RFC §7.2) is a producer obligation, so it is a client test in `packages/client`, not a head fixture.

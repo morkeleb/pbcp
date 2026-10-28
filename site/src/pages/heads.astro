@@ -1,14 +1,19 @@
 ---
-import { readdirSync } from 'node:fs';
+import { readdirSync, readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import Base from '../layouts/Base.astro';
-import { HEAD_OPENAPI_URL, HEAD_REPO_URL, REPO_ROOT, REPO_URL, href } from '../config';
+import { HEAD_OPENAPI_URL, HEAD_REPO_URL, REPO_ROOT, REPO_URL, RFC_FILE, href } from '../config';
 import { rfcSections } from '../lib/markdown';
 
 const sec = rfcSections();
 const rfc = (n: string) => `${href('/rfc/')}#${sec.get(n)}`;
 const count = (dir: string) => readdirSync(resolve(REPO_ROOT, 'packages/core/conformance/fixtures', dir)).filter((f) => f.endsWith('.json')).length;
 const [core, render] = [count('core'), count('render')];
+// The rows of §14's coverage table, generated from the fixtures by scripts/conformance-map.ts.
+const rfcText = readFileSync(RFC_FILE.path, 'utf8');
+const rows = rfcText.slice(rfcText.indexOf('<!-- coverage:'), rfcText.indexOf('<!-- /coverage -->')).split('\n').filter((l) => /^\| [0-9A]/.test(l)).map((l) => l.split(' | ').at(-1)!.replace(/ \|$/, ''));
+const untested = rows.filter((r) => r.startsWith('untested'));
+const [clientSide, iface] = [untested.filter((r) => r.includes('client-side')).length, untested.filter((r) => r.includes('interface')).length];
 
 const adapter = `// conformance.test.ts — run with vitest
 import { conformanceSuite } from '@pbcp/core/conformance/vitest';
@@ -62,6 +67,22 @@ conformanceSuite({ head: myHead, extensions: ['orders'] });`;
   <p>
     The fixture format, every op and the conventions (the owner is <code>morten</code>; tokens are named by their root)
     are in the suite's <a href={`${REPO_URL}/blob/main/packages/core/conformance/README.md`}>README</a>.
+  </p>
+
+  <h2>Conformance coverage</h2>
+  <p>
+    <a href={rfc('14')}>§14</a> lists every MUST, MUST NOT, SHOULD and SHOULD NOT sentence in §3–§11 and Appendix A
+    with the fixtures that exercise it. Of {rows.length} sentences, {rows.length - untested.length} are exercised by a
+    fixture. The other {untested.length} are not:
+  </p>
+  <ul>
+    <li>{clientSide} are client-side behaviour, a producer's or an executor's, which a head cannot show;</li>
+    <li>{iface} are interface behaviour a fixture cannot observe, such as how a decision is presented (<a href={rfc('4.5')}>§4.5</a>) and what a brief contains (<a href={rfc('8')}>§8</a>);</li>
+    <li>{untested.length - clientSide - iface} are transport, a producer's documentation, or outside the operations the fixtures drive.</li>
+  </ul>
+  <p>
+    Each fixture names the sentences it covers, and the table is generated from those names, so it cannot drift from the
+    suite.
   </p>
 
   <h2>The reference head</h2>

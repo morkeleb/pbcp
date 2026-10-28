@@ -3,6 +3,9 @@
   "rfc": [
     "§5"
   ],
+  "covers": [
+    "§5 MUST NOT normalise them"
+  ],
   "steps": [
     {
       "op": "put",

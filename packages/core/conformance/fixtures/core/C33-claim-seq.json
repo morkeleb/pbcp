@@ -5,6 +5,9 @@
     "A.2",
     "A.3"
   ],
+  "covers": [
+    "§A.5 A successful claim or renewal response"
+  ],
   "extension": "orders",
   "steps": [
     {

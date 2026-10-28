@@ -5,6 +5,11 @@
     "§6",
     "§7.2"
   ],
+  "covers": [
+    "§6 MUST NOT be carried forward",
+    "§7.2 one strictly increasing counter",
+    "§8 atomically store the successor"
+  ],
   "steps": [
     {
       "op": "put",

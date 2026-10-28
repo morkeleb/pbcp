@@ -1,0 +1,9 @@
+{
+  "name": "C48 syncing a card does not set seen_at or change it",
+  "rfc": ["§4.2", "§7.2"], "covers": ["§4.2 merely because the card was synced"],
+  "steps": [
+    { "op": "put", "args": { "token": "hermes", "card": { "protocol": "pbcp/1", "id": "hermes:note:s1", "kind": "signal", "to_person": "morten", "producer": "hermes", "title": "Build failed", "body": "x", "emitted_at": "2026-10-07T13:02:11Z" } }, "expect": { "status": 201 }, "save": { "seq": "body.change_seq" } },
+    { "op": "syncAll", "args": { "token": "hermes", "after": 0 }, "expect": { "status": 200, "body": { "changes": [{ "card": { "seen_at": { "$absent": true } } }] } } },
+    { "op": "syncAll", "args": { "token": "hermes", "after": 0 }, "expect": { "status": 200, "body": { "changes": [{ "seq": { "$var": "seq" }, "card": { "seen_at": { "$absent": true } } }], "next": { "$var": "seq" } } } }
+  ]
+}

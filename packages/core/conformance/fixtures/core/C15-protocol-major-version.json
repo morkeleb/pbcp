@@ -3,6 +3,10 @@
   "rfc": [
     "§2"
   ],
+  "covers": [
+    "§3 but MUST accept JSON",
+    "§7.4 a code under a status other than its own"
+  ],
   "steps": [
     {
       "op": "put",

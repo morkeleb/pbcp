@@ -4,6 +4,9 @@
     "\u00a73",
     "\u00a74.1"
   ],
+  "covers": [
+    "§4.1 The head MUST NOT alter them"
+  ],
   "steps": [
     {
       "op": "put",

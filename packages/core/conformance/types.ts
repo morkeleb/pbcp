@@ -80,6 +80,8 @@ export interface Step {
 export interface Fixture {
   name: string;
   rfc?: string[];
+  /** The requirements it exercises, each `§<section> <words from the sentence>` (§14's coverage table); at least one. */
+  covers: string[];
   /** Absent means MUST. A SHOULD fixture checks a recommendation; a head may fail it and still conform. */
   level?: 'MUST' | 'SHOULD';
   /** The extension the fixture tests (`orders`); only heads that implement it run it. Absent means core. */

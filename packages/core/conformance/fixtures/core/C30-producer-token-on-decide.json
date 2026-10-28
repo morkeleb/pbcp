@@ -4,6 +4,9 @@
     "\u00a77.3",
     "\u00a77.4"
   ],
+  "covers": [
+    "§7.3 A producer token MUST be refused"
+  ],
   "steps": [
     {
       "op": "put",

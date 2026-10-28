@@ -4,6 +4,10 @@
     "§3",
     "§4.4"
   ],
+  "covers": [
+    "§3 the header MUST use only this subset",
+    "§3 outside this subset MUST be rejected"
+  ],
   "steps": [
     {
       "op": "put",

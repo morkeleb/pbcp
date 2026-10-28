@@ -3,6 +3,9 @@
   "rfc": [
     "\u00a77.5"
   ],
+  "covers": [
+    "§7.5 MUST answer GET /"
+  ],
   "steps": [
     {
       "op": "describe",

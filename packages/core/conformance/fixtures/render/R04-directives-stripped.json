@@ -4,6 +4,9 @@
     "\u00a73.1",
     "\u00a712"
   ],
+  "covers": [
+    "§3.1 MUST NOT cause network access"
+  ],
   "steps": [
     {
       "op": "render",

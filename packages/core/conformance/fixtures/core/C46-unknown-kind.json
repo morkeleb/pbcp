@@ -1,0 +1,9 @@
+{
+  "name": "C46 a kind the head does not implement is 400 unsupported_kind, and nothing is stored",
+  "rfc": ["§4.1", "§7.4"],
+  "covers": ["§4.1 a kind it does not implement"],
+  "steps": [
+    { "op": "put", "args": { "token": "hermes", "card": { "protocol": "pbcp/1", "id": "hermes:note:k1", "kind": "memo", "to_person": "morten", "producer": "hermes", "title": "A memo", "body": "x", "emitted_at": "2026-10-07T13:02:11Z" } }, "expect": { "status": 400, "body": { "error": "unsupported_kind" } } },
+    { "op": "syncAll", "args": { "token": "hermes", "after": 0 }, "expect": { "status": 200, "body": { "changes": { "$len": 0 } } } }
+  ]
+}

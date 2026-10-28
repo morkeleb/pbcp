@@ -3,6 +3,9 @@
   "rfc": [
     "§7.2"
   ],
+  "covers": [
+    "§7.2 one strictly increasing counter"
+  ],
   "steps": [
     {
       "op": "put",

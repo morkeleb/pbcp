@@ -3,6 +3,9 @@
   "rfc": [
     "A.5"
   ],
+  "covers": [
+    "§A.5 A renewal on an order whose"
+  ],
   "extension": "orders",
   "steps": [
     {

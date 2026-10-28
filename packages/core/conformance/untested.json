@@ -1,0 +1,222 @@
+[
+  {
+    "requirement": "§3 Producers SHOULD quote",
+    "why": "client-side behaviour (a producer's)"
+  },
+  {
+    "requirement": "§3.1 A head MUST render these.",
+    "why": "interface behaviour: the render adapter reports text and fences, not markdown structure"
+  },
+  {
+    "requirement": "§3.1 MUST NOT hide the lead",
+    "why": "interface behaviour a fixture cannot observe"
+  },
+  {
+    "requirement": "§3.1 MUST NOT depend on client-side rendering",
+    "why": "client-side behaviour (a producer's)"
+  },
+  {
+    "requirement": "§3.1 as a thumbnail fitted",
+    "why": "interface behaviour a fixture cannot observe"
+  },
+  {
+    "requirement": "§3.1 open the visual full-screen",
+    "why": "interface behaviour a fixture cannot observe"
+  },
+  {
+    "requirement": "§3.1 MUST NOT require the full-screen view",
+    "why": "interface behaviour a fixture cannot observe"
+  },
+  {
+    "requirement": "§3.1 MUST NOT reflow",
+    "why": "interface behaviour a fixture cannot observe"
+  },
+  {
+    "requirement": "§3.1 producers SHOULD keep diagrams",
+    "why": "client-side behaviour (a producer's)"
+  },
+  {
+    "requirement": "§4.1 SHOULD state the proposal",
+    "why": "client-side behaviour (a producer's)"
+  },
+  {
+    "requirement": "§4.1 MUST show a card's labels",
+    "why": "interface behaviour a fixture cannot observe"
+  },
+  {
+    "requirement": "§4.3 do nothing",
+    "why": "client-side behaviour (a producer's)"
+  },
+  {
+    "requirement": "§4.3 act on the replacement",
+    "why": "client-side behaviour (a producer's)"
+  },
+  {
+    "requirement": "§4.3 treat it as terminal",
+    "why": "client-side behaviour (a producer's)"
+  },
+  {
+    "requirement": "§4.4 MUST pre-select it",
+    "why": "interface behaviour a fixture cannot observe"
+  },
+  {
+    "requirement": "§4.4 SHOULD NOT offer free text",
+    "why": "interface behaviour a fixture cannot observe"
+  },
+  {
+    "requirement": "§4.4 both the evidence",
+    "why": "client-side behaviour (a producer's)"
+  },
+  {
+    "requirement": "§4.5 The actions are the controls",
+    "why": "interface behaviour a fixture cannot observe"
+  },
+  {
+    "requirement": "§4.5 equal weight",
+    "why": "interface behaviour a fixture cannot observe"
+  },
+  {
+    "requirement": "§4.5 one intermediate control",
+    "why": "interface behaviour a fixture cannot observe"
+  },
+  {
+    "requirement": "§4.5 open the card on its own",
+    "why": "interface behaviour a fixture cannot observe"
+  },
+  {
+    "requirement": "§4.5 MUST NOT require comment",
+    "why": "interface behaviour a fixture cannot observe"
+  },
+  {
+    "requirement": "§4.5 behind a disclosure",
+    "why": "interface behaviour a fixture cannot observe"
+  },
+  {
+    "requirement": "§4.5 Confirmation.",
+    "why": "interface behaviour a fixture cannot observe"
+  },
+  {
+    "requirement": "§5 MUST always yield the same id",
+    "why": "client-side behaviour (a producer's)"
+  },
+  {
+    "requirement": "§5 uppercase hex",
+    "why": "client-side behaviour (a producer's)"
+  },
+  {
+    "requirement": "§5 SHOULD say which hash",
+    "why": "a producer's documentation, not its behaviour"
+  },
+  {
+    "requirement": "§5 its id is not stable",
+    "why": "client-side behaviour (a producer's)"
+  },
+  {
+    "requirement": "§5 MUST NOT retry the same PUT",
+    "why": "client-side behaviour (a producer's)"
+  },
+  {
+    "requirement": "§5 SHOULD read the returned decision",
+    "why": "client-side behaviour (a producer's)"
+  },
+  {
+    "requirement": "§5 Idempotent submission is not exactly-once",
+    "why": "client-side behaviour (a producer's)"
+  },
+  {
+    "requirement": "§6 titled accordingly",
+    "why": "client-side behaviour (a producer's)"
+  },
+  {
+    "requirement": "§7 HTTPS with JSON bodies",
+    "why": "transport, which the adapter hides"
+  },
+  {
+    "requirement": "§7 a head SHOULD offer one",
+    "why": "outside the HTTP operations the fixtures drive"
+  },
+  {
+    "requirement": "§7.1 the decoded value MUST equal",
+    "why": "transport (the URL id), left to each head's own tests (§14)"
+  },
+  {
+    "requirement": "§7.2 durable-consumer pattern",
+    "why": "client-side behaviour (a producer's)"
+  },
+  {
+    "requirement": "§7.2 report every parked change",
+    "why": "client-side behaviour (a producer's)"
+  },
+  {
+    "requirement": "§7.4 Retry-After",
+    "why": "client-side behaviour (a producer's)"
+  },
+  {
+    "requirement": "§8 sharing a thread together",
+    "why": "interface behaviour a fixture cannot observe"
+  },
+  {
+    "requirement": "§8 not to the view",
+    "why": "interface behaviour a fixture cannot observe"
+  },
+  {
+    "requirement": "§8 A view MAY count the snoozed",
+    "why": "interface behaviour a fixture cannot observe"
+  },
+  {
+    "requirement": "§8 reachable in its original form",
+    "why": "interface behaviour a fixture cannot observe"
+  },
+  {
+    "requirement": "§8 What a brief contains.",
+    "why": "interface behaviour a fixture cannot observe"
+  },
+  {
+    "requirement": "§8 Each entry MUST link to its card",
+    "why": "interface behaviour a fixture cannot observe"
+  },
+  {
+    "requirement": "§8 A brief MAY state how many",
+    "why": "interface behaviour a fixture cannot observe"
+  },
+  {
+    "requirement": "§11.1 A mail reader SHOULD set",
+    "why": "client-side behaviour (a producer's)"
+  },
+  {
+    "requirement": "§A.1 a head SHOULD say so",
+    "why": "interface behaviour a fixture cannot observe"
+  },
+  {
+    "requirement": "§A.2 MUST stand down",
+    "why": "client-side behaviour (an executor's)"
+  },
+  {
+    "requirement": "§A.2 surface an expired lease",
+    "why": "interface behaviour; a head-minted card is outside every producer's sync"
+  },
+  {
+    "requirement": "§A.3 MUST NOT re-PUT the order",
+    "why": "client-side behaviour (an executor's)"
+  },
+  {
+    "requirement": "§A.3 lease expires, no outcome",
+    "why": "interface behaviour a fixture cannot observe"
+  },
+  {
+    "requirement": "§A.3 such a late or duplicate result",
+    "why": "interface behaviour; a head-minted card is outside every producer's sync"
+  },
+  {
+    "requirement": "§A.3 MUST check exec_state before",
+    "why": "client-side behaviour (an executor's)"
+  },
+  {
+    "requirement": "§A.4 idempotent on its own side",
+    "why": "client-side behaviour (an executor's)"
+  },
+  {
+    "requirement": "§A.5 MUST NOT rely on a cached",
+    "why": "client-side behaviour (an executor's)"
+  }
+]

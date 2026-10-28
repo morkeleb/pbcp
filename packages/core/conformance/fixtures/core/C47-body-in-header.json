@@ -1,0 +1,9 @@
+{
+  "name": "C47 a front-matter header that contains body is 400 invalid_card, and nothing is stored",
+  "rfc": ["§3"],
+  "covers": ["§3 The header MUST NOT contain"],
+  "steps": [
+    { "op": "put", "args": { "token": "hermes", "card": "---\nprotocol: pbcp/1\nid: hermes:note:b1\nkind: signal\nto_person: morten\nproducer: hermes\ntitle: Build failed\nbody: hidden\nemitted_at: \"2026-10-07T13:02:11Z\"\n---\n\nThe nightly build failed." }, "expect": { "status": 400, "body": { "error": "invalid_card" } } },
+    { "op": "syncAll", "args": { "token": "hermes", "after": 0 }, "expect": { "status": 200, "body": { "changes": { "$len": 0 } } } }
+  ]
+}

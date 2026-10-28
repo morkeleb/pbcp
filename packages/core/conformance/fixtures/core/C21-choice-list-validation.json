@@ -4,6 +4,11 @@
     "\u00a74.4",
     "\u00a77.3"
   ],
+  "covers": [
+    "§4.4 are reserved",
+    "§4.4 two defaults or a duplicate",
+    "§7.3 MUST be one of the card's actions"
+  ],
   "steps": [
     {
       "op": "put",

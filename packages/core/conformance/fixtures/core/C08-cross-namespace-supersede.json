@@ -5,6 +5,10 @@
     "§12",
     "§7.1"
   ],
+  "covers": [
+    "§6 MUST name a card in the same namespace",
+    "§6 cross-namespace supersede"
+  ],
   "steps": [
     {
       "op": "put",
