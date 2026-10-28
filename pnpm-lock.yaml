@@ -45,6 +45,12 @@ importers:
         specifier: workspace:*
         version: link:../../packages/core
 
+  connectors/hermes:
+    dependencies:
+      '@pbcp/client':
+        specifier: workspace:*
+        version: link:../../packages/client
+
   connectors/imap:
     dependencies:
       '@pbcp/client':

@@ -9,6 +9,13 @@
     "build": "tsc -p tsconfig.build.json",
     "start": "node dist/src/index.js"
   },
+  "exports": {
+    "./connect": {
+      "source": "./src/connect.ts",
+      "types": "./dist/src/connect.d.ts",
+      "default": "./dist/src/connect.js"
+    }
+  },
   "dependencies": {
     "@pbcp/client": "workspace:*",
     "@pbcp/core": "workspace:*"

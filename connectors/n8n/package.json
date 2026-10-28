@@ -16,6 +16,13 @@
     "build": "tsc -p tsconfig.build.json",
     "prepack": "tsc -p tsconfig.build.json"
   },
+  "exports": {
+    "./connect": {
+      "source": "./src/connect.ts",
+      "types": "./dist/src/connect.d.ts",
+      "default": "./dist/src/connect.js"
+    }
+  },
   "n8n": {
     "n8nNodesApiVersion": 1,
     "credentials": [

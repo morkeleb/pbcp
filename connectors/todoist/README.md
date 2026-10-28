@@ -1,14 +1,25 @@
 # connectors/todoist
 
-```sh
-pnpm --filter @pbcp/connector-todoist build
-export TODOIST_TOKEN=… PBCP_HEAD_URL=https://head.example PBCP_TOKEN=…
-node connectors/todoist/dist/src/index.js
-```
-
 An example executor on `runExecutor` from `@pbcp/client` (RFC Appendix A.4, "To-do tools are executors"). An order addressed to `todoist` becomes a Todoist task; when the person completes the task in Todoist, the connector posts the outcome card that closes the order. Orders to `*` are also taken if the head lists `todoist` as an executor; that is head policy.
 
 **Status.** Tested against the synthetic fixtures in `fixtures/` and a fake `fetch` only, never against a live Todoist. It uses the unified API v1 (`https://api.todoist.com/api/v1`); the endpoints and fields it relies on are listed under [API](#api) and are unverified.
+
+## Setup
+
+<!-- setup: generated from src/connect.ts by scripts/readme-setup.ts; edit the template there, not this section -->
+
+The token is bound to the root `todoist` (RFC §12) and is an executor's: the head must let it claim orders (Appendix A). On the reference head that is `pnpm mint-token <owner> todoist --executor`.
+
+```sh
+pnpm install && pnpm --filter @pbcp/connector-todoist build
+export PBCP_HEAD_URL='<head url>' PBCP_TO_PERSON='<owner>' PBCP_TOKEN='<token>'
+export TODOIST_TOKEN=… TODOIST_TZ=Europe/Copenhagen
+node connectors/todoist/dist/src/index.js
+```
+
+The project, polling and lease settings are under [Configuration](#configuration).
+
+<!-- /setup -->
 
 ## Configuration
 
@@ -19,6 +30,7 @@ An example executor on `runExecutor` from `@pbcp/client` (RFC Appendix A.4, "To-
 | `TODOIST_POLL_S` | `60` | seconds between checks of a waiting task |
 | `TODOIST_TZ` | UTC | IANA zone for times in card text, e.g. `Europe/Copenhagen`; a name the runtime does not know stops the connector at startup |
 | `PBCP_HEAD_URL`, `PBCP_TOKEN` | – | the head and this executor's token (root `todoist`) |
+| `PBCP_TO_PERSON` | the head's `owner` | who outcome cards are addressed to; read from `GET /` when unset |
 | `PBCP_STORE` | `pbcp-todoist.json` | the sync cursor and, per running order, the id of its task (`fileStore`) |
 | `PBCP_LEASE_S` | `60` | lease length in seconds, renewed every half lease and at every check (A.5) |
 | `PBCP_CONCURRENCY` | `50` | orders waiting at once; orders wait days for the person, so one must not block the next |

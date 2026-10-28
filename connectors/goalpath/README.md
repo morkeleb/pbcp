@@ -1,14 +1,25 @@
 # connectors/goalpath
 
-```sh
-pnpm --filter @pbcp/connector-goalpath build
-export GOALPATH_MCP_URL=https://… GOALPATH_TOKEN=… GOALPATH_PROJECT=… PBCP_HEAD_URL=https://head.example PBCP_TOKEN=…
-node connectors/goalpath/dist/src/index.js
-```
-
 An example producer on `@pbcp/client` for the GoalPath project tracker, read through its MCP server, one process per person. GoalPath stays the system of record; the connector carries only what needs this one person (RFC §10), and writes the answer to GoalPath's own approvals back. Individual tickets never become cards. There is no executor side yet (orders are milestone 2).
 
 **Status.** This connector has been run against the recorded fixtures in `fixtures/` only, never against a live GoalPath. The shapes of the tool outputs are guesses; see [Guessed shapes](#guessed-shapes).
+
+## Setup
+
+<!-- setup: generated from src/connect.ts by scripts/readme-setup.ts; edit the template there, not this section -->
+
+The token is bound to the root `goalpath` (RFC §12): every card id this connector mints starts with `goalpath:`.
+
+```sh
+pnpm install && pnpm --filter @pbcp/connector-goalpath build
+export PBCP_HEAD_URL='<head url>' PBCP_TO_PERSON='<owner>' PBCP_TOKEN='<token>'
+export GOALPATH_MCP_URL=https://… GOALPATH_TOKEN=… GOALPATH_PROJECT=…
+node connectors/goalpath/dist/src/index.js
+```
+
+The label, milestones, digest time and the rest are under [Configuration](#configuration).
+
+<!-- /setup -->
 
 ## Configuration
 

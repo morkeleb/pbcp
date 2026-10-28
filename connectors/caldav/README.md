@@ -1,11 +1,5 @@
 # connectors/caldav
 
-```sh
-pnpm --filter @pbcp/connector-caldav build
-export CALDAV_URL=https://cal.example.com/dav/ CALDAV_USER=me CALDAV_PASSWORD=… PBCP_HEAD_URL=https://head.example PBCP_TOKEN=…
-node connectors/caldav/dist/src/index.js
-```
-
 An example producer on `@pbcp/client`: it reads one or more CalDAV calendars and turns them into cards (RFC §11.1). It is a reader only. It does not create, change or answer events, and it takes no decisions (`onDecision` does nothing).
 
 - Once a day, an `artifact` card with the day's agenda at `urgency: brief`: a table of time, title and location, then a `mermaid` `gantt` fence of the timed events (core tier, §3.1).
@@ -16,6 +10,23 @@ An example producer on `@pbcp/client`: it reads one or more CalDAV calendars and
 - `source` (§4.1): a moved signal links to the event when the event has a web `URL` property (`http` or `https`), labelled `Calendar event`. An agenda covers a whole day and has no `source`; nor does an event without a URL, since a CalDAV resource URL needs the server login and does not open in a calendar app.
 
 It polls every 5 minutes by default, so a move is reported at most one interval after the server has it.
+
+## Setup
+
+<!-- setup: generated from src/connect.ts by scripts/readme-setup.ts; edit the template there, not this section -->
+
+The token is bound to the root `cal` (RFC §12): every card id this connector mints starts with `cal:`.
+
+```sh
+pnpm install && pnpm --filter @pbcp/connector-caldav build
+export PBCP_HEAD_URL='<head url>' PBCP_TO_PERSON='<owner>' PBCP_TOKEN='<token>'
+export CALDAV_URL=https://cal.example.com/dav/ CALDAV_USER=me CALDAV_PASSWORD=… CALDAV_TZ=Europe/Copenhagen
+node connectors/caldav/dist/src/index.js
+```
+
+Several calendars, the agenda time and the rest are under [Configuration](#configuration).
+
+<!-- /setup -->
 
 ## Configuration
 
