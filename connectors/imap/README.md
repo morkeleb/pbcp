@@ -16,8 +16,11 @@ An example producer on `@pbcp/client`: it turns unseen IMAP mail into cards (RFC
 
 The token is bound to the root `mail` (RFC §12): every card id this connector mints starts with `mail:`.
 
+It runs from a checkout of the repository at a release tag (the packages are not on npm yet):
+
 ```sh
-pnpm install && pnpm --filter @pbcp/connector-imap build
+git clone --branch v0.8.0 --depth 1 https://github.com/morkeleb/pbcp && cd pbcp
+corepack pnpm install --frozen-lockfile && corepack pnpm build
 export PBCP_HEAD_URL='<head url>' PBCP_TO_PERSON='<owner>' PBCP_TOKEN='<token>'
 export IMAP_HOST=imap.example.com IMAP_USER=me@example.com IMAP_PASSWORD=…
 node connectors/imap/dist/src/index.js

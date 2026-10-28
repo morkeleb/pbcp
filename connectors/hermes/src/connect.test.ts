@@ -14,7 +14,10 @@ describe('connect', () => {
     const md = connect(values);
     expect(md).not.toMatch(/<head url>|<owner>|<token>/);
     expect(md).toContain(`export PBCP_HEAD_URL='https://head.example/api' PBCP_TOKEN='pbcp_it'\\''s'`);
-    expect(md).toContain('owner `anna`');
+    expect(md).toContain("head's owner (`anna`)");
+    // Until @pbcp/mcp is on npm: a checkout at the release tag, and the server run from it (#20).
+    expect(md).toContain('git clone --branch v');
+    expect(mcpServer(values, '/srv/pbcp/').mcpServers.pbcp).toMatchObject({ command: 'node', args: ['/srv/pbcp/packages/mcp/dist/src/bin.js'] });
     expect(mcpServer(values).mcpServers.pbcp).toEqual({ type: 'stdio', command: 'npx', args: ['-y', '@pbcp/mcp'], env: { PBCP_HEAD_URL: 'https://head.example/api', PBCP_TOKEN: "pbcp_it's" } });
     // The hand-written config is mcp.json with the values written in.
     const shipped = JSON.parse(readFileSync(new URL('../mcp.json', import.meta.url), 'utf8')) as { mcpServers: { pbcp: Record<string, unknown> } };

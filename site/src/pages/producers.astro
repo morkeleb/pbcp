@@ -1,5 +1,6 @@
 ---
-import { curlSnippet, producerConfig } from '@pbcp/client';
+import { curlSnippet, fromSource, producerConfig } from '@pbcp/client';
+import { Marked } from 'marked';
 import Base from '../layouts/Base.astro';
 import { HEAD_REPO_URL, REPO_URL, href } from '../config';
 import { connectors } from '../lib/connectors';
@@ -12,6 +13,7 @@ const placeholders = { api: '<head url>', owner: '<owner>', token: '<token>' };
 const config = JSON.stringify(producerConfig(placeholders), null, 2);
 const curl = curlSnippet(placeholders);
 const withSetup = connectors().filter((c) => c.setup);
+const fromSourceHtml = new Marked({ gfm: true }).parse(fromSource()) as string;
 ---
 <Base title="Producers" path="/producers/" description="What a producer needs to reach a head, a first card with curl, and where each connector's setup is.">
   <h1>Producers</h1>
@@ -50,8 +52,14 @@ const withSetup = connectors().filter((c) => c.setup);
   </p>
   <pre><code>{curl}</code></pre>
   <p>
-    The head answers <code>201</code> with the stored card, now carrying the fields it owns. The same command again
-    answers <code>200</code> and changes nothing: the id names the card (<a href={rfc('5')}>§5</a>).
+    The head answers <code>201</code> with the stored card, now carrying the fields it owns (<code>state</code>,
+    <code>change_seq</code>, <code>received_at</code>, <code>delivery</code>). The same command again answers
+    <code>200</code> and changes nothing: the id names the card (<a href={rfc('5')}>§5</a>).
+  </p>
+  <p>
+    <strong>That answer is the confirmation.</strong> A <code>201</code> or <code>200</code> with the stored card means
+    it landed; afterwards it also appears in <code>GET /changes?after=</code> with the same token. There is no producer
+    read of a single card: <code>GET /cards/&#123;id&#125;</code> is not part of the protocol.
   </p>
 
   <h2>Reading the decision</h2>
@@ -62,6 +70,13 @@ const withSetup = connectors().filter((c) => c.setup);
     <a href={`${REPO_URL}/tree/main/packages/client`}><code>@pbcp/client</code></a>'s <code>runProducer</code> is that
     loop with a durable cursor; <a href={`${REPO_URL}/tree/main/packages/mcp`}><code>@pbcp/mcp</code></a> gives an agent
     the same operations as tools.
+  </p>
+
+  <h2>Until the packages are published</h2>
+  <div set:html={fromSourceHtml} />
+  <p>
+    In a checkout, <code>@pbcp/mcp</code> runs as <code>node packages/mcp/dist/src/bin.js</code> in place of
+    <code>npx -y @pbcp/mcp</code>. Each connector's Setup says how it runs from the checkout.
   </p>
 
   <h2>Connectors</h2>
