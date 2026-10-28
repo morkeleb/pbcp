@@ -1,5 +1,6 @@
 ---
 import { curlSnippet, fromSource, producerConfig } from '@pbcp/client';
+import { parseCardOrThrow, toFrontMatter } from '@pbcp/core';
 import { Marked } from 'marked';
 import Base from '../layouts/Base.astro';
 import { HEAD_REPO_URL, REPO_URL, href } from '../config';
@@ -14,6 +15,22 @@ const config = JSON.stringify(producerConfig(placeholders), null, 2);
 const curl = curlSnippet(placeholders);
 const withSetup = connectors().filter((c) => c.setup);
 const fromSourceHtml = new Marked({ gfm: true }).parse(fromSource()) as string;
+// The reply loop of §11.1: the agent's decision card, and the record it posts after sending. Parsed, so they stay valid cards.
+const mailCard = 'mail:work:3f2a9c0d1b7e4a65';
+const ask = toFrontMatter(parseCardOrThrow({
+  protocol: 'pbcp/1', id: 'hermes:gmail:19a4f2e7c3b1', kind: 'decision', to_person: 'morten', producer: 'hermes',
+  thread: 'gmail:19a4f2e7c3b1', urgency: 'brief', title: 'Reply to Anna re invoice timing',
+  summary: 'Anna asks to pay the September invoice on the 20th instead of the 15th. I propose agreeing for September only.',
+  actions: ['approve', 'reject', 'edit'], references: [mailCard], emitted_at: '2026-10-07T06:00:00Z',
+  body: 'Anna (Nordic Supply) asks whether the September invoice can be paid on the 20th instead of the 15th.\n\n## Proposed reply\n\n> Hi Anna, the 20th is fine for September. Let\'s keep the 15th from October on.',
+}));
+const sent = toFrontMatter(parseCardOrThrow({
+  protocol: 'pbcp/1', id: 'hermes:gmail:19a4f2e7c3b1:sent', kind: 'artifact', to_person: 'morten', producer: 'hermes',
+  thread: 'gmail:19a4f2e7c3b1', urgency: 'log', title: 'Sent: Re: invoice timing',
+  summary: 'Sent the approved reply to Anna: the 20th is fine for September.',
+  references: ['hermes:gmail:19a4f2e7c3b1'], emitted_at: '2026-10-07T08:11:20Z',
+  body: 'Sent to Anna (Nordic Supply) as approved.',
+}));
 ---
 <Base title="Producers" path="/producers/" description="What a producer needs to reach a head, a first card with curl, and where each connector's setup is.">
   <h1>Producers</h1>
@@ -71,6 +88,24 @@ const fromSourceHtml = new Marked({ gfm: true }).parse(fromSource()) as string;
     loop with a durable cursor; <a href={`${REPO_URL}/tree/main/packages/mcp`}><code>@pbcp/mcp</code></a> gives an agent
     the same operations as tools.
   </p>
+
+  <h2>A reply loop, end to end</h2>
+  <p>
+    Approving a drafted reply needs nothing beyond the core (<a href={rfc('11.1')}>§11.1</a>). A decision is the
+    authorisation; the producer that asked acts on it. Orders are for instructions the person gives unprompted, never a
+    consequence of a decision (<a href={rfc('4.3')}>§4.3</a>).
+  </p>
+  <ol>
+    <li>The agent reads the mailbox and forms the mail reader's card id the way the reader documents it (<a href={rfc('5')}>§5</a>).</li>
+    <li>It submits a <code>decision</code> card under its own root: <code>references</code> names the mail card, <code>summary</code> states the proposal, the body ends in <code>## Proposed reply</code>, and the actions are <code>[approve, reject, edit]</code>.</li>
+    <li>The person decides in the head.</li>
+    <li>The agent reads the decision from <code>GET /changes</code>. On <code>approve</code> it sends the reply, on <code>edited</code> it sends <code>edited_proposal</code>, and on <code>reject</code> or <code>dismissed</code> it sends nothing.</li>
+    <li>After sending, it posts a <code>log</code> artifact, <code>Sent: &lt;subject&gt;</code>, that <code>references</code> the decision card.</li>
+    <li>The mail card is the reader's. Deciding it with its default, <code>archive</code>, files the message.</li>
+  </ol>
+  <p>The two cards the agent sends, in the file form:</p>
+  <pre><code>{ask}</code></pre>
+  <pre><code>{sent}</code></pre>
 
   <h2>Kind and urgency</h2>
   <p>

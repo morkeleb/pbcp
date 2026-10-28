@@ -56,6 +56,17 @@ Draft 0.7 adds two producer-owned fields that producers were already putting in 
 - **§14 — a coverage table.** Every MUST, MUST NOT, SHOULD and SHOULD NOT sentence in §3–§11 and Appendix A (111 sentences) is listed with the fixtures that exercise it, or why none does: client-side behaviour, interface behaviour a fixture cannot observe, or transport. Each fixture now has a `covers` list naming the sentences it exercises; the uncovered ones are in `packages/core/conformance/untested.json`. `scripts/conformance-map.ts` writes the table, and a test fails when a fixture names no sentence, a reference does not resolve, or the table is out of date.
 - **New fixtures** for requirements a head can show but no fixture checked: C45 (an empty `title`, or one with a line break, is `400`, §4.1), C46 (a `kind` the head does not implement is `400 unsupported_kind`, §4.1), C47 (a front-matter header with `body` is `400`, §3), C48 (syncing does not set `seen_at`, §4.2) and R12 (an extended-tier diagram renders, SHOULD, §3.1). The in-process reference passes them; each has a sabotage test.
 - **Status, 59 cases.** `pbcp-head` now passes C45–C48 and R12 as well, so both implementations pass all 59 cases of the Draft 0.7 suite (C01–C48 without C23, R01–R12). The status line no longer says the new cases are passed by the in-process reference only.
+- **§11.1 — the reply loop, end to end** (documentation). A second worked example, "An agent that proposes replies", walks the decision loop that §1.2 only sketched, so that approving a drafted reply is not read as needing orders:
+  - the agent reads the mailbox and submits a decision card under its own root that `references` the mail card;
+  - the person decides;
+  - the agent acts on `approve` or `edited` (sending `edited_proposal`), and does nothing on `reject` or `dismissed`;
+  - it posts a `log` artifact `Sent: <subject>` referencing the decision card, and the reader's `archive` default retires the mail.
+
+  A two-sentence variant offers a choice list (`task-and-archive`, `reply`, `keep`) with the same loop. §1.2's day table gains the `Sent` row, the record that its 08:11 row had called a signal.
+- **§4.3, §11.1, A.1 — a decision is the authorisation.** The producer that asked acts on a decision, and an order originates with the person, never with a decision. Two new sentences, one in §4.3 and one in §11.1, say that a head MUST NOT mint an order as a consequence of a decision. They state what the design already meant; nothing else is normative here. The §14 table lists both as untested: a fixture could check the absence, and is left for a later draft.
+- **§8 — pairing by reference.** A brief MAY pair a decided card with the later cards that reference it ("you approved; it was sent"), mechanically, from `references` alone.
+- **Site and skills.** `/producers` gains "A reply loop, end to end", with the sequence and the two cards in the file form. The hermes escalate skill's example carries `references`, and the skill says how to record the action after acting.
+- **OPEN.md 5** gains its first concrete customer: an agent confirming the decision it is about to act on without replaying sync. It stays open for 0.8.
 - **OPEN.md 6, §14 — content hash.** Answered: no hash is needed. §5's semantic equality already tells a retry from a change, and the `200` and `409` answers carry the stored card. §14's item is marked answered; retention and the last-visit cursor stay open.
 
 ## 0.6 (2026-10-27)

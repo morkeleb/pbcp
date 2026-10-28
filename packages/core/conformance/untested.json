@@ -56,6 +56,10 @@
     "why": "client-side behaviour (a producer's)"
   },
   {
+    "requirement": "§4.3 MUST NOT mint an order (Appendix A) as a consequence",
+    "why": "an absence a fixture could check (decide, then an executor's sync holds no order); left for a later draft"
+  },
+  {
     "requirement": "§4.4 MUST pre-select it",
     "why": "interface behaviour a fixture cannot observe"
   },
@@ -182,6 +186,10 @@
   {
     "requirement": "§11.1 A mail reader SHOULD set",
     "why": "client-side behaviour (a producer's)"
+  },
+  {
+    "requirement": "§11.1 MUST NOT mint an order as a consequence of a decision",
+    "why": "an absence a fixture could check (decide, then an executor's sync holds no order); left for a later draft"
   },
   {
     "requirement": "§A.1 a head SHOULD say so",

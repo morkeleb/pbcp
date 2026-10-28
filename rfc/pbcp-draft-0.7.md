@@ -47,7 +47,8 @@ The head is authoritative only for what reached the person, what they saw, what 
 | 06:10 | calendar | A customer meeting now overlaps the roadmap review | `cal:event:7f3a:conflict` decision, brief |
 | 06:30 | head | Writes the morning brief: 2 decisions, 1 warning, 11 log entries folded | `head:daily:2026-10-07` artifact |
 | 08:10 | person | Reads the brief. Approves the reply, edits the meeting proposal, delegates the risk review to a colleague | three decisions, three cards locked |
-| 08:11 | mail agent | Syncs, sees `approve`, sends the reply, posts a `sent` signal in the thread | `hermes:gmail:19a4…:sent` log |
+| 08:11 | mail agent | Syncs, sees `approve`, sends the reply | — |
+| 08:11 | mail agent | Records what it did: `Sent: Re: invoice timing`, in the thread, referencing the decision card (§11.1) | `hermes:gmail:19a4…:sent` artifact, log |
 | 08:11 | calendar | Syncs, sees `edited`, reschedules to the replacement time | — |
 | 08:12 | colleague's head | Syncs the delegation, shows it to its owner as a decision card | (Appendix B, not yet specified) |
 | 18:00 | head | Day view: every card, every decision, in order | — |
@@ -284,6 +285,8 @@ A decision is any terminal response from the person, whether producer-defined (o
 - `edited` — the person accepts the intent of the card with the replacement text in `edited_proposal` in place of the card's proposal. The producer MUST act on the replacement as it would have on `approve` with the original. It is not a request to reinterpret. `edited` is a valid decision on every decision card, whether or not `actions` contains `edit` (§4.4).
 - `delegated` — the person has handed the decision to `delegated_to`. A producer MUST treat it as terminal for its own card; whatever follows is federation, sketched in Appendix B and outside the core.
 
+A decision is the authorisation, and the producer that asked acts on it (§11.1 walks the loop); a head MUST NOT mint an order (Appendix A) as a consequence of a decision.
+
 ### 4.4 Choice lists
 
 A producer that wants the person to pick between alternatives rather than approve or reject a single proposal lists them in `actions`. Each entry is either a bare string (the decision value, shown as its own label) or an object:
@@ -506,7 +509,7 @@ Producers emit flat cards; the head does the arranging, from fields the producer
 
 **`supersedes`** establishes a successor card in the same producer namespace. A successor MAY supersede an `open` card, to replace an unresolved proposal, or a `decided` card, to ask a new question that builds on the previous one. It MUST NOT supersede a `superseded` card; naming one is rejected with `409`, so chains stay linear because only the current card can be superseded. Supersession never changes or invalidates the decision recorded on the predecessor: the head shows the successor, keeps the predecessor reachable in the thread with its decision intact, and marks it `superseded`. A superseding PUT MUST atomically store the successor and mark the predecessor; neither change is visible without the other. A PUT supersedes when it stores a new card that names `supersedes`, or replaces an open card with one that names a different `supersedes` than before; re-PUTting a successor with the same `supersedes` does not supersede again, and a PUT to a decided or superseded id never supersedes (§5 applies). To withdraw a proposal, a producer supersedes it with a `kind: signal` card whose body says so.
 
-**`references`** links cards across producers without grouping them. The head renders these as links and MAY show a referenced card's title inline.
+**`references`** links cards across producers without grouping them. The head renders these as links and MAY show a referenced card's title inline. A brief MAY pair a decided card with the later cards that reference it ("you approved the reply; it was sent"), mechanically, from `references` alone.
 
 **A card's day.** A head places each card on one day in its timeline and in briefs: the card's `about` (§4.1) when it has one, else the day of its `received_at` (§4.2) in the head's time zone, which is the owner's and is set however the head chooses; the protocol carries none. `about` is taken as written, never converted between zones. A card whose day is in the future appears on that day, and a head MAY also show it earlier. How far ahead a head's timeline reaches is the head's choice: a card about a later day is shown on its day once the timeline reaches that day, and before then only under that MAY. In a brief, the previous day's cards are those whose day, so defined, is the previous day. A brief is generated from the cards the head holds when it generates it; a card about an earlier day that arrives afterwards is placed on its day in the timeline, and need not be added to a brief already generated.
 
@@ -556,6 +559,30 @@ The bar is deliberately low. The checklists below are the whole of what each rol
 **Kind and urgency (§4.1a).** Pick `kind` by what the card asks of the person: `decision` to choose, `signal` to know that something happened, `artifact` to read something made for them. Pick `urgency` by when: `immediate` interrupts, `brief` waits for the next brief, `log` is only recorded. Most cards are `brief`; a signal about the next few hours is `immediate`, and a routine record (a commit, a completed task) is a `log` artifact.
 
 A mail reader is the canonical minimal producer: IMAP message id → `id` (percent-encoded or hashed, §5), thread id → `thread`, subject → `title`, the first lines of the message with whitespace collapsed → `summary`, headers and first lines → body. A message in the inbox is a `kind: decision` card with `actions: [{ "id": "archive", "default": true }, "keep"]`, so a bare approve gesture (§4.4) archives it; every other message is a `kind: artifact` card with no `actions`. A new message in a thread that has an open mail card supersedes that card (§8), so a thread is decided once, on its latest message, and the decision applies to the messages it superseded. A predecessor decided before the successor reached the head keeps its decision (§8), and the reader acts on that decision for that card's own message. A mail reader SHOULD set `source` (§4.1) to a URL that opens the message in the person's mail client when it can form one. It drafts nothing and sends nothing; a producer that proposes a reply is a separate agent that `references` the mail card.
+
+**An agent that proposes replies.** The reply loop needs nothing beyond the core:
+
+1. **Read.** The agent reads the mailbox itself. Sync shows a producer only its own namespace (§7.2), so it does not read the reader's cards; it forms the mail card's id the way the reader documents it (§5), from the message's Message-ID.
+2. **Ask.** It submits a `kind: decision` card under its own root (`hermes:gmail:19a4f2e7c3b1`, as in §3):
+   - `references` names the mail card;
+   - `thread` is the mail thread id;
+   - `summary` states the proposal ("I propose agreeing for September only");
+   - the body gives the evidence, then the reply under `## Proposed reply`;
+   - `actions` are `[approve, reject, edit]`.
+3. **Decide.** The person decides in the head (§7.3).
+4. **Act.** The agent polls `GET /changes` (§7.2) and acts on its card's decision once, idempotently (§5):
+   - `approve`: it sends the reply as proposed;
+   - `edited`: it sends `edited_proposal` instead (§4.3);
+   - `reject` or `dismissed`: it sends nothing.
+5. **Record.** After sending, it submits a `kind: artifact` card at `urgency: log`, titled `Sent: <subject>` (`hermes:gmail:19a4f2e7c3b1:sent`). The card has the same `thread`, and its `references` names the decision card.
+6. **Retire.** The mail card stays the reader's. The person decides it on its own, and its default, `archive`, files the message once the reply has gone.
+
+A decision is the authorisation: the producer that asked acts on it, and nothing else is needed. Orders (Appendix A) are for instructions the person gives unprompted. They are not for carrying out an answer, and a head MUST NOT mint an order as a consequence of a decision.
+
+The agent may offer a choice list instead (§4.4): `actions: [{ "id": "task-and-archive", "default": true }, "reply", "keep"]`. It acts on each choice with the same loop:
+- `task-and-archive`: it creates a task in the person's task tool, with a link to the message, and archives the message;
+- `reply`: it drafts a reply and asks again with a card that supersedes this one;
+- `keep`: it does nothing.
 
 ### 11.2 An executor (orders extension)
 
@@ -622,7 +649,7 @@ Sources: [Wave Federation Protocol](https://en.wikipedia.org/wiki/Google_Wave_Fe
 
 <!-- coverage: generated from the fixtures by scripts/conformance-map.ts; edit their `covers` or packages/core/conformance/untested.json, not this table -->
 
-111 requirements: 56 exercised by a fixture, 55 untested.
+113 requirements: 56 exercised by a fixture, 57 untested.
 
 | § | Requirement | Fixtures |
 | --- | --- | --- |
@@ -666,6 +693,7 @@ Sources: [Wave Federation Protocol](https://en.wikipedia.org/wiki/Google_Wave_Fe
 | 4.3 | - `dismissed` — seen, no action; the producer SHOULD treat it as "do nothing". | untested: client-side behaviour (a producer's) |
 | 4.3 | The producer MUST act on the replacement as it would have on `approve` with the original. | untested: client-side behaviour (a producer's) |
 | 4.3 | A producer MUST treat it as terminal for its own card; whatever follows is federation, sketched in Appendix B and outside the core. | untested: client-side behaviour (a producer's) |
+| 4.3 | A decision is the authorisation, and the producer that asked acts on it (§11.1 walks the loop); a head MUST NOT mint an order (Appendix A) as a consequence of … | untested: an absence a fixture could check (decide, then an executor's sync holds no order); left for a later draft |
 | 4.4 | The protocol decisions `dismissed`, `edited` and `delegated` are reserved: a head MUST reject a card that uses one as an `id` with `400`. | C21 |
 | 4.4 | The head MUST pre-select it and MUST treat a bare approve gesture on the card (a swipe, a voice "yes", a keyboard shortcut) as choosing it. | untested: interface behaviour a fixture cannot observe |
 | 4.4 | The entry controls only what the head *offers*: a producer that wants free text as an option includes `edit` in the list, and a head SHOULD NOT offer free text … | untested: interface behaviour a fixture cannot observe |
@@ -718,6 +746,7 @@ Sources: [Wave Federation Protocol](https://en.wikipedia.org/wiki/Google_Wave_Fe
 | 9 | When it stores a card's content it sets `delivery` to the card's `urgency` (absent is `brief`), lowered to the ceiling if above it, in the order `log` < … | C28 |
 | 10 | A head stores only cards addressed to its owner and MUST reject others with `403`. | C13 |
 | 11.1 | A mail reader SHOULD set `source` (§4.1) to a URL that opens the message in the person's mail client when it can form one. | untested: client-side behaviour (a producer's) |
+| 11.1 | They are not for carrying out an answer, and a head MUST NOT mint an order as a consequence of a decision. | untested: an absence a fixture could check (decide, then an executor's sync holds no order); left for a later draft |
 | A.1 | This extension changes three core rules, and only for `kind: order`: it adds `order` to the `kind` enum; `to_person` MUST be absent and `to_producer` MUST be … | C16, C20 |
 | A.1 | A `*` order minted when no root is eligible reaches no one; a head SHOULD say so to the person when it is given. | untested: interface behaviour a fixture cannot observe |
 | A.1 | **Order fields.** The extension adds head-owned fields to the order card, which a producer MUST NOT submit, and two producer-owned fields to the outcome card … | C14 |
@@ -755,7 +784,7 @@ The core protocol carries work *to* a person. This extension carries work *from*
 
 An order is a card of `kind: order`, minted by the head under `head:order:<ulid>`. Its body is the person's instruction, immutable from the moment it is minted.
 
-**Giving an order is the owner's action.** Like decide (§7.3), it is outside the producer protocol: the person gives an order through the head's own interface, with the owner's credential, and the head exposes that however it likes. No producer operation creates an order.
+**Giving an order is the owner's action.** Like decide (§7.3), it is outside the producer protocol: the person gives an order through the head's own interface, with the owner's credential, and the head exposes that however it likes. No producer operation creates an order. An order originates with the person, never with a decision: answering a card authorises the producer that asked, which acts on it itself (§4.3, §11.1).
 
 **Schema overrides.** A producer never submits a `kind: order` card; the head mints them, and rejects a submitted one with `400`. This extension changes three core rules, and only for `kind: order`: it adds `order` to the `kind` enum; `to_person` MUST be absent and `to_producer` MUST be present; and the sync operation (§7.2) returns, in addition to the caller's own namespace, every order whose `to_producer` names the caller's root, or is `*` and lists that root as eligible (below). That last rule is recipient authorisation — what a producer may *read* — alongside the core's namespace authorisation — what it may *write*. A named `to_producer` reaches that root whether or not the head counts it as an executor; only `*` depends on executor status. The head acts as the producer of order cards and owns the `head:` namespace root; no token is issued for it. For every other kind the core rules stand unchanged.
 
