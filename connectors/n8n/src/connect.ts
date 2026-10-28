@@ -19,7 +19,13 @@ const nodeCard = (owner: string) => ({
   emitted_at: '{{ $now.toUTC().toISO() }}',
 });
 
-/** One HTTP Request node, as n8n copies and pastes nodes: a workflow fragment with no connections. */
+/** The Header Auth credential the HTTP Request node names; the token lives there, never in the workflow. */
+export const CREDENTIAL = 'PBCP token';
+
+/**
+ * One HTTP Request node, as n8n copies and pastes nodes: a workflow fragment with no connections. It authenticates
+ * with the Header Auth credential CREDENTIAL, so the token is not in the node or the workflow's JSON.
+ */
 export function httpRequestNode(c: Connection) {
   const card = nodeCard(c.owner);
   return {
@@ -28,8 +34,8 @@ export function httpRequestNode(c: Connection) {
         parameters: {
           method: 'PUT',
           url: `${c.api.replace(/\/+$/, '')}/cards/${encodeURIComponent(card.id)}`,
-          sendHeaders: true,
-          headerParameters: { parameters: [{ name: 'Authorization', value: `Bearer ${c.token}` }] },
+          authentication: 'genericCredentialType',
+          genericAuthType: 'httpHeaderAuth',
           sendBody: true,
           specifyBody: 'json',
           jsonBody: `=${JSON.stringify(card, null, 2)}`,
@@ -38,6 +44,7 @@ export function httpRequestNode(c: Connection) {
         type: 'n8n-nodes-base.httpRequest',
         typeVersion: 4.2,
         position: [0, 0],
+        credentials: { httpHeaderAuth: { name: CREDENTIAL } },
       },
     ],
     connections: {},
@@ -46,14 +53,16 @@ export function httpRequestNode(c: Connection) {
 
 export function connect(c: Connection): string {
   return [
-    '**With these nodes.** Install the community package `n8n-nodes-pbcp`, then create a **PBCP Head** credential:',
+    '**With these nodes.** Once the community package `n8n-nodes-pbcp` is on npm, install it, then create a **PBCP Head** credential:',
     '',
     `- Head URL: \`${c.api}\``,
     `- Token: \`${c.token}\``,
     '',
-    'Cards are addressed to the owner `' + c.owner + '`; PBCP Submit reads it from the head when its **To Person** field is empty.',
+    'Cards are addressed to the owner `' + c.owner + '`; PBCP Submit reads it from the head when its **To Person** field is empty. Until the package is published, use the HTTP Request node below: it needs no package.',
     '',
-    '**Without them.** One HTTP Request node submits a card. Copy this and paste it into a workflow. The token must be bound to the root `n8n` (RFC §12), since the card id starts with `n8n:`.',
+    `**Without them.** One HTTP Request node submits a card. First create a **Header Auth** credential named \`${CREDENTIAL}\`: Name \`Authorization\`, Value \`Bearer ${c.token}\`. The node authenticates with it (Authentication: Generic Credential Type, Header Auth), so the token stays in n8n's encrypted credentials and never in the workflow, which people export and commit. Do not use an environment variable instead: n8n 2.x blocks \`$env\` in expressions by default (\`N8N_BLOCK_ENV_ACCESS_IN_NODE\`), and lifting the block exposes every variable to every workflow. The head URL and the owner are not secrets; they are written in the node.`,
+    '',
+    `Then copy this and paste it into a workflow; if n8n does not pick the credential, choose \`${CREDENTIAL}\` in the node. The token must be bound to the root \`n8n\` (RFC §12), since the card id starts with \`n8n:\`.`,
     '',
     `${FENCE}json`,
     JSON.stringify(httpRequestNode(c), null, 2),

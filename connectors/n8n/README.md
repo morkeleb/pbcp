@@ -4,6 +4,8 @@ n8n community nodes for PBCP: a polling trigger on sync (RFC §7.2) and a submit
 
 ## Install
 
+**Not on npm yet.** Both ways below install `n8n-nodes-pbcp` from npm and work once it is published. Until then, submit cards with the HTTP Request node in [Setup](#setup), which needs no package.
+
 - In n8n: **Settings → Community Nodes → Install**, package name `n8n-nodes-pbcp`.
 - Or by hand: `npm i n8n-nodes-pbcp` in `~/.n8n/custom` (or your `N8N_CUSTOM_EXTENSIONS` directory), then restart n8n.
 - Requires **Node.js 22.12 or later** under n8n (see [Module format](#module-format)).
@@ -14,14 +16,16 @@ n8n community nodes for PBCP: a polling trigger on sync (RFC §7.2) and a submit
 
 <!-- setup: generated from src/connect.ts by scripts/readme-setup.ts; edit the template there, not this section -->
 
-**With these nodes.** Install the community package `n8n-nodes-pbcp`, then create a **PBCP Head** credential:
+**With these nodes.** Once the community package `n8n-nodes-pbcp` is on npm, install it, then create a **PBCP Head** credential:
 
 - Head URL: `<head url>`
 - Token: `<token>`
 
-Cards are addressed to the owner `<owner>`; PBCP Submit reads it from the head when its **To Person** field is empty.
+Cards are addressed to the owner `<owner>`; PBCP Submit reads it from the head when its **To Person** field is empty. Until the package is published, use the HTTP Request node below: it needs no package.
 
-**Without them.** One HTTP Request node submits a card. Copy this and paste it into a workflow. The token must be bound to the root `n8n` (RFC §12), since the card id starts with `n8n:`.
+**Without them.** One HTTP Request node submits a card. First create a **Header Auth** credential named `PBCP token`: Name `Authorization`, Value `Bearer <token>`. The node authenticates with it (Authentication: Generic Credential Type, Header Auth), so the token stays in n8n's encrypted credentials and never in the workflow, which people export and commit. Do not use an environment variable instead: n8n 2.x blocks `$env` in expressions by default (`N8N_BLOCK_ENV_ACCESS_IN_NODE`), and lifting the block exposes every variable to every workflow. The head URL and the owner are not secrets; they are written in the node.
+
+Then copy this and paste it into a workflow; if n8n does not pick the credential, choose `PBCP token` in the node. The token must be bound to the root `n8n` (RFC §12), since the card id starts with `n8n:`.
 
 ```json
 {
@@ -30,15 +34,8 @@ Cards are addressed to the owner `<owner>`; PBCP Submit reads it from the head w
       "parameters": {
         "method": "PUT",
         "url": "<head url>/cards/n8n%3Aworkflow%3Afirst-card",
-        "sendHeaders": true,
-        "headerParameters": {
-          "parameters": [
-            {
-              "name": "Authorization",
-              "value": "Bearer <token>"
-            }
-          ]
-        },
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
         "sendBody": true,
         "specifyBody": "json",
         "jsonBody": "={\n  \"protocol\": \"pbcp/1\",\n  \"id\": \"n8n:workflow:first-card\",\n  \"producer\": \"n8n\",\n  \"kind\": \"decision\",\n  \"to_person\": \"<owner>\",\n  \"title\": \"Approve the first card from n8n?\",\n  \"summary\": \"A first card from an n8n workflow. Approve it to see the decision come back through PBCP Trigger.\",\n  \"body\": \"Sent by an HTTP Request node.\\n\\n## Proposal\\n\\nApprove it.\",\n  \"actions\": [\n    \"approve\",\n    \"reject\"\n  ],\n  \"emitted_at\": \"{{ $now.toUTC().toISO() }}\"\n}"
@@ -49,7 +46,12 @@ Cards are addressed to the owner `<owner>`; PBCP Submit reads it from the head w
       "position": [
         0,
         0
-      ]
+      ],
+      "credentials": {
+        "httpHeaderAuth": {
+          "name": "PBCP token"
+        }
+      }
     }
   ],
   "connections": {}

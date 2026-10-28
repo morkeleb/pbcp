@@ -1,7 +1,7 @@
 // The Setup section of this connector's README, from one template with the three values filled in. scripts/readme-setup.ts
 // writes the README from it with placeholders; connect.test.ts checks the README matches. A head's settings page can use it too.
 
-import { exportLine, producerConfig, type Connection } from '@pbcp/client';
+import { checkoutCommands, exportLine, producerConfig, type Connection } from '@pbcp/client';
 
 const FENCE = '```';
 
@@ -9,8 +9,10 @@ export function connect(c: Connection): string {
   return [
     `The token is bound to the root \`todoist\` (RFC §12) and is an executor's: the head must let it claim orders (Appendix A). On the reference head that is \`pnpm mint-token ${c.owner} todoist --executor\`.`,
     '',
+    'It runs from a checkout of the repository at a release tag (the packages are not on npm yet):',
+    '',
     `${FENCE}sh`,
-    'pnpm install && pnpm --filter @pbcp/connector-todoist build',
+    checkoutCommands(),
     exportLine(producerConfig(c)),
     'export TODOIST_TOKEN=… TODOIST_TZ=Europe/Copenhagen',
     'node connectors/todoist/dist/src/index.js',

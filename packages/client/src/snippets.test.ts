@@ -2,10 +2,11 @@ import { execFile } from 'node:child_process';
 import { createServer, type Server } from 'node:http';
 import type { AddressInfo } from 'node:net';
 import { promisify } from 'node:util';
+import { readFileSync } from 'node:fs';
 import { encodeUpstream, exampleCard } from '@pbcp/core';
 import { afterEach, describe, expect, it } from 'vitest';
 import { card } from './card.js';
-import { curlSnippet, producerConfig, shellQuote } from './snippets.js';
+import { curlSnippet, fromSource, producerConfig, RELEASE_TAG, shellQuote } from './snippets.js';
 import { stubHead } from './testing.js';
 
 const sh = promisify(execFile);
@@ -65,5 +66,14 @@ describe('producerConfig', () => {
 
   it('quotes a shell word so the shell reads it back exactly', async () => {
     for (const s of ["it's", '$HOME', 'a b', '"q"', '`x`']) expect((await sh('sh', ['-c', `printf %s ${shellQuote(s)}`])).stdout).toBe(s);
+  });
+});
+
+describe('fromSource', () => {
+  it('names the release of this package, as a tag a checkout can use', () => {
+    const { version } = JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8')) as { version: string };
+    expect(RELEASE_TAG).toBe(`v${version}`);
+    expect(fromSource()).toContain(`git clone --branch v${version} --depth 1 https://github.com/morkeleb/pbcp`);
+    expect(fromSource()).toContain('corepack pnpm install --frozen-lockfile && corepack pnpm build');
   });
 });

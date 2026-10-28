@@ -48,6 +48,7 @@ Draft 0.7 adds two producer-owned fields that producers were already putting in 
 - **§8 — how far ahead, and "the previous day".** How far ahead a timeline reaches is the head's choice; a later-day card shows on its day once the timeline reaches it, and earlier only under the existing MAY. A brief's "previous day" is the cards whose day (§8) is the previous day. A card about an earlier day that arrives after a brief was generated need not be added to it.
 - **§9 — label ceilings.** A label's ceiling applies to every card carrying the label, whichever producer sent it. A card under several ceilings, its producer's and its labels', takes the lowest.
 - **OPEN.md 4.** Whether a card's day is fixed when it is stored or follows a later change of the head's time zone is left open, with the reference head's choice: fixed at storage.
+- **OPEN.md 5.** A producer read of its own card (`GET /cards/{id}` under the token's root) is recorded as a candidate for 0.8, from the first producers to connect (issue #22). Until then a producer confirms a card from the answer to its PUT (`201` or `200` with the stored card) and through sync; `@pbcp/client`, `@pbcp/mcp` and the site now say so.
 
 ## 0.6 (2026-10-27)
 

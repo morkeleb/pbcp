@@ -10,8 +10,11 @@ An example producer on `@pbcp/client` for the GoalPath project tracker, read thr
 
 The token is bound to the root `goalpath` (RFC §12): every card id this connector mints starts with `goalpath:`.
 
+It runs from a checkout of the repository at a release tag (the packages are not on npm yet):
+
 ```sh
-pnpm install && pnpm --filter @pbcp/connector-goalpath build
+git clone --branch v0.8.0 --depth 1 https://github.com/morkeleb/pbcp && cd pbcp
+corepack pnpm install --frozen-lockfile && corepack pnpm build
 export PBCP_HEAD_URL='<head url>' PBCP_TO_PERSON='<owner>' PBCP_TOKEN='<token>'
 export GOALPATH_MCP_URL=https://… GOALPATH_TOKEN=… GOALPATH_PROJECT=…
 node connectors/goalpath/dist/src/index.js

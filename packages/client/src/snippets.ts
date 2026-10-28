@@ -21,6 +21,27 @@ export function producerConfig({ api, owner, token }: Connection): { PBCP_HEAD_U
   return { PBCP_HEAD_URL: api, PBCP_TO_PERSON: owner, PBCP_TOKEN: token };
 }
 
+/** The release a checkout should use until the packages are on npm; a test keeps it equal to this package's version. */
+export const RELEASE_TAG = 'v0.8.0';
+
+/**
+ * Markdown for every Setup that installs from npm, until the packages are published there: build from a checkout of the
+ * repository at a release tag instead. The npm commands stay in each Setup, marked as for once they are published.
+ */
+export function fromSource(tag = RELEASE_TAG): string {
+  return [
+    `**Until the packages are on npm**, the \`npm\` and \`npx\` commands here do not work yet. Use a checkout of the repository at a release tag, built:`,
+    '',
+    '```sh',
+    checkoutCommands(tag),
+    '```',
+  ].join('\n');
+}
+
+/** The shell lines that check out the repository at a release tag and build it; the commands after them run in the checkout. */
+export const checkoutCommands = (tag = RELEASE_TAG): string =>
+  [`git clone --branch ${tag} --depth 1 https://github.com/morkeleb/pbcp && cd pbcp`, 'corepack pnpm install --frozen-lockfile && corepack pnpm build'].join('\n');
+
 /** One `export` line for a shell, every value quoted: `export PBCP_HEAD_URL='…' PBCP_TOKEN='…'`. */
 export const exportLine = (vars: Record<string, string>): string => `export ${Object.entries(vars).map(([k, v]) => `${k}=${shellQuote(v)}`).join(' ')}`;
 

@@ -4,7 +4,8 @@ import { HeadClient } from '@pbcp/client';
 import { configFrom, createServer } from './index.js';
 
 try {
-  const server = createServer(new HeadClient(configFrom(process.argv.slice(2), process.env)));
+  const config = configFrom(process.argv.slice(2), process.env);
+  const server = createServer(new HeadClient(config), { toPerson: config.toPerson });
   await server.connect(new StdioServerTransport());
 } catch (e) {
   process.stderr.write(`pbcp-mcp: ${e instanceof Error ? e.message : String(e)}\n`);
