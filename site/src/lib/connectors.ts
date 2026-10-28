@@ -8,7 +8,7 @@ import { resolve } from 'node:path';
 import { Marked, type Token, type Tokens } from 'marked';
 import { REPO_ROOT, REPO_URL } from '../config';
 
-export interface Connector { dir: string; url: string; produces: string; settings: string[] }
+export interface Connector { dir: string; url: string; produces: string; settings: string[]; /** The README's generated Setup section (from the connector's connect()), when it has one. */ setup?: string }
 
 const inline = new Marked({ gfm: true });
 
@@ -35,13 +35,15 @@ export function connectors(): Connector[] {
   return readdirSync(root, { withFileTypes: true })
     .filter((d) => d.isDirectory() && existsSync(resolve(root, d.name, 'README.md')))
     .map((d) => {
-      const tokens = new Marked({ gfm: true }).lexer(readFileSync(resolve(root, d.name, 'README.md'), 'utf8'));
+      const readme = readFileSync(resolve(root, d.name, 'README.md'), 'utf8');
+      const tokens = new Marked({ gfm: true }).lexer(readme);
       const para = tokens.find((t): t is Tokens.Paragraph => t.type === 'paragraph');
       return {
         dir: d.name,
         url: `${REPO_URL}/tree/main/connectors/${d.name}`,
         produces: para ? (inline.parseInline(para.text) as string) : '',
         settings: settingsOf(tokens),
+        ...(readme.includes('<!-- setup:') ? { setup: `${REPO_URL}/blob/main/connectors/${d.name}/README.md#setup` } : {}),
       };
     })
     .sort((a, b) => a.dir.localeCompare(b.dir));
