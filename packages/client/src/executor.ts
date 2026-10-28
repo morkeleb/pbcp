@@ -39,13 +39,20 @@ export interface OrderState {
 }
 
 export type Outcome = (
-  /** Done, nothing to decide. */
+  /** Done, nothing to decide: something happened that the person should know. */
   | { kind: 'signal'; title: string; body: string }
+  /** Done, and what it made is for reading: a report, or the record of a routine task (§4.1a). */
+  | { kind: 'artifact'; title: string; body: string }
   /** Done, and the result needs the person's approval ("here is the draft"). */
   | { kind: 'decision'; title: string; body: string; actions?: string[] }
   /** Not done. Posted as a signal with `orders.result: failed`; the others carry `orders.result: done` (A.3). */
   | { kind: 'failed'; title: string; body: string }
-) & { /** §4.1: the thing the outcome is about, such as the task the executor made. */ source?: { url: string; label?: string } };
+) & {
+  /** §4.1: the thing the outcome is about, such as the task the executor made. */
+  source?: { url: string; label?: string };
+  /** §4.1a: when the person should see it; absent is `brief`. A routine record is `log`. */
+  urgency?: ProducerCard['urgency'];
+};
 
 export interface ExecutorOptions {
   head: Pick<HeadClient, 'sync' | 'submit' | 'claim' | 'describe'>;
@@ -183,6 +190,7 @@ export function executor(opts: ExecutorOptions): Executor {
             body: outcome.body,
             ...(outcome.kind === 'decision' && outcome.actions ? { actions: outcome.actions } : {}),
             ...(outcome.source ? { source: outcome.source } : {}),
+            ...(outcome.urgency ? { urgency: outcome.urgency } : {}),
             [OUTCOME_CLAIM_SEQ]: seq,
           }),
         );

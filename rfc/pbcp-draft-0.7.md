@@ -228,6 +228,31 @@ Set by the producer at submission. The head MUST NOT alter them.
 | `emitted_at` | yes | timestamp | When the producer created the card. Ignored for equality, see §5. |
 | `source` | no | object | `url` (required, not empty) and `label` pointing at the thing the card is about. |
 
+### 4.1a Choosing a kind and an urgency
+
+This section is advisory; it adds no requirement.
+
+`kind` is what the card asks of the person:
+
+- **`decision`: choose.** It carries `actions`, and stays open until the person decides (§4.3, §9).
+- **`signal`: know.** Something happened: an event, a change, a failure. The person acknowledges it.
+- **`artifact`: read.** Something made for the person: a report, an agenda, a digest, a record. The person acknowledges it.
+
+`urgency` is when the person should see it: `immediate` interrupts, `brief` waits for the next brief, and `log` is recorded and never surfaced on its own; it is found in the day view (§9). The two are independent: any kind may take any urgency. The defaults that follow from them:
+
+- A **decision** is `brief`, unless it cannot wait for the next brief; then it is `immediate`.
+- A **signal** is `brief`, and `immediate` when it concerns the next few hours.
+- An **artifact** is `brief` when it is read daily (a report, an agenda, a digest), and `log` when it is a routine record (a commit, a completed task, a producer connecting).
+
+| Card | `kind` | `urgency` |
+| --- | --- | --- |
+| A meeting in an hour has moved | `signal` | `immediate` |
+| The nightly build failed | `signal` | `brief` |
+| Tomorrow's electricity prices | `artifact` | `brief` |
+| A proposal to buy the cheaper of two offers | `decision` | `brief` |
+| A commit was pushed | `artifact` | `log` |
+| The day's note from a notes app | `artifact` | `log` |
+
 ### 4.2 Head-owned fields
 
 Set only by the head. A producer MUST NOT include them on submission; a head MUST reject a submission that does with `400`.
@@ -527,6 +552,8 @@ The bar is deliberately low. The checklists below are the whole of what each rol
 - [ ] Honours `Retry-After` on `429`
 - [ ] Acts on decisions idempotently on its own side
 - [ ] Never includes head-owned fields on submission
+
+**Kind and urgency (§4.1a).** Pick `kind` by what the card asks of the person: `decision` to choose, `signal` to know that something happened, `artifact` to read something made for them. Pick `urgency` by when: `immediate` interrupts, `brief` waits for the next brief, `log` is only recorded. Most cards are `brief`; a signal about the next few hours is `immediate`, and a routine record (a commit, a completed task) is a `log` artifact.
 
 A mail reader is the canonical minimal producer: IMAP message id → `id` (percent-encoded or hashed, §5), thread id → `thread`, subject → `title`, the first lines of the message with whitespace collapsed → `summary`, headers and first lines → body. A message in the inbox is a `kind: decision` card with `actions: [{ "id": "archive", "default": true }, "keep"]`, so a bare approve gesture (§4.4) archives it; every other message is a `kind: artifact` card with no `actions`. A new message in a thread that has an open mail card supersedes that card (§8), so a thread is decided once, on its latest message, and the decision applies to the messages it superseded. A predecessor decided before the successor reached the head keeps its decision (§8), and the reader acts on that decision for that card's own message. A mail reader SHOULD set `source` (§4.1) to a URL that opens the message in the person's mail client when it can form one. It drafts nothing and sends nothing; a producer that proposes a reply is a separate agent that `references` the mail card.
 
