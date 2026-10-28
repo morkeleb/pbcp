@@ -139,6 +139,15 @@ describe('the fixtures catch broken heads', () => {
     await fails(core.C40, { head: sabotage(h, { put }) });
   });
 
+  it('C25: an api that is not a URL string', async () => {
+    const h = inProcessHead();
+    const describe: HeadUnderTest['describe'] = async (t) => {
+      const r = await h.describe(t);
+      return { ...r, body: { ...(r.body as object), api: 42 } };
+    };
+    await fails(core.C25, { head: sabotage(h, { describe }) });
+  });
+
   it('C41: leaving labels out of equality', async () => {
     const h = inProcessHead();
     const stored = new Map<string, unknown>();

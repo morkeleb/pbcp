@@ -41,6 +41,14 @@ Draft 0.7 adds two producer-owned fields that producers were already putting in 
 - **hermes skills:** tell the model to set `labels` from the project or client and `about` for a specific day.
 - **MCP and CLI:** `submit_card` describes both fields; the CLI accepts both.
 
+**Corrections after merge** (from the reference head's implementation of 0.7)
+
+- **§8 — views.** A filter or view the owner chooses (by label, by producer or otherwise) is the owner's own narrowing of the brief. It does not affect what a head MUST include in a brief it generates: §8's requirements apply to the generated brief, not to the view. How a view combines several labels is the head's choice. A view MAY count the snoozed open decisions it admits, and never lists them or their leads.
+- **§7.5 — `api`.** The description MAY give `api`, the base URL under which the head serves §7.1–§7.3 (and claims, A.2). It is there so a producer configured with only the head's origin can find them; a relative one is resolved against the description's URL. Absent, the operations are relative to the URL the description was read from, as before. The example shows it. C25 accepts it, when present, as a string. `HeadClient` sends its operations under `api` once `describe()` has read one.
+- **§8 — how far ahead, and "the previous day".** How far ahead a timeline reaches is the head's choice; a later-day card shows on its day once the timeline reaches it, and earlier only under the existing MAY. A brief's "previous day" is the cards whose day (§8) is the previous day. A card about an earlier day that arrives after a brief was generated need not be added to it.
+- **§9 — label ceilings.** A label's ceiling applies to every card carrying the label, whichever producer sent it. A card under several ceilings, its producer's and its labels', takes the lowest.
+- **OPEN.md 4.** Whether a card's day is fixed when it is stored or follows a later change of the head's time zone is left open, with the reference head's choice: fixed at storage.
+
 ## 0.6 (2026-10-27)
 
 Draft 0.6 is driven by the first real brief rendered by a head. It adds one producer-owned field and makes presentation normative where it decides whether a person can act on a card. There are no changes to orders, delegation or the operations. In-process conformance: 44 → 50 cases (core C38–C40, render R09–R11).

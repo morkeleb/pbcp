@@ -1,5 +1,5 @@
 {
-  "name": "C25 GET / describes the head: protocol, owner, seq, extensions, render tiers",
+  "name": "C25 GET / describes the head: protocol, owner, seq, extensions, render tiers, and api when the head gives one",
   "rfc": [
     "\u00a77.5"
   ],
@@ -24,6 +24,16 @@
             "mermaid": {
               "$type": "array"
             }
+          },
+          "api": {
+            "$oneOf": [
+              {
+                "$absent": true
+              },
+              {
+                "$type": "string"
+              }
+            ]
           }
         }
       }

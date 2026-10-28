@@ -71,7 +71,8 @@ export interface HeadClientOptions extends ClientOptions {
 
 /** Sends one request with an Authorization header and decodes a JSON body. Shared by HeadClient and OwnerClient. */
 export class Requester {
-  readonly baseUrl: string;
+  /** Where requests go; HeadClient moves it to the description's `api` (§7.5). */
+  baseUrl: string;
   private readonly transport: Transport;
 
   constructor(opts: ClientOptions, private readonly authorization: string) {
@@ -80,10 +81,10 @@ export class Requester {
   }
 
   /** Statuses in `accept` with a card body are results, statuses in `raw` are returned as they are; other non-2xx responses throw (§7.4). */
-  async request(method: string, path: string, json?: unknown, accept: number[] = [], raw: number[] = []): Promise<{ status: number; body: unknown }> {
+  async request(method: string, path: string, json?: unknown, accept: number[] = [], raw: number[] = [], base = this.baseUrl): Promise<{ status: number; body: unknown }> {
     const headers: Record<string, string> = { authorization: this.authorization, accept: 'application/json' };
     if (json !== undefined) headers['content-type'] = 'application/json';
-    const res = await this.transport({ method, url: `${this.baseUrl}${path}`, headers, body: json === undefined ? undefined : JSON.stringify(json) });
+    const res = await this.transport({ method, url: `${base}${path}`, headers, body: json === undefined ? undefined : JSON.stringify(json) });
     let body: unknown = res.body;
     try {
       body = res.body === '' ? null : JSON.parse(res.body);
@@ -97,12 +98,18 @@ export class Requester {
 
 /** A producer's client: describe, submit and sync with its producer token (§7.1, §7.2, §7.5). */
 export class HeadClient {
-  readonly baseUrl: string;
+  /** The URL the head was configured with, where its description is read (§7.5). */
+  readonly describeUrl: string;
   private readonly http: Requester;
 
   constructor(opts: HeadClientOptions) {
     this.http = new Requester(opts, `Bearer ${opts.token}`);
-    this.baseUrl = this.http.baseUrl;
+    this.describeUrl = this.http.baseUrl;
+  }
+
+  /** Where submit, sync and claim go: the configured URL, or the description's `api` once describe() has read one. */
+  get baseUrl(): string {
+    return this.http.baseUrl;
   }
 
   private request(method: string, path: string, json?: unknown, accept?: number[], raw?: number[]) {
@@ -111,9 +118,11 @@ export class HeadClient {
 
   /** §7.5. */
   async describe(): Promise<HeadDescription> {
-    const { status, body } = await this.request('GET', '/');
+    const { status, body } = await this.http.request('GET', '/', undefined, [], [], this.describeUrl);
     const parsed = HeadDescriptionSchema.safeParse(body);
     if (!parsed.success) throw new HeadHttpError(status, body, 'malformed head description');
+    // §7.5: the producer operations live under `api` when the head gives one, resolved against the description's URL.
+    if (parsed.data.api !== undefined) this.http.baseUrl = new URL(parsed.data.api, `${this.describeUrl}/`).href.replace(/\/+$/, '');
     return parsed.data;
   }
 
