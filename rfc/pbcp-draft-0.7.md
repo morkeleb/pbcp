@@ -91,7 +91,7 @@ actions: [approve, reject, edit]
 references: []
 emitted_at: "2026-10-07T13:02:11Z"
 source:
-  url: https://mail.google.com/mail/u/0/#inbox/19a4f2e7c3b1
+  url: https://mail.google.com/mail/u/0/#search/rfc822msgid:CA%2Babc%3Ddef%40mail.example.com
   label: Gmail thread
 ---
 
@@ -121,7 +121,7 @@ The same card on the wire:
   "actions": ["approve", "reject", "edit"],
   "references": [],
   "emitted_at": "2026-10-07T13:02:11Z",
-  "source": { "url": "https://mail.google.com/...", "label": "Gmail thread" },
+  "source": { "url": "https://mail.google.com/mail/u/0/#search/rfc822msgid:CA%2Babc%3Ddef%40mail.example.com", "label": "Gmail thread" },
   "body": "Anna (Nordic Supply) asks whether ..."
 }
 ```

@@ -17,7 +17,7 @@ actions: [approve, reject, edit]
 references: []
 emitted_at: "2026-10-07T13:02:11Z"
 source:
-  url: https://mail.google.com/mail/u/0/#inbox/19a4f2e7c3b1
+  url: https://mail.google.com/mail/u/0/#search/rfc822msgid:CA%2Babc%3Ddef%40mail.example.com
   label: Gmail thread
 ---
 
@@ -42,7 +42,7 @@ const RFC_WIRE: ProducerCard = {
   actions: ['approve', 'reject', 'edit'],
   references: [],
   emitted_at: '2026-10-07T13:02:11Z',
-  source: { url: 'https://mail.google.com/mail/u/0/#inbox/19a4f2e7c3b1', label: 'Gmail thread' },
+  source: { url: 'https://mail.google.com/mail/u/0/#search/rfc822msgid:CA%2Babc%3Ddef%40mail.example.com', label: 'Gmail thread' },
   body: 'Anna (Nordic Supply) asks whether the September invoice can be paid on the 20th instead of the 15th.\n\n## Proposed reply\n\n> Hi Anna — the 20th is fine for September.\n',
 };
 
