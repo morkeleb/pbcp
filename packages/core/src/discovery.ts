@@ -13,6 +13,8 @@ export const HeadDescriptionSchema = z.looseObject({
   seq: z.number().int().nonnegative(),
   extensions: z.array(z.string()),
   render: z.looseObject({ mermaid: z.array(z.string()) }),
+  /** §7.5: where the head serves §7.1–§7.3 when not under the URL the description was read from; may be relative to it. */
+  api: z.string().min(1).optional(),
 });
 
 export type HeadDescription = z.infer<typeof HeadDescriptionSchema>;

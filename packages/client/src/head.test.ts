@@ -89,6 +89,36 @@ describe('HeadClient.describe', () => {
     expect(stub.requests[0]).toMatchObject({ method: 'GET', url: 'https://head.test/', headers: { authorization: 'Bearer tok' } });
   });
 
+  it('sends the producer operations under api once the description gives one, absolute or relative (§7.5)', async () => {
+    for (const [api, base] of [['https://head.test/api', 'https://head.test/api'], ['/api/', 'https://head.test/api'], ['v1', 'https://head.test/pbcp/v1']] as const) {
+      const urls: string[] = [];
+      const transport: Transport = async (req) => {
+        urls.push(`${req.method} ${req.url}`);
+        if (req.method === 'GET' && !req.url.includes('/changes')) return { status: 200, headers: {}, body: JSON.stringify({ protocol: 'pbcp/1', owner: 'morten', seq: 0, extensions: [], render: { mermaid: ['core'] }, api }) };
+        if (req.method === 'GET') return { status: 200, headers: {}, body: JSON.stringify({ changes: [], next: 0 }) };
+        const c = JSON.parse(req.body!) as ProducerCard;
+        return { status: 201, headers: {}, body: JSON.stringify({ ...c, state: 'open', change_seq: 1, received_at: c.emitted_at, changed_at: c.emitted_at, delivery: 'brief' }) };
+      };
+      const configured = api === 'v1' ? 'https://head.test/pbcp' : 'https://head.test';
+      const head = new HeadClient({ baseUrl: configured, token: 'tok', transport });
+      expect(head.baseUrl).toBe(configured);
+      expect((await head.describe()).api).toBe(api);
+      expect(head.baseUrl).toBe(base);
+      await head.submit(sample());
+      await head.sync(0);
+      await head.describe();
+      expect(urls).toEqual([`GET ${configured}/`, `PUT ${base}/cards/mail%3Aacct%3Am1`, `GET ${base}/changes?after=0`, `GET ${configured}/`]);
+    }
+  });
+
+  it('keeps the configured URL when the description has no api', async () => {
+    const { head, stub } = setup();
+    await head.describe();
+    await head.submit(sample());
+    expect(head.baseUrl).toBe('https://head.test');
+    expect(stub.requests[1]).toMatchObject({ method: 'PUT', url: 'https://head.test/cards/mail%3Aacct%3Am1' });
+  });
+
   it('accepts tiers and members it does not know', async () => {
     const { head, stub } = setup();
     stub.script(200, { protocol: 'pbcp/1', owner: 'morten', seq: 4, extensions: ['orders'], render: { mermaid: ['core', 'other', 'future'] }, motd: 'hi' });
