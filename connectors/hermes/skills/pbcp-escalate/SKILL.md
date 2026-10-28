@@ -27,7 +27,8 @@ Call `submit_card` with a card object like this:
   "summary": "Anna asks to pay the September invoice on the 20th instead of the 15th. I propose agreeing for September only.",
   "body": "Anna asks whether the September invoice can be paid on the 20th.\n\n## Proposed reply\n\n> Hi Anna, the 20th is fine.",
   "actions": ["approve", "reject", "edit"],
-  "thread": "<a key shared by cards about the same matter>",
+  "thread": "<a key shared by cards about the same matter, e.g. the mail thread id>",
+  "references": ["<the mail reader's card for the message, when there is one>"],
   "urgency": "brief",
   "labels": ["nordic-supply"],
   "source": { "url": "https://mail.google.com/mail/u/0/#search/rfc822msgid:CA%2Babc%3Ddef%40mail.example.com", "label": "Open in Gmail" },
@@ -59,6 +60,8 @@ On a later turn, call `poll_changes` with the cursor you stored (start at `0`); 
 | `reject`, `dismissed` | Do not act; drop the thread, mention it in your next summary |
 | `delegated` | Do not act; someone else (`delegated_to`) handles it |
 | anything else | It is one of your `actions`; do what it names |
+
+After acting, record it: submit a `kind: artifact` card at `urgency: log`, with the id `<your card id>:sent` (or `:done`), the title `Sent: <subject>` (or what you did), the same `thread`, and `references: ["<your decision card id>"]`. Do nothing else to close the loop. The decision was the authorisation, so there is no order to wait for, and the mail itself stays the mail reader's to archive.
 
 `card.comment` may carry the person's note; follow it. Act on each decision once: check whether you already did before acting again, since the same change can be returned twice.
 
