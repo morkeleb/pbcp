@@ -170,6 +170,12 @@ describe('stringifyYaml', () => {
     expect(parseYaml(out)).toEqual(doc);
   });
 
+  it('reads at and until as strings, quoted or not, and writes them back the same (§3, §4.1)', () => {
+    const doc = parseYaml('at: 2026-11-03T09:15:00Z\nuntil: "2026-11-03T09:30:00Z"\n');
+    expect(doc).toEqual({ at: '2026-11-03T09:15:00Z', until: '2026-11-03T09:30:00Z' });
+    expect(parseYaml(stringifyYaml(doc))).toEqual(doc);
+  });
+
   it('round-trips arbitrary strings', () => {
     const samples = ['', ' ', 'a', '"', "'", '\\', '\t', 'é ü 中文', 'a: b', '[x]', '{y}', '*z', '!t', '|', '>', '%', '@', '`', '?', '-', ':', '0', '-1', 'NO', 'Off', '~', '\u0007', 'x\r\ny'];
     for (const s of samples) {
