@@ -4,7 +4,7 @@ This repo is the **protocol**: the RFC, the npm packages that implement it, the 
 
 ## Read first
 
-- `rfc/pbcp-draft-0.7.md` — the specification. It is normative. When code and RFC disagree, the RFC wins; if the RFC is wrong, change the RFC first and note it in `rfc/CHANGELOG.md`.
+- `rfc/pbcp-draft-0.8.md` — the specification. It is normative. When code and RFC disagree, the RFC wins; if the RFC is wrong, change the RFC first and note it in `rfc/CHANGELOG.md`.
 - `docs/skeleton.md` — the package layout, public interfaces, and build order. Follow it; do not invent additional packages or layers.
 
 ## What is being built, in order

@@ -1,5 +1,24 @@
 # RFC changelog
 
+## 0.8 (unreleased)
+
+Draft 0.8 adds two producer-owned fields, `at` and `until`: when the thing a card is about happens, and when it ends. 0.7 gave a card a day (`about`); 0.8 gives it a time, so a head can lay the day's cards out by producer-independent time rather than reading it from titles. There are no changes to the operations, the lifecycle, orders or delegation. In-process conformance: 59 → 62 cases (core C49–C51).
+
+**§4.1 — `at`, `until`.**
+- **Shape:** optional timestamps as §2 defines them. `at` is when the card's subject happens or begins; `until` when it ends.
+- **Rules:** `until` requires `at` and is equal to or after it; anything else is `400 invalid_card`. Neither is `emitted_at` (when the card was sent) nor `about` (the day the producer files it under); a card may carry any of the three.
+- **Equality:** both count (§5). New fixtures C49, C50, C51.
+
+**§4.1a — three times.** `emitted_at` is when the producer wrote the card, `about` the day it belongs to, `at`/`until` when its subject happens. A seven-row example table. Advisory.
+
+**§8 — a card's time.** A card with `at` and no `about` is placed on the day of `at` in the head's time zone. Within a day a head SHOULD order cards by `at`; it MAY offer a day view laid out by `at` and `until` across producers; a brief MAY list the day's timed cards as an agenda. `at` never changes `delivery`, never notifies, never decides or acknowledges a card. A moved subject supersedes a decided card and re-PUTs an open one.
+
+**§11.1 — producer checklist** gains: sets `at`/`until` when the subject has a time of day, never only in `title` or `summary`. The mail reader sets them from an invitation or confirmation.
+
+**§11.3 — head checklist** gains: validates the two fields, places and orders by `at`.
+
+**Connectors.** caldav: a `log` artifact per timed occurrence with `at`/`until`, referenced from the day's agenda; signals carry the times. MCP, hermes skills and CLI describe and accept both.
+
 ## 0.7 (2026-10-27)
 
 Draft 0.7 adds two producer-owned fields that producers were already putting in bodies and titles: `labels`, the producer's categories for a card, and `about`, the day a card concerns. It also says which day a card belongs to when it has no `about`, which 0.6 left unstated. There are no changes to the operations, the lifecycle, orders or delegation. In-process conformance: 50 → 54 cases (core C41–C44).
