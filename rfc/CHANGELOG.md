@@ -27,6 +27,8 @@ Draft 0.8 adds two producer-owned fields, `at` and `until`: when the thing a car
 
 **Connectors.** caldav: a `log` artifact per timed occurrence with `at`/`until`, referenced from the day's agenda; signals carry the times. MCP, hermes skills and CLI describe and accept both.
 
+**Status, 62 cases.** `pbcp-head` passes C49–C51 as well, so both implementations pass all 62 cases of the Draft 0.8 suite (C01–C51 without C23, R01–R12). The status line says so.
+
 ## 0.7 (2026-10-27)
 
 Draft 0.7 adds two producer-owned fields that producers were already putting in bodies and titles: `labels`, the producer's categories for a card, and `about`, the day a card concerns. It also says which day a card belongs to when it has no `about`, which 0.6 left unstated. There are no changes to the operations, the lifecycle, orders or delegation. In-process conformance: 50 → 54 cases (core C41–C44).
