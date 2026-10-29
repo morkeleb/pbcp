@@ -20,16 +20,20 @@ export const HEAD_REPO_URL = 'https://github.com/morkeleb/pbcp-head';
 /** The repository root. The site is built from `site/`, so the RFC, changelog and connectors are one level up. */
 export const REPO_ROOT = resolve(process.cwd(), '..');
 
+/** Every draft in `rfc/`, oldest first. A draft kept beside a newer one stays reachable at `/rfc/<version>/`. */
+export const RFC_DRAFTS = readdirSync(resolve(REPO_ROOT, 'rfc'))
+  .flatMap((f) => {
+    const m = /^pbcp-draft-(\d+)\.(\d+)\.md$/.exec(f);
+    return m ? [{ path: resolve(REPO_ROOT, 'rfc', f), name: f, version: `${m[1]}.${m[2]}`, v: [Number(m[1]), Number(m[2])] as const }] : [];
+  })
+  .sort((a, b) => a.v[0] - b.v[0] || a.v[1] - b.v[1])
+  .map(({ path, name, version }) => ({ path, name, version }));
+
 /** The newest draft in `rfc/`, so the site follows a new draft without a change here. */
 export const RFC_FILE = (() => {
-  const drafts = readdirSync(resolve(REPO_ROOT, 'rfc')).flatMap((f) => {
-    const m = /^pbcp-draft-(\d+)\.(\d+)\.md$/.exec(f);
-    return m ? [{ f, v: [Number(m[1]), Number(m[2])] as const }] : [];
-  });
-  drafts.sort((a, b) => a.v[0] - b.v[0] || a.v[1] - b.v[1]);
-  const last = drafts.at(-1);
+  const last = RFC_DRAFTS.at(-1);
   if (!last) throw new Error('no rfc/pbcp-draft-*.md found');
-  return { path: resolve(REPO_ROOT, 'rfc', last.f), name: last.f, version: `${last.v[0]}.${last.v[1]}` };
+  return last;
 })();
 
 /** A path on this site, under SITE_URL's path: `href('/rfc/')` → `/pbcp/rfc/`. */

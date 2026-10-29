@@ -1,0 +1,24 @@
+---
+// An earlier draft kept in `rfc/` beside the current one, at /rfc/<version>/. Its § references are not linked: the
+// anchors on this site are the current draft's.
+import Base from '../../layouts/Base.astro';
+import Toc from '../../components/Toc.astro';
+import { REPO_URL, RFC_DRAFTS, RFC_FILE, href } from '../../config';
+import { readRepo, render } from '../../lib/markdown';
+
+export function getStaticPaths() {
+  return RFC_DRAFTS.slice(0, -1).map((draft) => ({ params: { version: draft.version }, props: { draft } }));
+}
+
+const { draft } = Astro.props as { draft: (typeof RFC_DRAFTS)[number] };
+const { html, toc } = render(readRepo(draft.path));
+---
+<Base title={`RFC, draft ${draft.version}`} path={`/rfc/${draft.version}/`} description={`The Personal Brief Card Protocol specification, draft ${draft.version}, superseded by draft ${RFC_FILE.version}.`}>
+  <p class="muted">
+    Draft {draft.version}, superseded by <a href={href('/rfc/')}>draft {RFC_FILE.version}</a>. Rendered from
+    <a href={`${REPO_URL}/blob/main/rfc/${draft.name}`}><code>rfc/{draft.name}</code></a> ·
+    <a href={href('/changelog/')}>Changelog</a>
+  </p>
+  <Toc entries={toc} />
+  <article set:html={html} />
+</Base>
