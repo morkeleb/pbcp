@@ -671,7 +671,7 @@ Sources: [Wave Federation Protocol](https://en.wikipedia.org/wiki/Google_Wave_Fe
 
 <!-- coverage: generated from the fixtures by scripts/conformance-map.ts; edit their `covers` or packages/core/conformance/untested.json, not this table -->
 
-113 requirements: 56 exercised by a fixture, 57 untested.
+114 requirements: 56 exercised by a fixture, 58 untested.
 
 | § | Requirement | Fixtures |
 | --- | --- | --- |
@@ -701,7 +701,7 @@ Sources: [Wave Federation Protocol](https://en.wikipedia.org/wiki/Google_Wave_Fe
 | 3.1 | **Size.** A head MUST accept a card whose JSON wire form is up to 64 KiB and MAY reject larger ones with `413`; it MUST reject one larger than 1 MiB with `413`. | C27 |
 | 3.1 | **Unknown fields.** A head MUST ignore producer-owned fields it does not recognise and SHOULD preserve them, verbatim, in what it returns and syncs, so a … | C14, C24 |
 | 3.1 | A head MUST reject any field in the head-owned set (§4.2) on submission. | C14 |
-| 4.1 | The head MUST NOT alter them. | C01, C40, C41, C44 |
+| 4.1 | The head MUST NOT alter them. | C01, C40, C41, C44, C49 |
 | 4.1 | `kind`: Extensions MAY add kinds; a head MUST reject with `400` a kind it does not implement. | C46 |
 | 4.1 | `title`: MUST NOT be empty or contain CR or LF. | C45 |
 | 4.1 | `summary`: MUST NOT be empty or contain CR or LF, and SHOULD be under 280 characters; a head MAY truncate it beyond that with an ellipsis. | C39 |
@@ -721,7 +721,7 @@ Sources: [Wave Federation Protocol](https://en.wikipedia.org/wiki/Google_Wave_Fe
 | 4.4 | The entry controls only what the head *offers*: a producer that wants free text as an option includes `edit` in the list, and a head SHOULD NOT offer free text … | untested: interface behaviour a fixture cannot observe |
 | 4.4 | A head MUST reject a card with two defaults or a duplicate `id` with `400`. | C21 |
 | 4.4 | A decision card SHOULD contain both the evidence (what happened) and the producer's proposal (what it suggests doing), as separate sections of the body, so the … | untested: client-side behaviour (a producer's) |
-| 4.4 | The person decides on the card *as it stood when decided*; the head MUST retain that version. | C03, C04, C06, C38 |
+| 4.4 | The person decides on the card *as it stood when decided*; the head MUST retain that version. | C03, C04, C06, C38, C51 |
 | 4.5 | - **The actions are the controls.** A head MUST offer the card's `actions` (§4.4, the default `[approve, reject]` included) as controls on the card, available … | untested: interface behaviour a fixture cannot observe |
 | 4.5 | With no default there is no primary control: a head MUST give the options equal weight and MUST NOT style or place any one of them as primary, just as it … | untested: interface behaviour a fixture cannot observe |
 | 4.5 | A head MUST NOT gather the actions behind one intermediate control (a single "decide" control that reveals them). | untested: interface behaviour a fixture cannot observe |
@@ -735,7 +735,7 @@ Sources: [Wave Federation Protocol](https://en.wikipedia.org/wiki/Google_Wave_Fe
 | 5 | When an upstream key is unbounded in length or not representable even so, a producer MAY use a hash of it as `upstream-id`, and SHOULD say which hash … | untested: a producer's documentation, not its behaviour |
 | 5 | A source that has no stable key for an event cannot satisfy the determinism rule above; a producer that submits a card for such an event anyway MUST say in the … | untested: client-side behaviour (a producer's) |
 | 5 | A producer MUST only submit ids under its own root, and a head MUST reject any other with `403`. | C13 |
-| 5 | An id names a logical proposition; while the card is `open` its content may be revised by re-PUT, and the head MUST clear `seen_at` whenever the body or … | C02 |
+| 5 | An id names a logical proposition; while the card is `open` its content may be revised by re-PUT, and the head MUST clear `seen_at` whenever the body or … | C02, C49 |
 | 5 | The producer MUST NOT retry the same PUT; it MAY submit a new card with `supersedes` set to the locked id. | untested: client-side behaviour (a producer's) |
 | 5 | A producer that receives `200` for a card it believed was new SHOULD read the returned decision, since it may already have an answer. | untested: client-side behaviour (a producer's) |
 | 5 | Idempotent submission is not exactly-once processing: a producer that acts on a decision MUST make that action idempotent on its own side. | untested: client-side behaviour (a producer's) |
@@ -752,12 +752,13 @@ Sources: [Wave Federation Protocol](https://en.wikipedia.org/wiki/Google_Wave_Fe
 | 7.2 | A producer that parks MUST report every parked change, at least by logging the card id, its `seq` and the failure; it MUST NOT park a change it has not … | untested: client-side behaviour (a producer's) |
 | 7.3 | A producer token MUST be refused with `401`, before the request is otherwise examined. | C30 |
 | 7.3 | (Appendix A uses decide for the person to cancel an order; giving an order is another owner action of the same kind, A.1; an executor's claim is a producer … | C19, C21 |
-| 7.4 | A head MUST NOT send a code under a status other than its own. | C15, C26, C27, C29, C34, C42, C43, C44 |
+| 7.4 | A head MUST NOT send a code under a status other than its own. | C15, C26, C27, C29, C34, C42, C43, C44, C50 |
 | 7.4 | A `429` carries `Retry-After` in seconds; a producer SHOULD NOT send another request to that head before it has elapsed. | untested: client-side behaviour (a producer's) |
 | 7.5 | A head MUST answer `GET /` with its description: `protocol`, the version it implements; `owner`, the person id it stores cards for, which a producer uses as … | C25, C31 |
 | 8 | A head MUST show cards sharing a thread together, newest last, and MAY collapse all but the newest. | untested: interface behaviour a fixture cannot observe |
 | 8 | It MUST NOT supersede a `superseded` card; naming one is rejected with `409`, so chains stay linear because only the current card can be superseded. | C07 |
-| 8 | A superseding PUT MUST atomically store the successor and mark the predecessor; neither change is visible without the other. | C05, C06 |
+| 8 | A superseding PUT MUST atomically store the successor and mark the predecessor; neither change is visible without the other. | C05, C06, C51 |
+| 8 | **A card's time.** Within a day, a head SHOULD order cards that carry `at` by it, earliest first, and MAY place cards without `at` after them or by … | untested: interface behaviour a fixture cannot observe |
 | 8 | It does not affect what a head MUST include in a brief it generates: the requirements of this section apply to the generated brief, not to the view, and a view … | untested: interface behaviour a fixture cannot observe |
 | 8 | A view MAY count the snoozed open decisions it admits, and, like a brief, MUST NOT list them or their leads (§4.2). | untested: interface behaviour a fixture cannot observe |
 | 8 | It MUST NOT alter card bodies or decisions while doing so, and MUST keep every card reachable in its original form. | untested: interface behaviour a fixture cannot observe |

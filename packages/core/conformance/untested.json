@@ -160,6 +160,10 @@
     "why": "interface behaviour a fixture cannot observe"
   },
   {
+    "requirement": "§8 SHOULD order cards that carry at by it",
+    "why": "interface behaviour a fixture cannot observe"
+  },
+  {
     "requirement": "§8 not to the view",
     "why": "interface behaviour a fixture cannot observe"
   },

@@ -1,0 +1,121 @@
+{
+  "name": "C50 an at with an offset other than UTC, an until without at, an until before at, or a date as at is 400 invalid_card, and nothing is stored",
+  "rfc": [
+    "§2",
+    "§4.1",
+    "§7.4"
+  ],
+  "covers": [
+    "§7.4 a code under a status other than its own"
+  ],
+  "steps": [
+    {
+      "op": "put",
+      "args": {
+        "token": "cal",
+        "card": {
+          "protocol": "pbcp/1",
+          "to_person": "morten",
+          "producer": "cal",
+          "emitted_at": "2026-11-02T18:00:00Z",
+          "id": "cal:work:bad-1",
+          "kind": "signal",
+          "title": "Standup",
+          "body": "x",
+          "at": "2026-11-03T10:15:00+01:00"
+        }
+      },
+      "expect": {
+        "status": 400,
+        "body": {
+          "error": "invalid_card"
+        }
+      }
+    },
+    {
+      "op": "put",
+      "args": {
+        "token": "cal",
+        "card": {
+          "protocol": "pbcp/1",
+          "to_person": "morten",
+          "producer": "cal",
+          "emitted_at": "2026-11-02T18:00:00Z",
+          "id": "cal:work:bad-2",
+          "kind": "signal",
+          "title": "Standup",
+          "body": "x",
+          "until": "2026-11-03T09:30:00Z"
+        }
+      },
+      "expect": {
+        "status": 400,
+        "body": {
+          "error": "invalid_card"
+        }
+      }
+    },
+    {
+      "op": "put",
+      "args": {
+        "token": "cal",
+        "card": {
+          "protocol": "pbcp/1",
+          "to_person": "morten",
+          "producer": "cal",
+          "emitted_at": "2026-11-02T18:00:00Z",
+          "id": "cal:work:bad-3",
+          "kind": "signal",
+          "title": "Standup",
+          "body": "x",
+          "at": "2026-11-03T09:30:00Z",
+          "until": "2026-11-03T09:15:00Z"
+        }
+      },
+      "expect": {
+        "status": 400,
+        "body": {
+          "error": "invalid_card"
+        }
+      }
+    },
+    {
+      "op": "put",
+      "args": {
+        "token": "cal",
+        "card": {
+          "protocol": "pbcp/1",
+          "to_person": "morten",
+          "producer": "cal",
+          "emitted_at": "2026-11-02T18:00:00Z",
+          "id": "cal:work:bad-4",
+          "kind": "signal",
+          "title": "Standup",
+          "body": "x",
+          "at": "2026-11-03"
+        }
+      },
+      "expect": {
+        "status": 400,
+        "body": {
+          "error": "invalid_card"
+        }
+      }
+    },
+    {
+      "op": "syncAll",
+      "args": {
+        "token": "cal",
+        "after": 0
+      },
+      "expect": {
+        "status": 200,
+        "body": {
+          "changes": {
+            "$len": 0
+          }
+        }
+      }
+    }
+  ]
+}
