@@ -8,7 +8,9 @@ import { PbcpError, parseCardOrThrow, type Decision } from '@pbcp/core';
 export const USAGE = `usage: pbcp <command> [options]
 
   describe                                        GET /  (RFC §7.5)
-  submit <file.md|file.json>                      PUT /cards/{id}  (§7.1); 409 is a result, not a failure
+  submit <file.md|file.json> [--at T] [--until T]
+                                                  PUT /cards/{id}  (§7.1); 409 is a result, not a failure.
+                                                  --at and --until set the card's at and until (§4.1)
   sync [--after N] [--follow] [--interval S]      GET /changes  (§7.2); one JSON line per change
   decide <id> <decision> [--proposal FILE] [--comment TEXT]
                                                   POST /cards/{id}/decision  (§7.3), as the owner
@@ -41,6 +43,8 @@ const OPTIONS = {
   interval: { type: 'string' },
   proposal: { type: 'string' },
   comment: { type: 'string' },
+  at: { type: 'string' },
+  until: { type: 'string' },
   help: { type: 'boolean', short: 'h' },
 } as const;
 
@@ -67,6 +71,7 @@ export async function main(argv: string[], io: Io): Promise<number> {
       return command === undefined && !o.help ? 2 : 0;
     }
     if (!['describe', 'submit', 'sync', 'decide'].includes(command)) throw new UsageError(`unknown command: ${command}`);
+    if ((o.at !== undefined || o.until !== undefined) && command !== 'submit') throw new UsageError('--at and --until are for submit');
     const baseUrl = o.head ?? io.env.PBCP_HEAD_URL;
     if (!baseUrl) throw new UsageError('no head: pass --head or set PBCP_HEAD_URL');
     // §7.3: decide takes the owner's credential, never a producer token; the other commands take the producer token.
@@ -87,7 +92,10 @@ export async function main(argv: string[], io: Io): Promise<number> {
         return 0;
       case 'submit': {
         arity(1);
-        const res = await head.submit(parseCardOrThrow(await read(args[0]!)));
+        const card = parseCardOrThrow(await read(args[0]!));
+        // §4.1: the flags set the card's times, and the card is checked again with them (until needs at, and not before it).
+        const timed = o.at === undefined && o.until === undefined ? card : parseCardOrThrow({ ...card, ...(o.at !== undefined ? { at: o.at } : {}), ...(o.until !== undefined ? { until: o.until } : {}) });
+        const res = await head.submit(timed);
         io.out(JSON.stringify(res, null, 2));
         return 0;
       }
