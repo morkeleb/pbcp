@@ -95,7 +95,7 @@ Each timed occurrence in the window (yesterday to 7 days ahead) is its own card,
 - the event's title, and a body with its location (and calendar, with several);
 - `source` when the event has a web `URL`.
 
-The time is in `at` and `until` only, never in the title (§4.1a). A day's agenda lists these cards in `references`, and they are submitted before it in the pass, so the links resolve.
+The time is in `at` and `until`, where a head reads it (§4.1a); the title is the event's title and the summary may say the time in words. A day's agenda lists these cards in `references`, and they are submitted before it in the pass, so the links resolve.
 
 The store records a fingerprint of each occurrence card as last submitted. A card is submitted when the fingerprint changes: on first sight, and when its time, title, location or link changes. Re-PUT while the card is open, it replaces it (§5). An unchanged occurrence costs nothing on later passes. All-day events have no occurrence card; they are on the agenda. A cancelled occurrence's card is left as it was; the cancelled signal says it is gone (`rfc/OPEN.md` 9 is about recurring subjects).
 
