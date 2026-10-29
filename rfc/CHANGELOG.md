@@ -17,6 +17,14 @@ Draft 0.8 adds two producer-owned fields, `at` and `until`: when the thing a car
 
 **§11.3 — head checklist** gains: validates the two fields, places and orders by `at`.
 
+**§4.1 — field validation as one requirement.** "A head MUST reject with `400 invalid_card` a card whose field breaks the rule given in its row below." Fixtures C42, C44, C49 and C50 now cover it, so `labels`, `about`, `at` and `until` validation appear in the coverage table (§14) under one row instead of through the "MUST NOT alter them" sentence.
+
+**§4.1a — times in text.** Corrected: a time in `title` or `summary` is for the person and is allowed; what a producer must not do is write it *only* there. The hermes skills say the same.
+
+**§4.5, §8 — a marker is not a presentation.** A head MAY show an open decision card as a marker (a point on a day view, a count, a linking line) without its controls, provided the card is presented with them one step away. The brief presents the ask; the day view may mark its time.
+
+**§4.1a — kind names.** Advisory: a head shows the person what a card wants (decide, acknowledge, read), not the kind name.
+
 **Connectors.** caldav: a `log` artifact per timed occurrence with `at`/`until`, referenced from the day's agenda; signals carry the times. MCP, hermes skills and CLI describe and accept both.
 
 ## 0.7 (2026-10-27)
