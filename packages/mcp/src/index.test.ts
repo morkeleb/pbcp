@@ -39,6 +39,8 @@ describe('@pbcp/mcp', () => {
     expect(submit).toContain('"log" is only recorded');
     expect(submit).toContain('**`at` is when the subject happens.** A card has three times and they answer three different questions.');
     expect(submit).toContain('A subject with a day but no time (an all-day event, a date-only deadline) takes `about` alone.');
+    expect(submit).toContain("Do not write the time only there: a time in the title or summary is for the person, who reads the brief's line; `at` is for the head, which reads nothing else.");
+    expect(submit).not.toContain('Write the time nowhere else');
   });
 
   it('claims and renews an order, and reports 409 and 410 as tool errors with their code', async () => {
