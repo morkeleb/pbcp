@@ -706,7 +706,7 @@ Sources: [Wave Federation Protocol](https://en.wikipedia.org/wiki/Google_Wave_Fe
 | 3.1 | **Unknown fields.** A head MUST ignore producer-owned fields it does not recognise and SHOULD preserve them, verbatim, in what it returns and syncs, so a … | C14, C24 |
 | 3.1 | A head MUST reject any field in the head-owned set (§4.2) on submission. | C14 |
 | 4.1 | The head MUST NOT alter them. | C01, C40, C41, C44, C49 |
-| 4.1 | A head MUST reject with `400 invalid_card` a card whose field breaks the rule given in its row below. | C42, C44, C49, C50 |
+| 4.1 | A head MUST reject with `400 invalid_card` a card whose field breaks the rule given in its row below. | C42, C43, C44, C50 |
 | 4.1 | `kind`: Extensions MAY add kinds; a head MUST reject with `400` a kind it does not implement. | C46 |
 | 4.1 | `title`: MUST NOT be empty or contain CR or LF. | C45 |
 | 4.1 | `summary`: MUST NOT be empty or contain CR or LF, and SHOULD be under 280 characters; a head MAY truncate it beyond that with an ellipsis. | C39 |

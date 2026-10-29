@@ -5,7 +5,6 @@
     "§5"
   ],
   "covers": [
-    "§4.1 a card whose field breaks the rule given in its row below",
     "§4.1 The head MUST NOT alter them",
     "§5 MUST clear seen_at"
   ],
