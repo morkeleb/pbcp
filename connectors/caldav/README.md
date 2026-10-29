@@ -3,12 +3,14 @@
 An example producer on `@pbcp/client`: it reads one or more CalDAV calendars and turns them into cards (RFC §11.1). It is a reader only. It does not create, change or answer events, and it takes no decisions (`onDecision` does nothing).
 
 - Once a day, an `artifact` card with the day's agenda at `urgency: brief`: a table of time, title and location. The list is the content; with `CALDAV_CHART` set, a `mermaid` `gantt` fence of the timed events follows it (core tier, §3.1), since a chart in a card is for what a list cannot say.
+- For each timed occurrence in the fetch window, its own `artifact` card at `urgency: log`, with `at` and `until` (§4.1) from its start and end: the occurrence on the head's day view (§8), beside other producers' cards, and in no brief on its own (see [Occurrence cards](#occurrence-cards)).
 - For an event in the next 7 days, a `signal` card when it is **new**, **moved** or **cancelled** (see [Signals](#signals)). Its urgency (§9) is by how soon the event is: `immediate` within two hours, `brief` today or tomorrow, `log` later.
 - `summary` (§4.1): on a signal, the event's time (new and old, on a move) and its location (and calendar, with several); on an agenda, the first timed event's time and location, `First: Standup, 09:15–09:30.` An empty day, or one with only all-day events, has no `summary`, since the title already says everything.
-- `about` (§4.1): the agenda's day on an agenda, and the event's local day (its new one, on a move) on a signal, so a head files both under the day they concern.
+- `about` (§4.1): the agenda's day on an agenda, and the event's local day (its new one, on a move) on a signal or an occurrence card, so a head files each under the day it concerns.
+- `at` and `until` (§4.1): the start and end in UTC on an occurrence card and on a signal about a timed event (the new time, on a move). An all-day event and the agenda carry `about` alone (§4.1a).
 - `labels` (§4.1): the calendar's namespace (its slug, cut to 32 characters) as a label: `work`. A merged agenda (several calendars) carries every configured calendar's label, at most 8.
-- `references` (§8): a signal about a day whose agenda has been produced (today's, once it is out) names that agenda card; a move names it when the event left or joined that day.
-- `source` (§4.1): a new or moved signal links to the event when the event has a web `URL` property (`http` or `https`), labelled `Calendar event`. An agenda covers a whole day and has no `source`; nor does an event without a URL, since a CalDAV resource URL needs the server login and does not open in a calendar app, nor a cancelled one, which is gone.
+- `references` (§8): an agenda names the occurrence cards of its day's timed events. A signal about a day whose agenda has been produced (today's, once it is out) names that agenda card; a move names it when the event left or joined that day.
+- `source` (§4.1): an occurrence card and a new or moved signal link to the event when the event has a web `URL` property (`http` or `https`), labelled `Calendar event`. An agenda covers a whole day and has no `source`; nor does an event without a URL, since a CalDAV resource URL needs the server login and does not open in a calendar app, nor a cancelled one, which is gone.
 
 It polls every 5 minutes by default, so a change is reported at most one interval after the server has it.
 
@@ -77,7 +79,7 @@ Switching between one calendar and several keeps the stored date of the last age
 
 ## Signals
 
-The store file keeps every occurrence in the fetch window (yesterday to 7 days ahead) as it was last seen: its start, title, all-day date, and the id of the last move reported for it. Each pass compares the window with that.
+The store file keeps every occurrence in the fetch window (yesterday to 7 days ahead) as it was last seen: its start and end, title, all-day date, the id of the last move reported for it, and its occurrence card's fingerprint. Each pass compares the window with that.
 
 - **New**, `New: Dentist, today 14:00`: an occurrence that was not there last pass although its start lies inside last pass's window, and that has not yet begun (an all-day event: whose day is not over). An event that only comes into view as the window moves on is not new, nor is anything on the first pass. A new recurring series is told once, at its first occurrence in the window.
 - **Moved**, `Moved: Standup now at Fri 30 Oct 13:00`: a timed occurrence whose start differs from the last-seen one and still lies ahead. The urgency is by the sooner of the old and new start that is still ahead, so a meeting moved away from the next hour is still `immediate`. A later move of the same occurrence `supersedes` (§8) the earlier move's card, so the head shows only the latest. All-day events are not signalled as moved.
@@ -85,11 +87,24 @@ The store file keeps every occurrence in the fetch window (yesterday to 7 days a
 
 Times read as on a phone: the time alone on the day in question, the day and time otherwise (`Fri 30 Oct 13:00`), never an ISO timestamp.
 
+## Occurrence cards
+
+Each timed occurrence in the window (yesterday to 7 days ahead) is its own card, `cal:<namespace>:<hash>`:
+- `kind: artifact` at `urgency: log`;
+- `about` its local start day, `at` and `until` its start and end in UTC, `thread` `day-<about>`;
+- the event's title, and a body with its location (and calendar, with several);
+- `source` when the event has a web `URL`.
+
+The time is in `at` and `until` only, never in the title (§4.1a). A day's agenda lists these cards in `references`, and they are submitted before it in the pass, so the links resolve.
+
+The store records a fingerprint of each occurrence card as last submitted. A card is submitted when the fingerprint changes: on first sight, and when its time, title, location or link changes. Re-PUT while the card is open, it replaces it (§5). An unchanged occurrence costs nothing on later passes. All-day events have no occurrence card; they are on the agenda. A cancelled occurrence's card is left as it was; the cancelled signal says it is gone (`rfc/OPEN.md` 9 is about recurring subjects).
+
 ## Ids and threads
 
 The producer root is `cal`. The namespace is the calendar's display name (or, without one, the last segment of its URL) lowercased, with each run of characters outside `[a-z0-9]` replaced by `-` and leading and trailing `-` removed; `calendar` if nothing is left. Renaming the calendar changes every id.
 
 - **Agenda:** `cal:<namespace>:<YYYY-MM-DD>`, the local date in `CALDAV_TZ`; with several calendars, `cal:agenda:<YYYY-MM-DD>`.
+- **Occurrence:** `cal:<namespace>:<hash>`, with `<hash>` as below.
 - **New:** `cal:<namespace>:<hash>:new`. `<hash>` is the first 16 lowercase hex characters of the SHA-256 of `<UID>/<RECURRENCE-ID>` (UTF-8; the RECURRENCE-ID as ical.js prints it, e.g. `2026-10-26T09:15:00`, and empty for a non-recurring event).
 - **Moved:** `cal:<namespace>:<hash>-<start>:moved`, with `<start>` the new start in UTC as `YYYYMMDDTHHMMZ`. Each move of an occurrence gets its own id; the same move seen twice gets the same one.
 - **Cancelled:** `cal:<namespace>:<hash>:cancelled`.
@@ -107,6 +122,8 @@ Every card's `thread` is `day-<YYYY-MM-DD>`, the local date of the agenda or of 
 - **Gantt.** Off unless `CALDAV_CHART` is set: the table already says what the day holds, and a chart repeats it. Only timed events are drawn. Task names drop `:` `#` `;` and `%` (task-data separator, comment, statement separator, mermaid comment), are cut to 40 characters, and a name starting with a gantt keyword (`section`, `title`, `click`, …) is prefixed with `· `. In the table, `|` is escaped instead.
 
 ## Upgrading an older store
+
+A store from before occurrence cards has no fingerprints, so the first pass submits a card for every timed occurrence in the window once. A cancelled signal for an occurrence the old store kept without an end carries `at` alone.
 
 The store now keeps more per occurrence (title, all-day date, last move) and the end of the last window. A store from before keeps working: the first pass reads the old starts for moves, and reports nothing as new or cancelled, since it has no window to compare with. The agenda loses its chart unless `CALDAV_CHART` is set.
 

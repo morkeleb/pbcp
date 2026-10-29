@@ -257,6 +257,14 @@ describe('card()', () => {
     expect('actions' in card({ producer: 'mail', namespace: 'a', upstream: 'u', kind: 'signal', to_person: 'p', title: 't', body: '', actions: undefined })).toBe(false);
   });
 
+  it('types and passes at and until (§4.1), and refuses until without at', () => {
+    const at: string | undefined = card({ producer: 'cal', namespace: 'work', upstream: 'u', kind: 'signal', to_person: 'p', title: 't', body: '', at: '2026-11-03T09:15:00Z', until: '2026-11-03T09:30:00Z' }).at;
+    expect(at).toBe('2026-11-03T09:15:00Z');
+    expect(() => card({ producer: 'cal', namespace: 'work', upstream: 'u', kind: 'signal', to_person: 'p', title: 't', body: '', until: '2026-11-03T09:30:00Z' })).toThrow(
+      expect.objectContaining({ code: 'invalid_card' }),
+    );
+  });
+
   it('refuses a card that would not pass the head', () => {
     expect(() => card({ producer: 'mail', namespace: 'a@b', upstream: 'u', kind: 'signal', to_person: 'p', title: 't', body: '' })).toThrow(PbcpError);
     expect(() => card({ producer: 'mail', namespace: 'a', upstream: 'u', kind: 'signal', to_person: 'p', title: 'two\nlines', body: '' })).toThrow(

@@ -232,6 +232,38 @@ describe('the fixtures catch broken heads', () => {
     await fails(core.C48, { head: sabotage(h, { changes }) });
   });
 
+  it('C49: dropping until', async () => {
+    const h = inProcessHead();
+    const put: HeadUnderTest['put'] = async (t, c) => {
+      if (typeof c !== 'object' || c === null) return h.put(t, c);
+      const { until, ...rest } = c as { until?: unknown };
+      return h.put(t, rest);
+    };
+    await fails(core.C49, { head: sabotage(h, { put }) });
+  });
+
+  it('C50: storing at and until it cannot read without them', async () => {
+    const h = inProcessHead();
+    const put: HeadUnderTest['put'] = async (t, c) => {
+      if (typeof c !== 'object' || c === null) return h.put(t, c);
+      const { at, until, ...rest } = c as { at?: unknown; until?: unknown };
+      return h.put(t, rest);
+    };
+    await fails(core.C50, { head: sabotage(h, { put }) });
+  });
+
+  it('C51: leaving at out of equality', async () => {
+    const h = inProcessHead();
+    const first = new Map<string, unknown>();
+    // A head that compares without at answers a moved time on a decided card as identical: 200, not 409.
+    const put: HeadUnderTest['put'] = async (t, c) => {
+      const card = c as { id: string; at?: unknown; until?: unknown };
+      if (!first.has(card.id)) first.set(card.id, { at: card.at, until: card.until });
+      return h.put(t, { ...card, ...(first.get(card.id) as object) });
+    };
+    await fails(core.C51, { head: sabotage(h, { put }) });
+  });
+
   it('R12: falling back on an extended-tier type', async () => {
     const r = referenceRenderer();
     const draw: RenderUnderTest['render'] = async (body) => {

@@ -37,6 +37,10 @@ describe('@pbcp/mcp', () => {
     expect(submit).toContain('"signal" to know');
     expect(submit).toContain('"artifact" to read');
     expect(submit).toContain('"log" is only recorded');
+    expect(submit).toContain('**`at` is when the subject happens.** A card has three times and they answer three different questions.');
+    expect(submit).toContain('A subject with a day but no time (an all-day event, a date-only deadline) takes `about` alone.');
+    expect(submit).toContain("Do not write the time only there: a time in the title or summary is for the person, who reads the brief's line; `at` is for the head, which reads nothing else.");
+    expect(submit).not.toContain('Write the time nowhere else');
   });
 
   it('claims and renews an order, and reports 409 and 410 as tool errors with their code', async () => {
@@ -109,6 +113,16 @@ describe('@pbcp/mcp', () => {
     expect((await call('submit_card', { card: toFrontMatter(tagged) })).json).toMatchObject({ status: 200, card: { labels: tagged.labels, about: '2026-10-30', change_seq: 1 } });
     for (const bad of [{ labels: ['Billing'] }, { labels: Array.from({ length: 9 }, (_, i) => `l${i}`) }, { about: '2026-02-30' }]) {
       expect(await call('submit_card', { card: { ...sample(), ...bad } })).toMatchObject({ isError: true, json: { status: 400, error: 'invalid_card' } });
+    }
+  });
+
+  it('carries at and until through in every form, and refuses a pair that breaks §4.1', async () => {
+    const { call } = await setup();
+    const timed = { ...sample(), about: '2026-11-03', at: '2026-11-03T09:15:00Z', until: '2026-11-03T09:30:00Z' };
+    expect((await call('submit_card', { card: timed })).json).toMatchObject({ status: 201, card: { at: timed.at, until: timed.until } });
+    expect((await call('submit_card', { card: toFrontMatter(timed) })).json).toMatchObject({ status: 200, card: { at: timed.at, until: timed.until, change_seq: 1 } });
+    for (const bad of [{ until: '2026-11-03T09:30:00Z' }, { at: '2026-11-03T09:30:00Z', until: '2026-11-03T09:15:00Z' }, { at: '2026-11-03' }]) {
+      expect(await call('submit_card', { card: { ...sample('Other'), ...bad } })).toMatchObject({ isError: true, json: { status: 400, error: 'invalid_card' } });
     }
   });
 

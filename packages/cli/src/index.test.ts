@@ -67,6 +67,16 @@ describe('pbcp submit', () => {
     expect(stub.requests).toHaveLength(1);
   });
 
+  it('sets at and until from --at and --until, and refuses a bad pair locally (§4.1)', async () => {
+    const { run, out, err, stub } = setup({ 'c.json': JSON.stringify(sample()) });
+    expect(await run('submit', 'c.json', '--at', '2026-11-03T09:15:00Z', '--until', '2026-11-03T09:30:00Z')).toBe(0);
+    expect(JSON.parse(out[0]!)).toMatchObject({ status: 201, card: { at: '2026-11-03T09:15:00Z', until: '2026-11-03T09:30:00Z' } });
+    expect(await run('submit', 'c.json', '--until', '2026-11-03T09:30:00Z')).toBe(1);
+    expect(err.join('\n')).toMatch(/until needs at/);
+    expect(await run('sync', '--at', '2026-11-03T09:15:00Z')).toBe(2);
+    expect(stub.requests.filter((r) => r.method === 'PUT')).toHaveLength(1);
+  });
+
   it('submits labels and about from a front-matter file and refuses bad ones locally (§4.1)', async () => {
     const good = { ...sample(), labels: ['billing-revamp'], about: '2026-10-30' };
     const { run, out, err, stub } = setup({ 'c.md': toFrontMatter(good), 'bad.json': JSON.stringify({ ...sample(), labels: ['Billing Revamp'] }) });

@@ -11,7 +11,7 @@ pbcp describe
 | Command | Does |
 | --- | --- |
 | `pbcp describe` | `GET /` (§7.5); prints the head description |
-| `pbcp submit <file.md\|file.json>` | Parses the card (JSON or front-matter file, §3), checks it locally, `PUT /cards/{id}` (§7.1); prints `{ status, card }`. `409` is printed like `200` and `201`, with exit 0: it is a result, the decided card |
+| `pbcp submit <file.md\|file.json> [--at T] [--until T]` | Parses the card (JSON or front-matter file, §3), checks it locally, `PUT /cards/{id}` (§7.1); prints `{ status, card }`. `409` is printed like `200` and `201`, with exit 0: it is a result, the decided card. `--at` and `--until` set the card's `at` and `until` (§4.1), replacing any in the file, and the card is checked again: `until` needs `at` and is not before it |
 | `pbcp sync [--after N] [--follow] [--interval S]` | `GET /changes` (§7.2) page by page; prints each change `{ seq, card }` as one JSON line, then `next: N` on stderr. `--follow` keeps polling every `S` seconds (default 10) until interrupted |
 | `pbcp decide <id> <decision> [--proposal FILE] [--comment TEXT]` | `POST /cards/{id}/decision` (§7.3) as the owner, with `--owner-credential`; `--proposal` sends the file as `edited_proposal`. Prints `{ status, card }`; `409` (already decided) exits 0 |
 

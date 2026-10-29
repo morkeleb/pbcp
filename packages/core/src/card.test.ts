@@ -181,6 +181,51 @@ describe('parseCard', () => {
   });
 });
 
+describe('at and until (§4.1)', () => {
+  const at = '2026-11-03T09:15:00Z';
+  const until = '2026-11-03T09:30:00Z';
+
+  it('accepts at alone, at with until, and until equal to at', () => {
+    expect(parseCardOrThrow(minimal({ at }))).toMatchObject({ at });
+    expect(parseCardOrThrow(minimal({ at, until }))).toMatchObject({ at, until });
+    expect(parseCardOrThrow(minimal({ at, until: at }))).toMatchObject({ at, until: at });
+    expect(parseCardOrThrow(minimal({ at: '2026-11-03T09:15:00+00:00', until: '2026-11-03T09:15:00.5Z' }))).toMatchObject({ until: '2026-11-03T09:15:00.5Z' });
+  });
+
+  it('refuses a timestamp that is not §2 UTC, until without at, and until before at', () => {
+    refused(minimal({ at: '2026-11-03T10:15:00+01:00' }), 'invalid_card');
+    refused(minimal({ at: '2026-11-03' }), 'invalid_card');
+    refused(minimal({ at: '2026-11-31T09:00:00Z' }), 'invalid_card');
+    refused(minimal({ until }), 'invalid_card');
+    refused(minimal({ at: until, until: at }), 'invalid_card');
+    refused(minimal({ at: '2026-11-03T09:15:00.5Z', until: '2026-11-03T09:15:00Z' }), 'invalid_card');
+  });
+
+  it('compares instants, not strings: +00:00 and Z, and a leap second at the end of its minute', () => {
+    expect(parseCardOrThrow(minimal({ at: '2026-11-03T09:15:00+00:00', until: '2026-11-03T09:15:00Z' }))).toBeDefined();
+    expect(parseCardOrThrow(minimal({ at: '2016-12-31T23:59:59Z', until: '2016-12-31T23:59:60Z' }))).toBeDefined();
+  });
+
+  it('round-trips between the JSON and the file form as strings, and the file form types them after parsing (§3)', () => {
+    const c = parseCardOrThrow(minimal({ about: '2026-11-03', at, until }));
+    const file = toFrontMatter(c);
+    expect(file).toContain(`at: "${at}"`);
+    expect(parseCardOrThrow(file)).toEqual(c);
+    expect(parseCardOrThrow(toJSON(c))).toEqual(c);
+    const unquoted = file.replace(`until: "${until}"`, `until: ${until}`);
+    expect(parseCardOrThrow(unquoted)).toEqual(c);
+    expect(() => parseCardOrThrow(file.replace(`at: "${at}"`, 'at: 2026-11-03'))).toThrow(/at/);
+  });
+
+  it('counts for equality (§5): a different at is a different card, the same at is the same', () => {
+    const a = parseCardOrThrow(minimal({ at, until }));
+    expect(equal(a, parseCardOrThrow(minimal({ at, until, emitted_at: '2027-01-01T00:00:00Z' })))).toBe(true);
+    expect(equal(a, parseCardOrThrow(minimal({ at: '2026-11-03T09:20:00Z', until })))).toBe(false);
+    expect(equal(a, parseCardOrThrow(minimal({ at, until: '2026-11-03T09:45:00Z' })))).toBe(false);
+    expect(equal(a, parseCardOrThrow(minimal({ at })))).toBe(false);
+  });
+});
+
 describe('equal (§5)', () => {
   const base = parseCardOrThrow(minimal());
 

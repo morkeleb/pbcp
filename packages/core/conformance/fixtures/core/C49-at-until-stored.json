@@ -1,0 +1,165 @@
+{
+  "name": "C49 at and until are stored and synced as sent and count for equality: an identical re-PUT changes nothing, a moved until replaces the open card and leaves seen_at, since the body and actions did not change",
+  "rfc": [
+    "§4.1",
+    "§5"
+  ],
+  "covers": [
+    "§4.1 The head MUST NOT alter them",
+    "§5 MUST clear seen_at"
+  ],
+  "steps": [
+    {
+      "op": "put",
+      "args": {
+        "token": "cal",
+        "card": {
+          "protocol": "pbcp/1",
+          "to_person": "morten",
+          "producer": "cal",
+          "emitted_at": "2026-11-02T18:00:00Z",
+          "id": "cal:work:standup-20261103",
+          "kind": "signal",
+          "title": "Standup",
+          "body": "Standup in Room 3.",
+          "thread": "day-2026-11-03",
+          "at": "2026-11-03T09:15:00Z",
+          "until": "2026-11-03T09:30:00Z"
+        }
+      },
+      "expect": {
+        "status": 201,
+        "body": {
+          "at": "2026-11-03T09:15:00Z",
+          "until": "2026-11-03T09:30:00Z"
+        }
+      },
+      "save": {
+        "seq": "body.change_seq"
+      }
+    },
+    {
+      "op": "seen",
+      "args": {
+        "id": "cal:work:standup-20261103"
+      },
+      "expect": {
+        "status": 200
+      }
+    },
+    {
+      "op": "syncAll",
+      "args": {
+        "token": "cal",
+        "after": 0
+      },
+      "expect": {
+        "status": 200,
+        "body": {
+          "changes": [
+            {
+              "card": {
+                "id": "cal:work:standup-20261103",
+                "at": "2026-11-03T09:15:00Z",
+                "until": "2026-11-03T09:30:00Z",
+                "seen_at": {
+                  "$present": true
+                }
+              }
+            }
+          ]
+        }
+      },
+      "save": {
+        "seenSeq": "body.next"
+      }
+    },
+    {
+      "op": "put",
+      "args": {
+        "token": "cal",
+        "card": {
+          "protocol": "pbcp/1",
+          "to_person": "morten",
+          "producer": "cal",
+          "emitted_at": "2026-11-02T18:05:00Z",
+          "id": "cal:work:standup-20261103",
+          "kind": "signal",
+          "title": "Standup",
+          "body": "Standup in Room 3.",
+          "thread": "day-2026-11-03",
+          "at": "2026-11-03T09:15:00Z",
+          "until": "2026-11-03T09:30:00Z"
+        }
+      },
+      "expect": {
+        "status": 200,
+        "body": {
+          "change_seq": {
+            "$var": "seenSeq"
+          },
+          "at": "2026-11-03T09:15:00Z",
+          "until": "2026-11-03T09:30:00Z"
+        }
+      }
+    },
+    {
+      "op": "put",
+      "args": {
+        "token": "cal",
+        "card": {
+          "protocol": "pbcp/1",
+          "to_person": "morten",
+          "producer": "cal",
+          "emitted_at": "2026-11-02T18:00:00Z",
+          "id": "cal:work:standup-20261103",
+          "kind": "signal",
+          "title": "Standup",
+          "body": "Standup in Room 3.",
+          "thread": "day-2026-11-03",
+          "at": "2026-11-03T09:15:00Z",
+          "until": "2026-11-03T09:45:00Z"
+        }
+      },
+      "expect": {
+        "status": 200,
+        "body": {
+          "state": "open",
+          "until": "2026-11-03T09:45:00Z",
+          "change_seq": {
+            "$gt": {
+              "$var": "seenSeq"
+            }
+          },
+          "seen_at": {
+            "$present": true
+          }
+        }
+      }
+    },
+    {
+      "op": "syncAll",
+      "args": {
+        "token": "cal",
+        "after": 0
+      },
+      "expect": {
+        "status": 200,
+        "body": {
+          "changes": [
+            {
+              "card": {
+                "id": "cal:work:standup-20261103",
+                "at": "2026-11-03T09:15:00Z",
+                "until": "2026-11-03T09:45:00Z",
+                "seen_at": {
+                  "$present": true
+                }
+              }
+            }
+          ]
+        }
+      }
+    }
+  ]
+}

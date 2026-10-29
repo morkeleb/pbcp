@@ -34,6 +34,9 @@ export function isUtcTimestamp(s: string): boolean {
 
 const Timestamp = z.string().refine(isUtcTimestamp, 'must be an RFC 3339 UTC timestamp');
 
+/** A valid timestamp (§2) as milliseconds, for ordering; a leap second counts as the end of its minute. */
+const instant = (s: string) => Date.parse(s.replace(/:60(\.\d+)?(?=Z|[+-])/, ':59.999'));
+
 /** §2, §4.1 `about`: an ISO 8601 calendar date, `YYYY-MM-DD`, that exists. No time, no offset. */
 export function isLocalDate(s: string): boolean {
   const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(s);
@@ -75,6 +78,9 @@ export const ProducerCardSchema = z.looseObject({
     .refine((ls) => new Set(ls).size === ls.length, 'labels must not repeat (§4.1)')
     .optional(),
   about: z.string().refine(isLocalDate, 'must be a calendar date, YYYY-MM-DD (§4.1)').optional(),
+  /** §4.1: when the card's subject happens or begins, and when it ends; `until` needs `at` and is not before it. */
+  at: Timestamp.optional(),
+  until: Timestamp.optional(),
   references: z.array(Id).optional(),
   supersedes: Id.optional(),
   actions: z.array(ActionSchema).optional(),
@@ -171,6 +177,8 @@ export function parseCardOrThrow(input: unknown): ProducerCard {
     throw new PbcpError('invalid_card', `actions are only for kind: decision; ${card.kind} cards never carry them`);
   }
   checkActions(card.actions);
+  if (card.until !== undefined && card.at === undefined) throw new PbcpError('invalid_card', 'until needs at (§4.1)');
+  if (card.until !== undefined && instant(card.until) < instant(card.at!)) throw new PbcpError('invalid_card', 'until must not be before at (§4.1)');
   return card;
 }
 
@@ -222,7 +230,7 @@ function typedFromYaml(doc: YamlDoc): Record<string, unknown> {
 }
 
 const FIELD_ORDER = [
-  'protocol', 'id', 'kind', 'to_person', 'producer', 'thread', 'labels', 'about', 'urgency', 'title', 'summary', 'actions',
+  'protocol', 'id', 'kind', 'to_person', 'producer', 'thread', 'labels', 'about', 'at', 'until', 'urgency', 'title', 'summary', 'actions',
   'references', 'supersedes', 'emitted_at', 'source',
 ];
 

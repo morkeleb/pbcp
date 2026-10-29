@@ -1,0 +1,155 @@
+{
+  "name": "C51 a moved at on a decided card is 409 with the decided card; a successor that supersedes it carries the new time, and the predecessor keeps its decision and its original at",
+  "rfc": [
+    "§5",
+    "§6",
+    "§8"
+  ],
+  "covers": [
+    "§4.4 MUST retain that version",
+    "§8 atomically store the successor"
+  ],
+  "steps": [
+    {
+      "op": "put",
+      "args": {
+        "token": "cal",
+        "card": {
+          "protocol": "pbcp/1",
+          "to_person": "morten",
+          "producer": "cal",
+          "emitted_at": "2026-11-02T18:00:00Z",
+          "id": "cal:work:review-20261103",
+          "kind": "decision",
+          "title": "Accept the budget review",
+          "body": "Anna invites you to the budget review.\n\n## Proposal\n\nAccept.",
+          "thread": "day-2026-11-03",
+          "actions": [
+            "accept",
+            "decline"
+          ],
+          "at": "2026-11-03T13:00:00Z",
+          "until": "2026-11-03T14:00:00Z"
+        }
+      },
+      "expect": {
+        "status": 201
+      }
+    },
+    {
+      "op": "decide",
+      "args": {
+        "id": "cal:work:review-20261103",
+        "decision": {
+          "decision": "accept"
+        }
+      },
+      "expect": {
+        "status": 200,
+        "body": {
+          "state": "decided",
+          "decision": "accept"
+        }
+      }
+    },
+    {
+      "op": "put",
+      "args": {
+        "token": "cal",
+        "card": {
+          "protocol": "pbcp/1",
+          "to_person": "morten",
+          "producer": "cal",
+          "emitted_at": "2026-11-02T18:00:00Z",
+          "id": "cal:work:review-20261103",
+          "kind": "decision",
+          "title": "Accept the budget review",
+          "body": "Anna invites you to the budget review.\n\n## Proposal\n\nAccept.",
+          "thread": "day-2026-11-03",
+          "actions": [
+            "accept",
+            "decline"
+          ],
+          "at": "2026-11-03T15:00:00Z",
+          "until": "2026-11-03T16:00:00Z"
+        }
+      },
+      "expect": {
+        "status": 409,
+        "body": {
+          "id": "cal:work:review-20261103",
+          "state": "decided",
+          "decision": "accept",
+          "at": "2026-11-03T13:00:00Z",
+          "until": "2026-11-03T14:00:00Z"
+        }
+      }
+    },
+    {
+      "op": "put",
+      "args": {
+        "token": "cal",
+        "card": {
+          "protocol": "pbcp/1",
+          "to_person": "morten",
+          "producer": "cal",
+          "emitted_at": "2026-11-02T18:00:00Z",
+          "id": "cal:work:review-20261103:moved",
+          "kind": "decision",
+          "title": "Accept the budget review",
+          "body": "The budget review moved to 15:00.\n\n## Proposal\n\nAccept the new time.",
+          "thread": "day-2026-11-03",
+          "actions": [
+            "accept",
+            "decline"
+          ],
+          "at": "2026-11-03T15:00:00Z",
+          "until": "2026-11-03T16:00:00Z",
+          "supersedes": "cal:work:review-20261103"
+        }
+      },
+      "expect": {
+        "status": 201,
+        "body": {
+          "state": "open",
+          "at": "2026-11-03T15:00:00Z",
+          "until": "2026-11-03T16:00:00Z",
+          "supersedes": "cal:work:review-20261103"
+        }
+      }
+    },
+    {
+      "op": "syncAll",
+      "args": {
+        "token": "cal",
+        "after": 0
+      },
+      "expect": {
+        "status": 200,
+        "body": {
+          "changes": {
+            "$len": 2,
+            "$contains": [
+              {
+                "card": {
+                  "id": "cal:work:review-20261103",
+                  "state": "superseded",
+                  "decision": "accept",
+                  "at": "2026-11-03T13:00:00Z",
+                  "until": "2026-11-03T14:00:00Z"
+                }
+              },
+              {
+                "card": {
+                  "id": "cal:work:review-20261103:moved",
+                  "state": "open",
+                  "at": "2026-11-03T15:00:00Z"
+                }
+              }
+            ]
+          }
+        }
+      }
+    }
+  ]
+}

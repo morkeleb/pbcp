@@ -2,7 +2,7 @@
 
 The Personal Brief Card Protocol (draft 0.7), as pure functions: no I/O, no clock, no storage. A head is mostly plumbing around these calls; a producer uses them to build and check cards before sending.
 
-The specification is [`rfc/pbcp-draft-0.7.md`](https://github.com/morkeleb/pbcp/blob/main/rfc/pbcp-draft-0.7.md). Section numbers below refer to it.
+The specification is [`rfc/pbcp-draft-0.8.md`](https://github.com/morkeleb/pbcp/blob/main/rfc/pbcp-draft-0.8.md). Section numbers below refer to it.
 
 ```ts
 import { parseCard, toFrontMatter, toJSON, equal, submit, decide, checkSubmission } from '@pbcp/core';

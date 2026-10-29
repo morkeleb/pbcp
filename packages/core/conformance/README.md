@@ -166,6 +166,9 @@ Dot-separated: `body.change_seq`, `body.changes.0.seq`. A segment `[k=v]` select
 | C46 | A `kind` the head does not implement → 400 `unsupported_kind`; nothing is stored | §4.1, §7.4 |
 | C47 | A front-matter header containing `body` → 400 `invalid_card`; nothing is stored | §3 |
 | C48 | Syncing a card does not set `seen_at` or take a `change_seq` | §4.2, §7.2 |
+| C49 | `at` and `until` are stored and synced as sent and count for equality; a moved `until` replaces the open card and leaves `seen_at` | §4.1, §5 |
+| C50 | An `at` with a non-UTC offset, `until` without `at`, `until` before `at`, or a date as `at` → 400 `invalid_card`; nothing is stored | §2, §4.1 |
+| C51 | A moved `at` on a decided card → 409 with the decided card; a successor supersedes it with the new time, the predecessor keeps its decision and `at` | §5, §6, §8 |
 | R01 | Each core-tier type renders; the text around it is intact | §3.1 |
 | R02 | An unknown diagram type falls back with its label; text intact | §3.1 |
 | R03 | A fence with a parse error falls back with a parser message (shown, its wording the renderer's); the other fences still render | §3.1 |
