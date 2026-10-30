@@ -236,7 +236,7 @@ connectors/hermes/
 | Skill | What it teaches Hermes |
 | --- | --- |
 | **pbcp-escalate** | The authority boundary as a rule: before sending, spending, deleting, or committing to anyone outside the user, call `submit_card` with `kind: decision`, the evidence as context, the proposal as a section, and `actions`; then stop that thread. On a later turn, `poll_changes` and continue only on `approve` or `edited` (acting on the edited text). Anything informational goes out as `signal` or `artifact` at `urgency: log` or `brief`. Never re-submit on 409; read the decision in the body. |
-| **pbcp-executor** | Installed as a cron skill (`hermes cron` every minute): `poll_changes` for orders addressed to `hermes` or `*`; `claim_order` with a 60-second lease; do the work, calling `claim_order` again in renew mode before each irreversible step and stopping on 410; finish with `submit_card` as the outcome, `references` the order, `orders.claim_seq` from the claim. Failure is an outcome card, never silence. |
+| **pbcp-executor** | Installed as a cron skill (`hermes cron` every minute): `poll_changes` for orders addressed to `hermes` or `*`; `claim_order` with a 60-second lease; do the work, calling `claim_order` again in renew mode before each irreversible step and stopping on 410; report progress with `report_progress` and finish with `complete_order`; the server mints both ids, and the outcome's `orders.claim_seq`, from the claim it holds. Failure is an outcome card, never silence. |
 
 Hermes's token is bound to the root `hermes`, so everything it submits is `hermes:<namespace>:…`, and Hermes is marked `executor: true` in `producer_tokens` so it receives wildcard orders. With this plus n8n, both of the 24/7 systems you already run become producers and executors without either learning HTTP.
 
@@ -439,7 +439,7 @@ Auth: bearer token → sha256 → `producer_tokens` lookup, root attached to the
 
 **No worker process.** Lease expiry is evaluated lazily on the next claim or sync that touches the order, which A.2 permits; the brief is the only scheduled job. That is what keeps the whole head deployable as a single Vercel project.
 
-**MCP adapter** (`@pbcp/mcp`): three tools, `submit_card`, `poll_changes`, `claim_order`, each a one-line call into `HeadClient`. Shipped separately so the head app has no MCP dependency.
+**MCP adapter** (`@pbcp/mcp`): `submit_card`, `poll_changes` and `claim_order`, each a one-line call into `HeadClient`, and `report_progress` and `complete_order`, which write an order's progress and outcome cards from the claim the server holds. Shipped separately so the head app has no MCP dependency.
 
 **Rendering pipeline** (RFC §3.1). Every card body is rendered once, on receipt, server-side, and the result is what both web and phone display. No producer text is ever executed in a browser or on a phone.
 

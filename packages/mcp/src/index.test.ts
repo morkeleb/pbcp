@@ -4,14 +4,14 @@ import { readFileSync } from 'node:fs';
 import { HeadClient, RELEASE_TAG, card } from '@pbcp/client';
 import { toFrontMatter } from '@pbcp/core';
 import { describe, expect, it } from 'vitest';
-import { stubHead } from '@pbcp/client/testing';
+import { STUB_NOW, stubHead } from '@pbcp/client/testing';
 import { configFrom, createServer } from './index.js';
 
 const sample = (title = 'Hi') =>
   card({ producer: 'hermes', namespace: 'gmail', upstream: 'x1', kind: 'decision', to_person: 'morten', title, body: 'b', actions: ['approve', 'reject', 'edit'], emitted_at: '2026-10-26T10:00:00Z' });
 
-async function setup(opts: { executors?: string[]; stub?: ReturnType<typeof stubHead>; token?: string; toPerson?: string } = {}) {
-  const stub = opts.stub ?? stubHead({ pageSize: 2, executors: opts.executors, roots: { tok: 'hermes' } });
+async function setup(opts: { executors?: string[]; stub?: ReturnType<typeof stubHead>; token?: string; toPerson?: string; now?: () => string } = {}) {
+  const stub = opts.stub ?? stubHead({ pageSize: 2, executors: opts.executors, roots: { tok: 'hermes' }, now: opts.now });
   const server = createServer(new HeadClient({ baseUrl: 'https://head.test', token: opts.token ?? 'tok', fetch: stub.fetch }), { toPerson: opts.toPerson });
   const [a, b] = InMemoryTransport.createLinkedPair();
   const client = new Client({ name: 'test', version: '0' });
@@ -24,10 +24,10 @@ async function setup(opts: { executors?: string[]; stub?: ReturnType<typeof stub
 }
 
 describe('@pbcp/mcp', () => {
-  it('exposes exactly submit_card, poll_changes and claim_order', async () => {
+  it('exposes exactly submit_card, poll_changes, claim_order, report_progress and complete_order', async () => {
     const { client } = await setup();
     const { tools } = await client.listTools();
-    expect(tools.map((t) => t.name).sort()).toEqual(['claim_order', 'poll_changes', 'submit_card']);
+    expect(tools.map((t) => t.name).sort()).toEqual(['claim_order', 'complete_order', 'poll_changes', 'report_progress', 'submit_card']);
   });
 
   it('tells the model how to pick a kind and an urgency (RFC §4.1a)', async () => {
@@ -63,6 +63,89 @@ describe('@pbcp/mcp', () => {
     const res = await call('submit_card', { card: card({ producer: 'hermes', namespace: 'order', upstream: ulid, intent: `outcome-${seq}`, kind: 'signal', to_person: 'morten', title: 'Watered', body: '', thread: o.id, references: [o.id], 'orders.claim_seq': seq, 'orders.result': 'done' }) });
     expect(res.json.status).toBe(201);
     expect(stub.cards.get(o.id)).toMatchObject({ exec_state: 'done' });
+  });
+
+  it('report_progress mints sequential ids per claim, and starts over on a new claim (A.3, A.4)', async () => {
+    let now = STUB_NOW;
+    const { call, stub } = await setup({ executors: ['hermes'], now: () => now });
+    const o = stub.order({ to_producer: 'hermes', title: 'Book the dentist', body: '' });
+    const ulid = o.id.split(':')[2]!;
+    await call('claim_order', { id: o.id });
+    const first = await call('report_progress', { order_id: o.id, note: 'Started: booking the dentist for next week.\nTrying Dr Holm first.' });
+    expect(first).toMatchObject({ isError: false, json: { status: 201, id: `hermes:order:${ulid}:progress-1-1` } });
+    expect(stub.cards.get(`hermes:order:${ulid}:progress-1-1`)).toMatchObject({
+      kind: 'signal', urgency: 'log', thread: o.id, references: [o.id], to_person: 'morten',
+      title: 'Started: booking the dentist for next week.', body: 'Started: booking the dentist for next week.\nTrying Dr Holm first.',
+    });
+    await call('claim_order', { id: o.id }); // a renewal keeps claim_seq and the count
+    expect((await call('report_progress', { order_id: o.id, note: 'Booked Tue 09:00.' })).json.id).toBe(`hermes:order:${ulid}:progress-1-2`);
+    now = '2026-10-26T13:00:00Z'; // the lease lapses; the next claim is claim_seq 2
+    expect((await call('claim_order', { id: o.id })).json.order.claim_seq).toBe(2);
+    expect((await call('report_progress', { order_id: o.id, note: 'Started again.' })).json.id).toBe(`hermes:order:${ulid}:progress-2-1`);
+  });
+
+  it('report_progress and complete_order refuse an order this server has not claimed, without a request', async () => {
+    const { call, stub } = await setup({ executors: ['hermes'] });
+    const o = stub.order({ to_producer: 'hermes', title: 'Book the dentist', body: '' });
+    const before = stub.requests.length;
+    expect(await call('report_progress', { order_id: o.id, note: 'Started.' })).toMatchObject({ isError: true, json: { error: 'not_claimed', message: expect.stringContaining('claim_order') } });
+    expect(await call('complete_order', { order_id: o.id, result: 'done', title: 'Done', body: '' })).toMatchObject({ isError: true, json: { error: 'not_claimed' } });
+    expect(stub.requests.length).toBe(before);
+  });
+
+  it('forgets a claim another executor took over (409), and keeps one for the report after a cancel (410, A.5)', async () => {
+    let now = STUB_NOW;
+    const { call, stub } = await setup({ executors: ['hermes', 'cal'], now: () => now });
+    const o = stub.order({ to_producer: '*', title: 'Book the dentist', body: '' });
+    await call('claim_order', { id: o.id });
+    now = '2026-10-26T13:00:00Z';
+    await (await setup({ stub, token: 'cal' })).call('claim_order', { id: o.id });
+    expect((await call('claim_order', { id: o.id })).json).toMatchObject({ status: 409, error: 'lease_held' });
+    expect((await call('report_progress', { order_id: o.id, note: 'Still here.' })).json.error).toBe('not_claimed');
+
+    const p = stub.order({ to_producer: 'hermes', title: 'Water the plants', body: '' });
+    await call('claim_order', { id: p.id });
+    stub.decideHere(p.id, { decision: 'dismissed' });
+    expect((await call('claim_order', { id: p.id })).json).toMatchObject({ status: 410, error: 'order_terminal' });
+    const report = await call('complete_order', { order_id: p.id, result: 'failed', title: 'Stopped: the order was cancelled', body: 'Nothing was watered.' });
+    expect(report).toMatchObject({ isError: false, json: { status: 201, card: { 'orders.result': 'failed' } } });
+    expect(stub.cards.get(p.id)).toMatchObject({ exec_state: 'cancelled' });
+  });
+
+  it('complete_order posts a valid outcome: an artifact by default, or a decision that proposes (A.3)', async () => {
+    const { call, stub } = await setup({ executors: ['hermes'] });
+    const o = stub.order({ to_producer: 'hermes', title: 'Book the dentist', body: '' });
+    const ulid = o.id.split(':')[2]!;
+    await call('claim_order', { id: o.id });
+    await call('report_progress', { order_id: o.id, note: 'Started.' });
+    const res = await call('complete_order', {
+      order_id: o.id, result: 'done', title: 'Booked the dentist for Tue 3 Nov 09:00', body: 'Dr Holm, 15 minutes.',
+      summary: 'Booked the dentist for Tuesday at 09:00 with Dr Holm.', at: '2026-11-03T08:00:00Z', until: '2026-11-03T08:15:00Z',
+      source: { url: 'https://calendar.example/e/1', label: 'Open in Calendar' },
+    });
+    expect(res).toMatchObject({ isError: false, json: { status: 201, id: `hermes:order:${ulid}:outcome-1` } });
+    expect(stub.cards.get(`hermes:order:${ulid}:outcome-1`)).toMatchObject({
+      kind: 'artifact', thread: o.id, references: [o.id], 'orders.claim_seq': 1, 'orders.result': 'done',
+      at: '2026-11-03T08:00:00Z', until: '2026-11-03T08:15:00Z', source: { url: 'https://calendar.example/e/1' },
+    });
+    expect(stub.cards.get(o.id)).toMatchObject({ exec_state: 'done' });
+    // The claim is closed: the server holds it no longer.
+    expect((await call('report_progress', { order_id: o.id, note: 'More.' })).json.error).toBe('not_claimed');
+
+    const d = stub.order({ to_producer: 'hermes', title: 'Answer Lars', body: '' });
+    await call('claim_order', { id: d.id });
+    const draft = await call('complete_order', { order_id: d.id, result: 'done', kind: 'decision', actions: ['approve', 'reject', 'edit'], title: 'Send this reply to Lars?', body: '> Yes.', summary: 'A reply to Lars accepting the renewal; send it?' });
+    expect(draft.json).toMatchObject({ status: 201, card: { kind: 'decision', actions: ['approve', 'reject', 'edit'], 'orders.result': 'done' } });
+    const bad = stub.order({ to_producer: 'hermes', title: 'X', body: '' });
+    await call('claim_order', { id: bad.id });
+    expect(await call('complete_order', { order_id: bad.id, result: 'done', title: 'two\nlines', body: '' })).toMatchObject({ isError: true, json: { status: 400, error: 'invalid_card' } });
+  });
+
+  it('the executor skill closes orders with the tools, not with ids it assembles', () => {
+    const skill = readFileSync(new URL('../../../connectors/hermes/skills/pbcp-executor/SKILL.md', import.meta.url), 'utf8');
+    expect(skill).toContain('`report_progress`');
+    expect(skill).toContain('`complete_order`');
+    expect(skill).not.toMatch(/progress-<claim_seq>|outcome-<claim_seq>/);
   });
 
   it('addresses a card without to_person to the head\'s owner, read once from its description (§7.5, §10)', async () => {

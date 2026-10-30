@@ -1,7 +1,7 @@
 {
   "name": "@pbcp/mcp",
   "version": "0.8.0",
-  "description": "PBCP MCP server over stdio: submit_card and poll_changes.",
+  "description": "PBCP MCP server over stdio: submit_card, poll_changes, and for orders claim_order, report_progress and complete_order.",
   "license": "MIT",
   "type": "module",
   "bin": {
