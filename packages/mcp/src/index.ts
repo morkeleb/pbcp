@@ -1,10 +1,10 @@
-// An MCP adapter over HeadClient (RFC §7): submit_card, poll_changes and, for the orders extension, claim_order.
-// Not a second definition of the protocol.
+// An MCP adapter over HeadClient (RFC §7): submit_card, poll_changes and, for the orders extension, claim_order,
+// report_progress and complete_order. Not a second definition of the protocol.
 
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import type { CallToolResult } from '@modelcontextprotocol/sdk/types.js';
-import { HeadClient, HeadHttpError } from '@pbcp/client';
-import { ClaimRefusal, PbcpError, parseCardOrThrow, yamlScalar, type ProducerCard } from '@pbcp/core';
+import { HeadClient, HeadHttpError, card as build } from '@pbcp/client';
+import { ClaimRefusal, OUTCOME_CLAIM_SEQ, OUTCOME_RESULT, PbcpError, parseCardOrThrow, ulidOf, yamlScalar, type ProducerCard } from '@pbcp/core';
 import { z } from 'zod';
 
 export const VERSION = '0.8.0';
@@ -35,11 +35,15 @@ const result = (value: object): CallToolResult => ({
   structuredContent: value as Record<string, unknown>,
 });
 
+/** report_progress or complete_order on an order this server has not claimed: refused here, before any request. */
+class NotClaimed extends Error {}
+
 /** Refusals come back as tool errors carrying the RFC status and code (§7.4), so the caller can fix the card. */
 function refusal(e: unknown): CallToolResult {
   const error =
     e instanceof ClaimRefusal ? { status: e.status, error: e.code, message: e.message, order: e.order }
     : e instanceof PbcpError ? { status: e.status, error: e.code, message: e.message }
+    : e instanceof NotClaimed ? { error: 'not_claimed', message: e.message }
     : e instanceof HeadHttpError ? { status: e.status, error: 'http', message: e.message, body: e.body }
     : { error: 'failed', message: e instanceof Error ? e.message : String(e) };
   return { content: [{ type: 'text', text: JSON.stringify(error, null, 2) }], isError: true };
@@ -65,9 +69,25 @@ Returns { changes: [{ seq, card }], next }. A decided card has state "decided" a
 
 const CLAIM = `Claim an order, or renew a lease you hold (PBCP Appendix A.2). Pass the order id and lease_seconds (default 60). Renew at least every half lease while you work, and always just before an irreversible step (sending, paying, deleting): only proceed if the renewal succeeds.
 
-Returns the order with exec_state "claimed" and claim_seq. A renewal keeps claim_seq; a new claim (after a lease lapsed) gets a new one. When done, submit_card one outcome card for your claim, in your own namespace: id <you>:order:<ulid>:outcome-<claim_seq> (ulid is the last segment of the order id), references: [order id], thread: order id, "orders.claim_seq": your claim_seq, and "orders.result": "done" or "failed" (both are required).
+Returns the order with exec_state "claimed" and claim_seq. A renewal keeps claim_seq; a new claim (after a lease lapsed) gets a new one. This server remembers the claim, so report_progress and complete_order can write the order's cards for you: never assemble an order card id yourself.
 
-Errors: 409 lease_held — another executor has it; stand down. 410 order_terminal — the order is done, failed or cancelled; stop, never retry, and report what you did and did not do in the outcome card. 400 invalid_lease — lease_seconds must be a positive integer.`;
+Errors: 409 lease_held — another executor has it; stand down. 410 order_terminal — the order is done, failed or cancelled; stop, never retry, and report what you did and did not do with complete_order, result "failed". 400 invalid_lease — lease_seconds must be a positive integer.`;
+
+const PROGRESS = `Tell the person how an order you claimed is going (PBCP Appendix A.3). Pass the order id and a note: one or two plain sentences, the first line short enough to be a title ("Started: booking the dentist for next week."). The person reads these notes in their brief, in the order's thread, to see that the work is moving and what it has touched; a step they cannot see is a step they cannot stop or undo.
+
+Report when you start ("Started: <what you will do>"), after each step that changes something outside the head (a mail sent, an event booked, a file written), when you are waiting on something external, and just before an irreversible step, after renewing the claim with claim_order.
+
+The note is posted as a progress card in the order's thread (kind signal, urgency log, so it is recorded without interrupting anyone). You only need the order id: the server mints the card's id from the claim it holds. Refused if this server has not claimed the order; call claim_order first.
+
+Returns { status, id, state, change_seq, card }, as submit_card does.`;
+
+const COMPLETE = `Close an order you claimed with its outcome (PBCP Appendix A.3). Call it exactly once per claim, when the work is done, when it failed, or when a claim_order renewal answered 410 (the person cancelled). This card is the person's answer to the order: it is what they read in their brief, so the title says what happened ("Booked the dentist for Tue 3 Nov 09:00", "Could not book: the clinic is closed until Monday") and the body says what you did, with links, and, if you stopped early, what was and was not done.
+
+result is "done" or "failed". kind is "artifact" (the default) for a record of what you did, "signal" for something the person should know happened, or "decision" when you propose something that needs their approval before it takes effect ("here is the draft, send it?"): then give "actions" and a "summary" that states the proposal. Optional fields are as on any card (see submit_card): summary, source, labels, about, at, until, urgency.
+
+You only need the order id: the server mints the outcome's id and sets orders.claim_seq from the claim it holds, and thread and references to the order. Refused if this server has not claimed the order.
+
+Returns { status, id, state, change_seq, card }, as submit_card does. The order's exec_state then becomes done or failed, unless it was already cancelled; the outcome is still stored as your report.`;
 
 /**
  * The card as given, with `to_person` set to `owner` when it has none (§10): the model need not know who the head is for.
@@ -92,8 +112,26 @@ export function addressed(card: string | Record<string, unknown>, owner: string)
 const landed = ({ status, card }: { status: number; card: ProducerCard & { state?: string; change_seq?: number } }) =>
   ({ status, id: card.id, state: card.state, change_seq: card.change_seq, card });
 
+/** A claim this server holds: the root that holds it, its claim_seq, and the progress cards it has written (A.3, A.4). */
+interface Held {
+  root: string;
+  seq: number;
+  n: number;
+}
+
+const firstLine = (s: string) => s.split('\n').find((l) => l.trim() !== '')?.trim().slice(0, 200);
+
 export function createServer(head: Pick<HeadClient, 'submit' | 'sync' | 'claim' | 'describe'>, opts: { toPerson?: string } = {}): McpServer {
   const server = new McpServer({ name: 'pbcp', version: VERSION });
+  const held = new Map<string, Held>();
+  const holding = (id: string): Held => {
+    const h = held.get(id);
+    if (!h) throw new NotClaimed(`this server holds no claim on ${id}; call claim_order first. If you claimed it and a renewal answered 409 lease_held, another executor has it: stand down.`);
+    return h;
+  };
+  /** A card in the order's thread, under the claiming root's namespace `order` (A.4). */
+  const own = async (orderId: string, h: Held, intent: string, fields: Record<string, unknown> & { kind: ProducerCard['kind']; title: string; body: string }) =>
+    build({ ...fields, producer: h.root, namespace: 'order', upstream: ulidOf(orderId), intent, to_person: await ready(), thread: orderId, references: [orderId] });
   // Without a configured addressee, the head's description says who it is for (§7.5), read once, when the first card
   // without to_person arrives. A card that has one needs no request before it is checked.
   let owner: Promise<string> | undefined = opts.toPerson === undefined ? undefined : Promise.resolve(opts.toPerson);
@@ -145,7 +183,68 @@ export function createServer(head: Pick<HeadClient, 'submit' | 'sync' | 'claim' 
     },
     async ({ id, lease_seconds }) => {
       try {
-        return result({ order: await head.claim(id, lease_seconds) });
+        const order = await head.claim(id, lease_seconds);
+        const h = held.get(id);
+        // A renewal keeps claim_seq and the progress count; a new claim starts both over (A.2).
+        if (order.claimed_by && order.claim_seq && h?.seq !== order.claim_seq) held.set(id, { root: order.claimed_by, seq: order.claim_seq, n: 0 });
+        return result({ order });
+      } catch (e) {
+        // 409: another root holds the lease now. A 410 keeps the claim, so complete_order can still report (A.5).
+        if (e instanceof ClaimRefusal && e.code === 'lease_held') held.delete(id);
+        return refusal(e);
+      }
+    },
+  );
+
+  server.registerTool(
+    'report_progress',
+    {
+      description: PROGRESS,
+      inputSchema: {
+        order_id: z.string().describe('The order id, head:order:<ulid>'),
+        note: z.string().trim().min(1).describe('One or two sentences for the person; the first line is the title'),
+      },
+      annotations: { idempotentHint: false, destructiveHint: false, openWorldHint: true },
+    },
+    async ({ order_id, note }) => {
+      try {
+        const h = holding(order_id);
+        const res = await head.submit(await own(order_id, h, `progress-${h.seq}-${h.n + 1}`, { kind: 'signal', urgency: 'log', title: firstLine(note)!, body: note }));
+        h.n += 1;
+        return result(landed(res));
+      } catch (e) {
+        return refusal(e);
+      }
+    },
+  );
+
+  server.registerTool(
+    'complete_order',
+    {
+      description: COMPLETE,
+      inputSchema: {
+        order_id: z.string().describe('The order id, head:order:<ulid>'),
+        result: z.enum(['done', 'failed']).describe('"done", or "failed" if you could not do it or the order was cancelled'),
+        title: z.string().describe('One line: what happened'),
+        body: z.string().describe('What you did, with links; if you stopped early, what was and was not done'),
+        kind: z.enum(['artifact', 'signal', 'decision']).default('artifact').describe('"artifact" (default), "signal", or "decision" when you propose something'),
+        actions: z.array(z.unknown()).optional().describe('For a decision: the choices, e.g. ["approve", "reject", "edit"]'),
+        summary: z.string().optional().describe('One plain line for the brief (§4.1)'),
+        source: z.object({ url: z.string(), label: z.string().optional() }).optional().describe('Opens what the outcome is about'),
+        labels: z.array(z.string()).optional(),
+        about: z.string().optional().describe('YYYY-MM-DD'),
+        at: z.string().optional().describe('UTC timestamp ending in Z'),
+        until: z.string().optional().describe('UTC timestamp ending in Z'),
+        urgency: z.enum(['immediate', 'brief', 'log']).optional(),
+      },
+      annotations: { idempotentHint: true, destructiveHint: false, openWorldHint: true },
+    },
+    async ({ order_id, result: outcome, ...fields }) => {
+      try {
+        const h = holding(order_id);
+        const res = await head.submit(await own(order_id, h, `outcome-${h.seq}`, { ...fields, [OUTCOME_CLAIM_SEQ]: h.seq, [OUTCOME_RESULT]: outcome }));
+        held.delete(order_id);
+        return result(landed(res));
       } catch (e) {
         return refusal(e);
       }

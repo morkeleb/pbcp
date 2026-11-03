@@ -2,9 +2,9 @@
 
 A Hermes Agent plugin in the Agent Plugins 1.0 layout: `@pbcp/mcp` as the MCP server, plus two skills. The only code is `src/connect.ts`, the setup text below.
 
-- `mcp.json` starts `npx -y @pbcp/mcp` over stdio and passes `PBCP_HEAD_URL` and `PBCP_TOKEN` through from the environment. The server exposes `submit_card`, `poll_changes` and `claim_order` (see `packages/mcp`).
+- `mcp.json` starts `npx -y @pbcp/mcp` over stdio and passes `PBCP_HEAD_URL` and `PBCP_TOKEN` through from the environment. The server exposes `submit_card`, `poll_changes`, `claim_order`, `report_progress` and `complete_order` (see `packages/mcp`).
 - `skills/pbcp-escalate` — before sending, spending, deleting or committing to anyone outside the user, submit a `kind: decision` card and stop; continue on a later turn only on the person's answer. Informational output goes out as `signal` or `artifact` at `log` or `brief`.
-- `skills/pbcp-executor` — the order loop of RFC Appendix A, run on a Hermes cron every minute: poll for orders to `hermes` or `*`, `claim_order` with a 60-second lease, renew at least every 30 seconds and before every irreversible step, stop on `410`, and close each order with one outcome card carrying `orders.claim_seq`. Orders to `*` reach Hermes only if the head lists it as an executor.
+- `skills/pbcp-executor` — the order loop of RFC Appendix A, run on a Hermes cron every minute: poll for orders to `hermes` or `*`, `claim_order` with a 60-second lease, renew at least every 30 seconds and before every irreversible step, report progress with `report_progress` (on starting, after each step that changes something outside the head, while waiting, and before each irreversible step), stop on `410`, and close each order with one `complete_order`. The server mints the progress and outcome ids from the claim it holds. Orders to `*` reach Hermes only if the head lists it as an executor.
 
 ## Rules
 
