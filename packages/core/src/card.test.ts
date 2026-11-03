@@ -266,6 +266,15 @@ describe('equal (§5)', () => {
     expect(equal(parseCardOrThrow(toFrontMatter(RFC_WIRE)), RFC_WIRE)).toBe(true);
   });
 
+  // OPEN.md 11: §2 and §5 do not say whether a timestamp's value is its text or its instant. Core compares the text,
+  // so the same instant written two ways is a revision. If 0.9 adopts the instant reading, the first two flip to true.
+  it('compares at and until as written, not as instants (OPEN.md 11)', () => {
+    const at = parseCardOrThrow(minimal({ at: '2026-10-30T21:45:00Z' }));
+    expect(equal(at, parseCardOrThrow(minimal({ at: '2026-10-30T21:45:00.000Z' })))).toBe(false);
+    expect(equal(at, parseCardOrThrow(minimal({ at: '2026-10-30T21:45:00+00:00' })))).toBe(false);
+    expect(equal(at, parseCardOrThrow(minimal({ at: '2026-10-30T21:45:00Z' })))).toBe(true);
+  });
+
   it('treats default: false as no default', () => {
     expect(equal({ ...base, actions: [{ id: 'a', default: false }] }, { ...base, actions: ['a'] })).toBe(true);
     expect(equal({ ...base, actions: [{ id: 'a', default: true }] }, { ...base, actions: ['a'] })).toBe(false);
