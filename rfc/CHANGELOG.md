@@ -25,6 +25,10 @@ Draft 0.8 adds two producer-owned fields, `at` and `until`: when the thing a car
 
 **§4.1a — kind names.** Advisory: a head shows the person what a card wants (decide, acknowledge, read), not the kind name.
 
+**OPEN.md 11 — equal timestamps written differently (§2, §5).** Opened: §5 does not say whether a timestamp's value is its text or its instant, so `…:00Z` and `…:00.000Z` in `at` or `until` may or may not be the same card. Core compares the text, pinned in `card.test.ts`; the instant reading is recommended for 0.9.
+
+**OPEN.md 10 — `x-at` across the rename.** Answered: nothing to preserve. No producer shipped `x-at` or `x-until` before 0.8; the pbcp connectors never did, and the reference head's store holds no card carrying either. A head need not read `x-at`, and the reference head does not (PR #35).
+
 **Connectors.** caldav: a `log` artifact per timed occurrence with `at`/`until`, referenced from the day's agenda; signals carry the times. MCP, hermes skills and CLI describe and accept both.
 
 ## 0.7 (2026-10-27)
