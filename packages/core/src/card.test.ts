@@ -267,12 +267,17 @@ describe('equal (§5)', () => {
   });
 
   // OPEN.md 11: §2 and §5 do not say whether a timestamp's value is its text or its instant. Core compares the text,
-  // so the same instant written two ways is a revision. If 0.9 adopts the instant reading, the first two flip to true.
+  // so the same instant written two ways is a revision. If 0.9 adopts the instant reading, every `false` here flips.
   it('compares at and until as written, not as instants (OPEN.md 11)', () => {
-    const at = parseCardOrThrow(minimal({ at: '2026-10-30T21:45:00Z' }));
-    expect(equal(at, parseCardOrThrow(minimal({ at: '2026-10-30T21:45:00.000Z' })))).toBe(false);
-    expect(equal(at, parseCardOrThrow(minimal({ at: '2026-10-30T21:45:00+00:00' })))).toBe(false);
-    expect(equal(at, parseCardOrThrow(minimal({ at: '2026-10-30T21:45:00Z' })))).toBe(true);
+    const at = '2026-10-30T21:45:00Z';
+    const card = (fields: Record<string, unknown>) => parseCardOrThrow(minimal(fields));
+    for (const same of ['2026-10-30T21:45:00.000Z', '2026-10-30T21:45:00+00:00', '2026-10-30T21:45:00-00:00']) {
+      expect(equal(card({ at }), card({ at: same }))).toBe(false);
+      expect(equal(card({ at, until: at }), card({ at, until: same }))).toBe(false);
+    }
+    // Fractional digits differ in number, not in value.
+    expect(equal(card({ at: '2026-10-30T21:45:00.5Z' }), card({ at: '2026-10-30T21:45:00.500Z' }))).toBe(false);
+    expect(equal(card({ at, until: at }), card({ at, until: at }))).toBe(true);
   });
 
   it('treats default: false as no default', () => {
