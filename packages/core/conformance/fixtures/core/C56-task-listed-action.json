@@ -1,0 +1,57 @@
+{
+  "name": "C56 a task with a listed tomorrow action is decided tomorrow",
+  "rfc": [
+    "§4.1",
+    "§4.3",
+    "§7.3"
+  ],
+  "covers": [
+    "§7.3 On a task, `decision` MUST be `done`, one of the task's `actions`, or `dismissed`"
+  ],
+  "steps": [
+    {
+      "op": "put",
+      "args": {
+        "token": "todo",
+        "card": {
+          "protocol": "pbcp/1",
+          "id": "todo:task:7735",
+          "kind": "task",
+          "to_person": "morten",
+          "producer": "todo",
+          "title": "Renew the passport",
+          "body": "Form and photo at the town hall.",
+          "emitted_at": "2026-11-05T06:00:00Z",
+          "actions": [
+            "tomorrow"
+          ]
+        }
+      },
+      "expect": {
+        "status": 201,
+        "body": {
+          "state": "open",
+          "actions": [
+            "tomorrow"
+          ]
+        }
+      }
+    },
+    {
+      "op": "decide",
+      "args": {
+        "id": "todo:task:7735",
+        "decision": {
+          "decision": "tomorrow"
+        }
+      },
+      "expect": {
+        "status": 200,
+        "body": {
+          "state": "decided",
+          "decision": "tomorrow"
+        }
+      }
+    }
+  ]
+}

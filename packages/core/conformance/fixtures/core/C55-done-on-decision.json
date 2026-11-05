@@ -1,0 +1,73 @@
+{
+  "name": "C55 done on a decision card that does not list it is 400 invalid_decision, and the card stays open",
+  "rfc": [
+    "§4.3",
+    "§7.3",
+    "§7.4"
+  ],
+  "covers": [
+    "§7.3 `decision` MUST be one of the card's `actions` other than `edit`"
+  ],
+  "steps": [
+    {
+      "op": "put",
+      "args": {
+        "token": "todo",
+        "card": {
+          "protocol": "pbcp/1",
+          "id": "todo:item:7734",
+          "kind": "decision",
+          "to_person": "morten",
+          "producer": "todo",
+          "title": "Order a new passport photo?",
+          "body": "The old one is from 2016.",
+          "emitted_at": "2026-11-05T06:00:00Z"
+        }
+      },
+      "expect": {
+        "status": 201,
+        "body": {
+          "state": "open"
+        }
+      }
+    },
+    {
+      "op": "decide",
+      "args": {
+        "id": "todo:item:7734",
+        "decision": {
+          "decision": "done"
+        }
+      },
+      "expect": {
+        "status": 400,
+        "body": {
+          "error": "invalid_decision"
+        }
+      }
+    },
+    {
+      "op": "syncAll",
+      "args": {
+        "token": "todo",
+        "after": 0
+      },
+      "expect": {
+        "status": 200,
+        "body": {
+          "changes": [
+            {
+              "card": {
+                "id": "todo:item:7734",
+                "state": "open",
+                "decision": {
+                  "$absent": true
+                }
+              }
+            }
+          ]
+        }
+      }
+    }
+  ]
+}

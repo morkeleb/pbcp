@@ -230,5 +230,17 @@
   {
     "requirement": "§A.5 MUST NOT rely on a cached",
     "why": "client-side behaviour (an executor's)"
+  },
+  {
+    "requirement": "§4.5 A head MUST offer `done` as the task's primary control",
+    "why": "interface behaviour a fixture cannot observe"
+  },
+  {
+    "requirement": "§4.5 A head SHOULD present a day's open tasks together",
+    "why": "interface behaviour a fixture cannot observe"
+  },
+  {
+    "requirement": "§8 A brief MUST likewise include every open task",
+    "why": "interface behaviour a fixture cannot observe"
   }
 ]

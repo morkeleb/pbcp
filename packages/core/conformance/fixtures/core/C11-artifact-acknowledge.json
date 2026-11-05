@@ -7,7 +7,7 @@
   ],
   "covers": [
     "§4.1 cards never carry it",
-    "§4.2 MUST NOT set it on a decision card",
+    "§4.2 MUST NOT set it on a `decision`",
     "§7.2 MUST increase whenever its current representation changes"
   ],
   "steps": [

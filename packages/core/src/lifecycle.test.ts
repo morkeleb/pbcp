@@ -186,6 +186,33 @@ describe('decide (§4.3, §7.3)', () => {
   });
 });
 
+describe('deciding a task (§4.3, §7.3)', () => {
+  const open = (over: Record<string, unknown> = {}) => submit(null, card({ kind: 'task', title: 'Renew the passport', ...over }), T0).card;
+
+  it('takes done, a listed action, or dismissed, and locks the task', () => {
+    expect(decide(open(), { decision: 'done' }, T1).card).toMatchObject({ state: 'decided', decision: 'done', decided_at: T1 });
+    expect(decide(open({ actions: ['tomorrow'] }), { decision: 'tomorrow' }, T1).card.decision).toBe('tomorrow');
+    expect(decide(open(), { decision: 'dismissed', comment: 'not mine' }, T1).card).toMatchObject({ decision: 'dismissed', comment: 'not mine' });
+  });
+
+  it('refuses edited, delegated, approve and an unlisted action with invalid_decision', () => {
+    throws(() => decide(open(), { decision: 'edited', edited_proposal: 'x' }, T1), 'invalid_decision', 400);
+    throws(() => decide(open(), { decision: 'delegated', delegated_to: 'anna' }, T1), 'invalid_decision', 400);
+    throws(() => decide(open(), { decision: 'approve' }, T1), 'invalid_decision', 400);
+    throws(() => decide(open(), { decision: 'tomorrow' }, T1), 'invalid_decision', 400);
+  });
+
+  it('refuses done on a decision card that does not list it, and takes it on one that does', () => {
+    throws(() => decide(submit(null, card(), T0).card, { decision: 'done' }, T1), 'invalid_decision', 400);
+    expect(decide(submit(null, card({ actions: ['done', 'not-yet'] }), T0).card, { decision: 'done' }, T1).card.decision).toBe('done');
+    throws(() => decide(submit(null, card({ kind: 'signal' }), T0).card, { decision: 'done' }, T1), 'not_decidable', 400);
+  });
+
+  it('is decided, not acknowledged', () => {
+    throws(() => acknowledge(open(), T1), 'not_acknowledgeable', 400);
+  });
+});
+
 describe('acknowledge and markSeen', () => {
   it('acknowledges an artifact without changing its state; idempotent', () => {
     const art = submit(null, card({ kind: 'artifact' }), T0).card;
