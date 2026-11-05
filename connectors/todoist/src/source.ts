@@ -6,6 +6,8 @@ export interface Task {
   id: string; content: string; description: string; state: 'open' | 'done' | 'deleted'; completedAt?: string; url?: string;
   /** Read by the reader only. `priority` is the API's: 4 is p1, 1 is p4. */
   due?: Due; priority?: number; projectId?: string; parentId?: string; labels?: string[]; duration?: { amount: number; unit: 'minute' | 'day' };
+  /** The API's `updated_at`, when it gives one; part of the reader's change signature. */
+  updatedAt?: string;
 }
 export interface NewTask { content: string; description: string; due_string?: string }
 
@@ -51,6 +53,7 @@ export function task(raw: unknown, id = ''): Task {
     ...(typeof t.priority === 'number' ? { priority: t.priority } : {}),
     ...(str(t.project_id) ? { projectId: str(t.project_id) } : {}), ...(str(t.parent_id) ? { parentId: str(t.parent_id) } : {}),
     ...(Array.isArray(t.labels) ? { labels: t.labels.map(str) } : {}),
+    ...(str(t.updated_at) ? { updatedAt: str(t.updated_at) } : {}),
     ...(dur && typeof dur.amount === 'number' && (dur.unit === 'minute' || dur.unit === 'day') ? { duration: { amount: dur.amount, unit: dur.unit } } : {}),
   };
 }
@@ -61,9 +64,12 @@ export const page = (raw: unknown): { tasks: Task[]; next?: string } =>
 
 const API = 'https://api.todoist.com/api/v1';
 
-/** Tasks it creates carry `label`, and `find` looks only at open tasks with that label. */
+/** The label the executor gives the tasks it creates for orders; the reader skips tasks carrying it. */
+export const EXECUTOR_LABEL = 'pbcp';
+
+/** Tasks it creates carry `label` (default `EXECUTOR_LABEL`), and `find` looks only at open tasks with that label. */
 export function restSource(token: string, opts: { project?: string; label?: string; fetch?: typeof fetch } = {}): TodoistSource & TodoistReader {
-  const label = opts.label ?? 'pbcp';
+  const label = opts.label ?? EXECUTOR_LABEL;
   const call = async (method: string, path: string, body?: unknown): Promise<unknown> => {
     const res = await (opts.fetch ?? fetch)(API + path, {
       method, body: body === undefined ? undefined : JSON.stringify(body),

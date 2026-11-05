@@ -80,7 +80,7 @@ Every outcome carries `references: [<order id>]`, `thread: <order id>`, `orders.
 
 ## Reader
 
-`TODOIST_MODE=reader` runs a producer (RFC §11.1, "A task reader"). Every `TODOIST_POLL_S` it lists the tasks due today or overdue (Todoist's `today | overdue` filter) and submits a `kind: task` card for each.
+`TODOIST_MODE=reader` runs a producer (RFC §11.1, "A task reader"). Every `TODOIST_POLL_S` it lists the tasks due today or overdue (Todoist's `today | overdue` filter) and submits a `kind: task` card for each. Tasks labelled `pbcp` are skipped: those are the executor's tasks for orders, already on the head as the order's cards.
 
 | Card field | From |
 |---|---|
@@ -92,18 +92,21 @@ Every outcome carries `references: [<order id>]`, `thread: <order id>`, `orders.
 | `labels` | the project's name and the task's labels, slugged to the §4.1 grammar (lowercase, `a`–`z`, digits and `-`, at most 32 characters), duplicates and empties dropped, at most 8 |
 | `source` | the task link (see [API](#api)), labelled `Todoist task` |
 | `body` | the description, then `## Subtasks` (open subtasks as `- [ ]` lines) and `## Comments`, each part only when it has content |
-| `urgency` | p1 (API priority 4) → `immediate`, p2 (3) → `brief`, p3 and p4 → `log`; a task due after today is always `log` |
+| `urgency` | by §4.1a: due today or overdue → `brief`, whatever the priority; p1 (API priority 4) → `immediate` only when it has a due time today at most 3 hours away, or already passed today; due later or undated → `log` |
 | `actions` | `[tomorrow]`; none on a recurring task, since rescheduling by `due_string` would replace its recurrence. `done` is implicit (§4.1) |
 
-An open card is sent again each pass, so a changed description or a new comment revises it (§5).
+An open card is sent again each pass, so a change to the task revises it (§5). Urgency counts for equality, so a p1 card is revised to `immediate` on the pass after its due time comes within 3 hours.
 
-**Decisions.** On `done` the task is completed in Todoist (`close`); on `tomorrow` it is rescheduled with `due_string: "tomorrow"`; on `dismissed` it is left alone and its card is not sent again. After `done` or `tomorrow` the card is superseded, at the next pass, by a `log` artifact `todoist:task:<id>:closed` (§4.3), its `summary` the task's title:
+**Rate.** Todoist allows about 450 requests per 15 minutes. Each pass makes one listing call (one per 200 tasks); subtasks and comments are fetched only for a task new to the reader or whose listing changed (its content, description, due, duration, priority, labels, project, parent or `updated_at`), and the body built from them is reused otherwise. Project names are fetched once per project and kept while the process runs. The trade-off: a new comment or subtask alone does not change the task's listing, so it shows on the card at the task's next change, or after a restart; a renamed project likewise shows after a restart. The signatures and names are held in memory only.
+
+**Decisions.** On `done` the task is completed in Todoist (`close`); on `tomorrow` it is rescheduled with `due_string: "tomorrow"`; on `dismissed` it is left as it is. The card is not sent again, and at the next pass it is superseded by a `log` artifact `todoist:task:<id>:closed` (§4.3), its `summary` the task's title:
 
 | What happened | Title |
 |---|---|
 | `done`, completed now | `Done in Todoist` |
 | `done` or `tomorrow` on a task Todoist already has completed (or, recurring, already moved past this occurrence) | `Already completed`, and no call |
 | `tomorrow` | `Rescheduled`, saying the new due day |
+| `dismissed` | `Dismissed`, saying it was left as it is in Todoist; no call |
 | completed in Todoist while the card is open, no decision | `Done in Todoist` |
 | moved to another day or its date removed in Todoist while open; for a recurring task, completed or moved there (the API does not tell the two apart) | `Changed in Todoist` |
 | deleted in Todoist while open | `Deleted in Todoist`, a `signal` (§6, retracting a card) |
@@ -128,7 +131,7 @@ The reader adds, equally unverified:
 - `GET /api/v1/tasks/filter?query=today%20%7C%20overdue&limit=200[&cursor=…]`: open tasks due today or overdue, by the account's day, `{ results, next_cursor }`. Each task's `due` is read as `{ date, is_recurring }`, with a due time in `due.date` as `YYYY-MM-DDTHH:MM:SS` (floating) or with `Z`; REST v2's `due.datetime` is accepted too. `duration` is `{ amount, unit: minute | day }`, `priority` 4 is p1.
 - `GET /api/v1/tasks?parent_id={id}&limit=200`: the open subtasks.
 - `GET /api/v1/comments?task_id={id}&limit=200`: the comments, `content` each.
-- `GET /api/v1/projects/{id}`: the project's `name`, once per project per pass.
+- `GET /api/v1/projects/{id}`: the project's `name`, once per project while the process runs.
 - `POST /api/v1/tasks/{id}/close`: completes the task; for a recurring one, the current occurrence.
 - `POST /api/v1/tasks/{id}` with `{ "due_string": "tomorrow" }`: Todoist reads it in the account's zone and drops any due time.
 - **Task link.** The Done outcome links to the task (`source`, RFC §4.1, labelled `Todoist task`). The task's `url` is used when the API returns one; otherwise the link is `https://app.todoist.com/app/task/<id>`, the web app's task address, which is assumed rather than documented by the API. Not-done and cancelled outcomes have no link, since the task is gone.

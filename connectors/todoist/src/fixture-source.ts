@@ -1,12 +1,11 @@
 import { readFileSync } from 'node:fs';
-import { page, task, type TodoistReader, type TodoistSource } from './source.js';
+import { nextDay } from './reader.js';
+import { EXECUTOR_LABEL, page, task, type TodoistReader, type TodoistSource } from './source.js';
 
 type Raw = Record<string, unknown>;
 export type FixtureSource = TodoistSource & TodoistReader & {
   raw: Map<string, Raw>; created: string[]; closed: string[]; rescheduled: string[]; complete(id: string): void; remove(id: string): void;
 };
-
-const nextDay = (day: string) => new Date(Date.parse(`${day}T00:00:00Z`) + 864e5).toISOString().slice(0, 10);
 
 /** A source over a recorded `GET /tasks` page (tasks.json), or recorded tasks, projects and comments pages (due.json), kept
  *  in the raw API shape. `complete` and `remove` act as the person in Todoist; completing a recurring task moves it to the
@@ -29,7 +28,7 @@ export function fixtureSource(path: string, opts: { today?: string } = {}): Fixt
     async create(t) {
       const id = `6Xfx${String(raw.size + 1).padStart(4, '0')}`;
       created.push(id);
-      raw.set(id, { id, content: t.content, description: t.description, labels: ['pbcp'], checked: false, is_deleted: false, completed_at: null, due: t.due_string ? { string: t.due_string, date: null, is_recurring: false, lang: 'en' } : null });
+      raw.set(id, { id, content: t.content, description: t.description, labels: [EXECUTOR_LABEL], checked: false, is_deleted: false, completed_at: null, due: t.due_string ? { string: t.due_string, date: null, is_recurring: false, lang: 'en' } : null });
       return task(raw.get(id));
     },
     get: async (id) => task(raw.get(id), id),

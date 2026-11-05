@@ -95,6 +95,25 @@
         "added_at": "2026-10-28T09:00:00.000000Z",
         "completed_at": null,
         "updated_at": "2026-10-28T09:00:00.000000Z"
+      },
+      {
+        "id": "6Xfx0106",
+        "user_id": "1000001",
+        "project_id": "6Xfp0001",
+        "section_id": null,
+        "parent_id": null,
+        "content": "Book the dentist",
+        "description": "Any weekday morning.\n\npbcp: todoist:order:01JBX0000000000000000000AA",
+        "labels": ["pbcp"],
+        "priority": 1,
+        "checked": false,
+        "is_deleted": false,
+        "child_order": 3,
+        "due": { "date": "2026-11-05", "string": "Nov 5", "lang": "en", "is_recurring": false, "timezone": null },
+        "duration": null,
+        "added_at": "2026-11-02T09:00:00.000000Z",
+        "completed_at": null,
+        "updated_at": "2026-11-02T09:00:00.000000Z"
       }
     ],
     "next_cursor": null
