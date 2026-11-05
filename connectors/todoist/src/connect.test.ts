@@ -15,5 +15,7 @@ describe('connect', () => {
     expect(md).not.toMatch(/<head url>|<owner>|<token>/);
     expect(md).toContain(`export PBCP_HEAD_URL='https://head.example/api' PBCP_TO_PERSON='anna' PBCP_TOKEN='pbcp_it'\\''s'`);
     expect(md).toContain('--executor');
+    expect(md).toContain('pnpm mint-token anna todoist --instance reader');
+    expect(md).toContain('TODOIST_MODE=reader');
   });
 });

@@ -18,6 +18,13 @@ export function connect(c: Connection): string {
     'node connectors/todoist/dist/src/index.js',
     FENCE,
     '',
+    `**Reader.** The same connector also reads Todoist into task cards (RFC §11.1, [Reader](#reader)). It runs as a second process under the same root, with a second token and its own store; it claims nothing, so the token is a producer's. On the reference head that is \`pnpm mint-token ${c.owner} todoist --instance reader\`. Start it with that token and \`TODOIST_MODE=reader\`:`,
+    '',
+    `${FENCE}sh`,
+    "export PBCP_TOKEN='<reader token>' TODOIST_MODE=reader",
+    'node connectors/todoist/dist/src/index.js',
+    FENCE,
+    '',
     'The project, polling and lease settings are under [Configuration](#configuration).',
   ].join('\n');
 }
