@@ -63,6 +63,7 @@ export class PbcpSubmit implements INodeType {
           { name: 'Decision', value: 'decision' },
           { name: 'Artifact', value: 'artifact' },
           { name: 'Signal', value: 'signal' },
+          { name: 'Task', value: 'task' },
         ],
         default: 'decision',
       },

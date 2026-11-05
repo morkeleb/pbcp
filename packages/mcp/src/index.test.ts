@@ -41,6 +41,15 @@ describe('@pbcp/mcp', () => {
     expect(submit).toContain('A subject with a day but no time (an all-day event, a date-only deadline) takes `about` alone.');
     expect(submit).toContain("Do not write the time only there: a time in the title or summary is for the person, who reads the brief's line; `at` is for the head, which reads nothing else.");
     expect(submit).not.toContain('Write the time nowhere else');
+    expect(submit).toContain('"task" to do something themselves');
+    expect(submit).toContain('"done" is implicit');
+  });
+
+  it('submits a task, and refuses one that lists done (RFC §4.1)', async () => {
+    const { call } = await setup();
+    const task = { ...sample('Renew the passport'), kind: 'task', actions: ['tomorrow'], about: '2026-11-05' };
+    expect((await call('submit_card', { card: task })).json).toMatchObject({ status: 201, card: { kind: 'task', actions: ['tomorrow'] } });
+    expect(await call('submit_card', { card: { ...task, actions: ['done'] } })).toMatchObject({ isError: true, json: { status: 400, error: 'invalid_card' } });
   });
 
   it('claims and renews an order, and reports 409 and 410 as tool errors with their code', async () => {
