@@ -631,7 +631,7 @@ The agent may offer a choice list instead (§4.4): `actions: [{ "id": "task-and-
 2. **Offer.** `done` needs no entry; `actions: [tomorrow]` offers a reschedule beside it.
 3. **Act.** On `done` the reader completes the item in the tool; on `tomorrow` it moves the due date; on `dismissed` it leaves the item alone. Each, once, idempotently (§5).
 4. **Record.** It then supersedes the task with a `log` artifact in the same namespace (`todo:task:<id>:closed`), titled with what happened (`Done in the tool`, `Rescheduled`).
-5. **Follow the tool.** An item completed in the tool supersedes its open card the same way, without a decision. A recurring item is a new card per occurrence, its id carrying the due date (`todo:task:<id>:2026-11-05`), so completing one occurrence never locks the next.
+5. **Follow the tool.** An item completed in the tool supersedes its open card the same way, without a decision. A recurring item is a new card per occurrence, its id carrying the due date (`todo:task:<id>:2026-11-05`), so completing one occurrence never locks the next; its closing card carries the date as well (`todo:task:<id>:closed-2026-11-05`), since an id has one intent segment (§5).
 
 ### 11.2 An executor (orders extension)
 
