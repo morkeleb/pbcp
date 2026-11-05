@@ -4,7 +4,7 @@ import { stubHead } from '@pbcp/client/testing';
 import { isId, type ProducerCard } from '@pbcp/core';
 import { describe, expect, it } from 'vitest';
 import { fixtureSource, loadFixtures } from './fixture-source.js';
-import { answeredCard, approvalId, ganttTitle, goalpathProducer, labelOf, NAMESPACE } from './producer.js';
+import { answeredCard, approvalId, ganttTitle, goalpathProducer, labelOf, NAMESPACE, taskId } from './producer.js';
 
 const FIX = fileURLToPath(new URL('../fixtures', import.meta.url));
 const M = (n: number) => `7a1e0c2e-4d4b-4c51-9b1a-00000000000${n}`;
@@ -13,6 +13,8 @@ const cfg = { toPerson: 'morten', projectId: 'p-demo', tz: 'Europe/Copenhagen', 
 const RISK = `goalpath:milestone:${M(4)}.20261124:risk`;
 const APPROVAL = `goalpath:approval:${I('12')}`;
 const BUILD = 'goalpath:build:gh-run-118842';
+const TASK = `goalpath:task:${I('15')}`;
+const tasksOf = (cs: ProducerCard[]) => cs.filter((c) => c.id.startsWith('goalpath:task:'));
 
 function setup(now = '2026-10-26T12:00:00Z') {
   const data = loadFixtures(FIX);
@@ -39,7 +41,9 @@ function setup(now = '2026-10-26T12:00:00Z') {
   const forecast = (n: number) => (data.get_milestone_forecast as Record<string, Record<string, unknown>>)[M(n)]!;
   /** A process restart: what runProducer keeps in memory (parked and 409-answered cards) is gone; the store stays. */
   const restart = () => attempts.clear();
-  return { stub, gp, store, pass, errors, parked, answers, restart, item, forecast, at: (t: string) => void (clock = new Date(t)) };
+  /** The item is no longer assigned to you: list_my_items stops listing it. */
+  const drop = (n: string) => void items.splice(items.findIndex((i) => i.id === I(n)), 1);
+  return { stub, gp, store, producer, drop, pass, errors, parked, answers, restart, item, forecast, at: (t: string) => void (clock = new Date(t)) };
 }
 
 describe('goalpath producer', () => {
@@ -264,5 +268,107 @@ describe('goalpath producer', () => {
     expect(ganttTitle('Q4: review #2; 100% done')).toBe('Q4 review 2 100 done');
     expect(ganttTitle('section cleanup')).toBe('· section cleanup');
     expect(ganttTitle('x'.repeat(50))).toHaveLength(40);
+  });
+
+  describe('tasks (§4.1, §4.3, §11.1)', () => {
+    /** GP-15 due today with a description and a link; GP-16 due on Friday at a time. */
+    const dated = () => {
+      const t = setup();
+      Object.assign(t.item('15'), { deadline: '2026-10-26', description: 'Cache the last 50 receipts on the device.', url: 'https://goalpath.example/i/15' });
+      t.item('16').deadline = '2026-10-30T14:30:00Z';
+      return t;
+    };
+
+    it('turns an item assigned to you with a due date into a task card', async () => {
+      const { pass, errors, at, stub } = dated();
+      const [today, friday] = tasksOf(await pass()) as [ProducerCard, ProducerCard];
+      expect(errors).toEqual([]);
+      expect(today).toMatchObject({
+        id: TASK, kind: 'task', urgency: 'brief', about: '2026-10-26', thread: M(5), title: 'GP-15 Offline mode for receipts',
+        summary: 'GP-15 Offline mode for receipts is NotStarted in Mobile beta, due 2026-10-26.', body: 'Cache the last 50 receipts on the device.',
+        source: { url: 'https://goalpath.example/i/15', label: 'GoalPath item' }, labels: ['billing-platform', 'mobile-beta'],
+      });
+      expect(today).not.toHaveProperty('at');
+      expect(today).not.toHaveProperty('actions');
+      // Due later is `log` until its day (§4.1a); a time of day becomes `at`, the local day `about`.
+      expect(friday).toMatchObject({ id: taskId(I('16')), kind: 'task', urgency: 'log', about: '2026-10-30', at: '2026-10-30T14:30:00Z', summary: 'GP-16 Push notification opt-in is Started in Mobile beta, due 2026-10-30 at 15:30.' });
+      expect(friday.body).toBe(friday.summary);
+      at('2026-10-30T08:00:00Z');
+      expect(tasksOf(await pass()).find((c) => c.id === friday.id)).toMatchObject({ urgency: 'brief' });
+      expect(stub.cards.get(friday.id)).toMatchObject({ state: 'open', urgency: 'brief' });
+    });
+
+    it('makes no task of an undated item, an Accepted one, or one not assigned to you', async () => {
+      const { pass, item } = setup();
+      item('10').deadline = '2026-10-20'; // Accepted
+      expect(tasksOf(await pass())).toEqual([]); // GP-12, 14, 15, 16 have no due date; only your items are listed at all
+    });
+
+    it('on done sets the item Accepted, then supersedes the task with a closing log artifact', async () => {
+      const { pass, stub, gp, item } = dated();
+      await pass();
+      stub.decideHere(TASK, { decision: 'done', comment: 'Shipped in 2.4.' });
+      await pass();
+      expect(gp.writes).toEqual([['set_item_status', { itemId: I('15'), status: 'Accepted' }], ['add_comment', { itemId: I('15'), content: 'Shipped in 2.4.' }]]);
+      const [closed] = tasksOf(await pass()).filter((c) => c.id.startsWith(TASK));
+      expect(closed).toMatchObject({
+        id: `${TASK}:closed`, kind: 'artifact', urgency: 'log', supersedes: TASK, thread: M(5), title: 'GP-15 Offline mode for receipts: done in GoalPath',
+        body: '**GP-15 Offline mode for receipts**: Marked done here; set to Accepted in GoalPath.', source: { url: 'https://goalpath.example/i/15', label: 'GoalPath item' },
+      });
+      expect(stub.cards.get(TASK)).toMatchObject({ state: 'superseded', decision: 'done' });
+      item('15').status = 'Accepted'; // the write-back as GoalPath now reports it
+      expect(tasksOf(await pass()).map((c) => c.id)).toEqual([taskId(I('16'))]);
+      expect(gp.writes).toHaveLength(2);
+    });
+
+    it('on dismissed leaves the item and closes the task', async () => {
+      const { pass, stub, gp } = dated();
+      await pass();
+      stub.decideHere(TASK, { decision: 'dismissed' });
+      await pass();
+      const [closed] = tasksOf(await pass()).filter((c) => c.id.startsWith(TASK));
+      expect(closed).toMatchObject({ id: `${TASK}:closed`, supersedes: TASK, title: 'GP-15 Offline mode for receipts: dismissed', body: '**GP-15 Offline mode for receipts**: Dismissed here; left as it is in GoalPath (NotStarted).' });
+      expect(gp.writes).toEqual([]);
+      expect(tasksOf(await pass()).map((c) => c.id)).toEqual([taskId(I('16'))]); // the item is still dated and open, but its task is closed
+    });
+
+    it('supersedes an open task completed in GoalPath, or no longer assigned to you, without a decision', async () => {
+      const { pass, stub, gp, item } = dated();
+      await pass();
+      item('15').status = 'Accepted';
+      const cards = tasksOf(await pass());
+      expect(cards.find((c) => c.id === `${TASK}:closed`)).toMatchObject({ kind: 'artifact', urgency: 'log', supersedes: TASK, title: 'GP-15 Offline mode for receipts: done in GoalPath', body: '**GP-15 Offline mode for receipts**: Accepted in GoalPath.' });
+      expect(stub.cards.get(TASK)).toMatchObject({ state: 'superseded' });
+      expect(stub.cards.get(TASK)).not.toHaveProperty('decision');
+      // A late decision cannot land on the superseded task (§8), and nothing is written back.
+      expect(stub.decideHere(TASK, { decision: 'done' })).toMatchObject({ state: 'superseded' });
+      await pass();
+      expect(gp.writes).toEqual([]);
+    });
+
+    it('closes the task of an item that leaves your list', async () => {
+      const { pass, stub, gp, drop } = dated();
+      await pass();
+      drop('15');
+      const closed = tasksOf(await pass()).find((c) => c.id.startsWith(TASK));
+      expect(closed).toMatchObject({ id: `${TASK}:closed`, supersedes: TASK, title: 'GP-15 Offline mode for receipts: closed in GoalPath', body: '**GP-15 Offline mode for receipts**: It is no longer assigned to you in GoalPath.', source: { url: 'https://goalpath.example/i/15' } });
+      expect(stub.cards.get(TASK)).toMatchObject({ state: 'superseded' });
+      expect(gp.writes).toEqual([]);
+    });
+
+    it('acts on a decision once, however often it is delivered', async () => {
+      const { pass, stub, gp, producer, restart } = dated();
+      await pass();
+      const decided = stub.decideHere(TASK, { decision: 'done' });
+      await pass();
+      await producer.onDecision(decided); // the same change delivered again (§7.2)
+      const closing = tasksOf(await pass()).filter((c) => c.id.startsWith(TASK));
+      restart();
+      await producer.onDecision(decided);
+      const after = tasksOf(await pass()).filter((c) => c.id.startsWith(TASK));
+      expect(gp.writes).toEqual([['set_item_status', { itemId: I('15'), status: 'Accepted' }]]);
+      expect(closing.map((c) => c.id)).toEqual([`${TASK}:closed`]);
+      expect(after).toEqual([]); // the task is neither re-sent nor closed again
+    });
   });
 });

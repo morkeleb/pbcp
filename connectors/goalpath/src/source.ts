@@ -1,7 +1,8 @@
 // The GoalPath facts the producer needs, normalised from the MCP tools' JSON. Every raw shape read here is a guess (README).
 
 export interface Milestone { id: string; name: string; start?: string; deadline?: string; projected?: string; confidence?: string; reasons: string[]; url?: string }
-export interface Item { id: string; number: string; title: string; status: string; milestoneId?: string; highlights: string[]; acceptedAt?: string; url?: string }
+/** `due` is the due day (`YYYY-MM-DD`); `dueAt` the due instant, only when GoalPath gives a time of day. */
+export interface Item { id: string; number: string; title: string; status: string; milestoneId?: string; highlights: string[]; acceptedAt?: string; url?: string; due?: string; dueAt?: string; description?: string }
 export interface Check { runId: string; name: string; conclusion: string; url?: string }
 export interface CodeLink { ref: string; title: string; url?: string; checks: Check[] }
 export interface Week { week: string; ratio: number }
@@ -20,6 +21,7 @@ export interface GoalPathSource {
   dependencies(): Promise<Edge[]>;
   /** The project's name, for its label (§4.1); undefined when GoalPath does not say. */
   projectName(): Promise<string | undefined>;
+  /** `Accepted` is GoalPath's done: it accepts an approval and completes a task. */
   setItemStatus(itemId: string, status: 'Accepted' | 'Rejected'): Promise<void>;
   addComment(itemId: string, content: string): Promise<void>;
 }
@@ -32,6 +34,8 @@ const str = (v: unknown) => (typeof v === 'string' && v.trim() ? v.trim() : type
 const line = (v: unknown) => str(v)?.replace(/\s+/g, ' ');
 const pick = (o: Obj, ...keys: string[]) => keys.map((k) => o[k]).find((v) => v !== undefined && v !== null);
 const date = (v: unknown) => { const s = str(v); return s && /^\d{4}-\d{2}-\d{2}/.test(s) ? s.slice(0, 10) : undefined; };
+/** A timestamp with a time of day, as UTC; a bare date or a UTC midnight (how a date-only deadline is often stored) is not one. */
+const instant = (v: unknown) => { const s = str(v); return s && /T/.test(s) && !/T00:00(:00(\.0+)?)?(Z|[+-]00:?00)$/.test(s) && !Number.isNaN(Date.parse(s)) ? new Date(s).toISOString().replace('.000Z', 'Z') : undefined; };
 const num = (v: unknown) => (typeof v === 'number' ? v : Number(str(v) ?? NaN));
 /** A list, bare or under one of `keys` or the usual wrappers. */
 const list = (v: unknown, ...keys: string[]): Obj[] => { const a = Array.isArray(v) ? v : pick(obj(v), ...keys, 'items', 'data', 'results'); return Array.isArray(a) ? a.map(obj) : []; };
@@ -52,12 +56,12 @@ export const parse = {
     };
   },
   items: (raw: unknown): Item[] => list(raw).flatMap((i) => {
-    const [id, n] = [str(pick(i, 'id', 'itemId')), str(pick(i, 'number', 'shortId', 'key'))];
+    const [id, n, due] = [str(pick(i, 'id', 'itemId')), str(pick(i, 'number', 'shortId', 'key')), pick(i, 'deadline', 'dueDate', 'due')];
     if (!id) return [];
     return [{
       id, number: n === undefined ? id : /^\d+$/.test(n) ? `GP-${n}` : n, title: line(pick(i, 'title', 'name')) ?? '(untitled)', status: str(i.status) ?? '',
       milestoneId: str(pick(i, 'milestoneId')) ?? str(obj(i.milestone).id), highlights: strings(pick(i, 'highlights', 'highlight')),
-      acceptedAt: str(i.acceptedAt), url: str(i.url),
+      acceptedAt: str(i.acceptedAt), url: str(i.url), due: date(due), dueAt: instant(due), description: str(i.description),
     }];
   }),
   codeActivity: (raw: unknown): CodeLink[] => list(obj(raw).confirmed).map((l) => {

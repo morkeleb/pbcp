@@ -53,6 +53,15 @@ describe('normaliser over the recorded fixtures', () => {
     expect([m5?.deadline, m5?.projected]).toEqual(['2026-12-11', undefined]);
   });
 
+  it('reads a due day, and a due time only when the value has one', () => {
+    const due = (v: unknown) => parse.items([{ id: 'a', deadline: v }]).map((i) => [i.due, i.dueAt])[0];
+    expect(due('2026-11-05')).toEqual(['2026-11-05', undefined]);
+    expect(due('2026-11-05T00:00:00.000Z')).toEqual(['2026-11-05', undefined]); // a date stored as UTC midnight
+    expect(due('2026-11-05T16:00:00+01:00')).toEqual(['2026-11-05', '2026-11-05T15:00:00Z']);
+    expect(due(undefined)).toEqual([undefined, undefined]);
+    expect(parse.items([{ id: 'b', dueDate: '2026-11-06', description: 'Two\nlines.' }])).toMatchObject([{ due: '2026-11-06', description: 'Two\nlines.' }]);
+  });
+
   it('accepts bare arrays and ignores entries without ids', () => {
     expect(parse.items([{ id: 'a', number: 'X-1', title: 'two\nlines', status: 'Started' }, { title: 'no id' }])).toMatchObject([{ id: 'a', number: 'X-1', title: 'two lines' }]);
     expect(parse.codeActivity({})).toEqual([]);
