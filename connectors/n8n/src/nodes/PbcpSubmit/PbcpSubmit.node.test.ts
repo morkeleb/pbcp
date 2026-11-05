@@ -56,6 +56,11 @@ describe('PbcpSubmit', () => {
     expect(b!.card).toMatchObject({ actions: [{ id: 'now', label: 'Now', default: true }, 'later', 'edit'], supersedes: 'n8n:alerts:disk-full' });
   });
 
+  it('builds a task with about, at and until (RFC §4.1)', async () => {
+    const [t] = json(await run([{ ...base, upstream: 'plumber', kind: 'task', additionalFields: { about: '2026-11-05', at: '2026-11-05T16:00:00Z', until: '2026-11-05T17:00:00Z', actions: 'tomorrow' } }]));
+    expect(t!.card).toMatchObject({ kind: 'task', about: '2026-11-05', at: '2026-11-05T16:00:00Z', until: '2026-11-05T17:00:00Z', actions: ['tomorrow'] });
+  });
+
   it('refuses a card that does not conform before calling the head; continueOnFail emits the error', async () => {
     const bad = { ...base, namespace: 'not ok', toPerson: 'morten' };
     const err = await run([bad]).catch((e: unknown) => e);

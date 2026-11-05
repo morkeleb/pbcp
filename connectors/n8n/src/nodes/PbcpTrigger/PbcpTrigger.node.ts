@@ -60,7 +60,7 @@ export class PbcpTrigger implements INodeType {
         name: 'onlyDecisions',
         type: 'boolean',
         default: false,
-        description: 'Whether to emit only decision cards the person has decided',
+        description: 'Whether to emit only decision and task cards the person has decided',
       },
       {
         displayName: 'Only Cards in These States',
@@ -92,7 +92,7 @@ export class PbcpTrigger implements INodeType {
     const onlyDecisions = this.getNodeParameter('onlyDecisions', false) as boolean;
     const states = this.getNodeParameter('states', []) as State[];
     const keep = ({ card }: Change) =>
-      (!onlyDecisions || (card.kind === 'decision' && card.state === 'decided')) && (states.length === 0 || states.includes(card.state));
+      (!onlyDecisions || ((card.kind === 'decision' || card.kind === 'task') && card.state === 'decided')) && (states.length === 0 || states.includes(card.state));
     const data = this.getWorkflowStaticData('node') as { after?: number };
     const head = await connect(this);
 

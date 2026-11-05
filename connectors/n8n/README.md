@@ -77,7 +77,7 @@ Each item is the sync entry as the head sent it: `{ "seq": 103, "card": { ...the
 
 | Option | Effect |
 | --- | --- |
-| Only Decisions | Emit only cards with `kind: decision` and `state: decided`. |
+| Only Decisions | Emit only cards with `kind: decision` or `kind: task` and `state: decided`. |
 | Only Cards in These States | Emit only cards in the selected states (`open`, `decided`, `superseded`); none selected emits all. |
 | Start From | `Now` (default) or `Beginning`: where the cursor starts on the first poll after activation. |
 
@@ -104,12 +104,13 @@ Builds one card per input item with `card()` from `@pbcp/client` and PUTs it.
 | Namespace | Required. Letters, digits and dashes (§5). |
 | Upstream ID | Required. The upstream system's own key, as is. Every byte outside `A–Z a–z 0–9 - _ .` is percent-encoded with uppercase hex (§5), `%` included, so `<19a4@mail.example>` becomes `%3C19a4%40mail.example%3E`. Do not pre-encode it. |
 | Intent | Optional id suffix (§5). |
-| Kind | `decision`, `artifact` or `signal`. |
+| Kind | `decision`, `artifact`, `signal` or `task`. |
 | To Person | Optional. Empty means the head's `owner`, read with describe once per execution. |
 | Title, Body | One-line title; markdown body. |
 | Additional Fields | `Thread`, `Urgency`, `Actions`, `References`, `Supersedes`, `Source URL`, `Source Label`. |
 
-- **Actions** (decision cards only): either comma-separated ids (`approve, reject`) or a JSON array of ids and §4.4 objects (`[{"id":"ship-friday","label":"Ship Friday","default":true},"hold","edit"]`). A value starting with `[` is read as JSON.
+- **About**, **At**, **Until** (RFC §4.1): the card's day, `YYYY-MM-DD`, and when its subject happens and ends, UTC timestamps ending in `Z`. A task's due time is its At.
+- **Actions** (decision and task cards only; a task never lists `done` and marks no default): either comma-separated ids (`approve, reject`) or a JSON array of ids and §4.4 objects (`[{"id":"ship-friday","label":"Ship Friday","default":true},"hold","edit"]`). A value starting with `[` is read as JSON.
 - **References**: comma-separated card ids.
 - Every parameter may be an expression; n8n resolves it before the node reads it.
 

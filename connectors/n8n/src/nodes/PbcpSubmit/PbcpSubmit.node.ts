@@ -8,6 +8,9 @@ import { actions, connect, errorJson, list, nodeError } from '../../shared.js';
 interface Extra {
   thread?: string;
   urgency?: Urgency;
+  about?: string;
+  at?: string;
+  until?: string;
   actions?: unknown;
   references?: unknown;
   supersedes?: string;
@@ -30,6 +33,9 @@ function build(ctx: IExecuteFunctions, i: number, toPerson: string): ProducerCar
     body: p('body'),
     thread: x.thread || undefined,
     urgency: x.urgency || undefined,
+    about: x.about || undefined,
+    at: x.at || undefined,
+    until: x.until || undefined,
     actions: x.actions ? actions(x.actions) : undefined,
     references: x.references ? list(x.references) : undefined,
     supersedes: x.supersedes || undefined,
@@ -89,13 +95,16 @@ export class PbcpSubmit implements INodeType {
             ],
             default: 'brief',
           },
+          { displayName: 'About', name: 'about', type: 'string', default: '', placeholder: '2026-11-05', description: 'The day the card concerns, YYYY-MM-DD (RFC §4.1); a task due on a day without a time' },
+          { displayName: 'At', name: 'at', type: 'string', default: '', placeholder: '2026-11-05T16:00:00Z', description: 'When the subject happens, or a task is due: a UTC timestamp ending in Z (RFC §4.1)' },
+          { displayName: 'Until', name: 'until', type: 'string', default: '', placeholder: '2026-11-05T17:00:00Z', description: 'When the subject ends; needs At and is not before it' },
           {
             displayName: 'Actions',
             name: 'actions',
             type: 'string',
             default: '',
             placeholder: 'approve, reject',
-            description: 'Decision cards only. Comma-separated ids, or a JSON array of ids and objects with id, label, body and default (RFC §4.4).',
+            description: 'Decision and task cards only. Comma-separated ids, or a JSON array of ids and objects with id, label, body and default (RFC §4.4). A task never lists done and marks no default (§4.1); offer extras such as tomorrow.',
           },
           { displayName: 'References', name: 'references', type: 'string', default: '', description: 'Comma-separated card ids' },
           { displayName: 'Supersedes', name: 'supersedes', type: 'string', default: '', description: 'ID of an earlier card in the same namespace' },
