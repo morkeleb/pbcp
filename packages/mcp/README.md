@@ -11,7 +11,7 @@ npx -y @pbcp/mcp                     # once @pbcp/mcp is on npm; speaks MCP on s
 **Until it is on npm**, run it from a checkout of the repository at a release tag:
 
 ```sh
-git clone --branch v0.8.0 --depth 1 https://github.com/morkeleb/pbcp && cd pbcp
+git clone --branch v0.10.0 --depth 1 https://github.com/morkeleb/pbcp && cd pbcp
 corepack pnpm install --frozen-lockfile && corepack pnpm build
 node packages/mcp/dist/src/bin.js    # the same server; in an MCP client config: { "command": "node", "args": ["/path/to/pbcp/packages/mcp/dist/src/bin.js"], "env": { … } }
 ```

@@ -7,7 +7,7 @@ import { HeadClient, HeadHttpError, card as build } from '@pbcp/client';
 import { ClaimRefusal, OUTCOME_CLAIM_SEQ, OUTCOME_RESULT, PbcpError, parseCardOrThrow, ulidOf, yamlScalar, type ProducerCard } from '@pbcp/core';
 import { z } from 'zod';
 
-export const VERSION = '0.8.0';
+export const VERSION = '0.10.0';
 
 export interface Config {
   baseUrl: string;

@@ -15,7 +15,7 @@ The token is bound to the root `todoist` (RFC §12) and is an executor's: the he
 It runs from a checkout of the repository at a release tag (the packages are not on npm yet):
 
 ```sh
-git clone --branch v0.8.0 --depth 1 https://github.com/morkeleb/pbcp && cd pbcp
+git clone --branch v0.10.0 --depth 1 https://github.com/morkeleb/pbcp && cd pbcp
 corepack pnpm install --frozen-lockfile && corepack pnpm build
 export PBCP_HEAD_URL='<head url>' PBCP_TO_PERSON='<owner>' PBCP_TOKEN='<token>'
 export TODOIST_TOKEN=… TODOIST_TZ=Europe/Copenhagen

@@ -23,7 +23,7 @@ The token is bound to the root `cal` (RFC §12): every card id this connector mi
 It runs from a checkout of the repository at a release tag (the packages are not on npm yet):
 
 ```sh
-git clone --branch v0.8.0 --depth 1 https://github.com/morkeleb/pbcp && cd pbcp
+git clone --branch v0.10.0 --depth 1 https://github.com/morkeleb/pbcp && cd pbcp
 corepack pnpm install --frozen-lockfile && corepack pnpm build
 export PBCP_HEAD_URL='<head url>' PBCP_TO_PERSON='<owner>' PBCP_TOKEN='<token>'
 export CALDAV_URL=https://cal.example.com/dav/ CALDAV_USER=me CALDAV_PASSWORD=… CALDAV_TZ=Europe/Copenhagen
