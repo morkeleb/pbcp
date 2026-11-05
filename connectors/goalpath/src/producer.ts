@@ -6,8 +6,9 @@ export interface Config { toPerson: string; projectId: string; tz: string; /** T
 /** One mirrored approval round. `card` is its id; `left` is set once the item was seen out of the queue after the round closed; `url` is the
  *  item's, kept so the answered card can link to it after the item leaves your list. */
 export interface Approval { card: string; round: number; label: string; thread: string; prev?: string; url?: string; submitted?: boolean; decided?: boolean; answered?: boolean; left?: boolean }
-/** The task card of an item assigned to you with a due date. `decision` is set once acted on; `closed` once the closing card was sent. */
-export interface Task { card: string; label: string; thread: string; url?: string; submitted?: boolean; decision?: string; closed?: boolean }
+/** A task card of an item assigned to you with a due date, `date` the due day last sent. `decision` is set once acted on; `closed` once
+ *  the closing card was sent. Stored under `task:<item-id>`, or `task:<item-id>:<date>` for a later dated card (`item` is absent on old entries). */
+export interface Task { card: string; item?: string; date?: string; label: string; thread: string; url?: string; submitted?: boolean; decision?: string; closed?: boolean }
 /** The current card of a milestone's risk chain. */
 export interface Risk { card: string; projected: string; slipping: boolean }
 
@@ -91,14 +92,18 @@ export function answeredCard(a: Approval, item: Item | undefined, cfg: Config, n
   });
 }
 
-export const taskId = (itemId: string) => `goalpath:task:${enc(itemId)}`;
+/** `goalpath:task:<item-id>`, or `…:<YYYY-MM-DD>` once that id is spent and the item is due again on another day. */
+export const taskId = (itemId: string, date?: string) => `goalpath:task:${enc(itemId)}${date ? `:${date}` : ''}`;
+const TASK_ID = /^goalpath:task:([^:]+)(?::(\d{4}-\d{2}-\d{2}))?$/;
+/** The local day an item is due. */
+const dueDay = (i: Item, tz: string) => (i.dueAt ? day(new Date(i.dueAt), tz) : i.due!);
 
 /** §4.1 task: due on `about`, at `at` only when GoalPath gives a time; `brief` once due (today or overdue), `log` before (§4.1a). */
-export function taskCard(i: Item, m: Milestone | undefined, cfg: Config, now: Date): ProducerCard {
-  const about = i.dueAt ? day(new Date(i.dueAt), cfg.tz) : i.due!;
+export function taskCard(i: Item, m: Milestone | undefined, cfg: Config, now: Date, id = taskId(i.id)): ProducerCard {
+  const about = dueDay(i, cfg.tz);
   const what = `${label(i)} is ${i.status}${m ? ` in ${m.name}` : ''}, due ${about}${i.dueAt ? ` at ${local(new Date(i.dueAt), cfg.tz).slice(11, 16)}` : ''}.`;
   return card({
-    ...base(cfg, now), namespace: 'task', upstream: enc(i.id), kind: 'task', urgency: about <= day(now, cfg.tz) ? 'brief' : 'log', about, ...(i.dueAt ? { at: i.dueAt } : {}),
+    ...base(cfg, now), namespace: 'task', upstream: enc(i.id), intent: TASK_ID.exec(id)?.[2], kind: 'task', urgency: about <= day(now, cfg.tz) ? 'brief' : 'log', about, ...(i.dueAt ? { at: i.dueAt } : {}),
     thread: i.milestoneId ?? cfg.projectId, title: label(i), summary: summary(what), body: i.description ?? what, ...source(i.url, 'GoalPath item'), ...labels(cfg, m),
   });
 }
@@ -110,9 +115,12 @@ export function taskClosedCard(t: Task, item: Item | undefined, cfg: Config, now
     : t.decision ? ['dismissed', `Dismissed here; left as it is in GoalPath${item ? ` (${item.status})` : ''}.`]
     : item?.status === 'Accepted' ? ['done in GoalPath', 'Accepted in GoalPath.']
     : item && ENDED.has(item.status) ? [`${item.status.toLowerCase()} in GoalPath`, `${item.status} in GoalPath.`]
+    : item?.status === (cfg.approvalStatus ?? 'Finished') ? ['waiting for acceptance', `${item.status} in GoalPath and waiting for your acceptance; the approval card asks for it.`]
     : ['closed in GoalPath', item ? 'It no longer has a due date in GoalPath.' : 'It is no longer assigned to you in GoalPath.'];
+  const [, upstream, date] = TASK_ID.exec(t.card) ?? [];
   return card({
-    ...base(cfg, now), namespace: 'task', upstream: t.card.slice('goalpath:task:'.length), intent: 'closed', kind: 'artifact', urgency: 'log', thread: t.thread, supersedes: t.card,
+    // §5: one intent segment, so a dated task closes as `closed-<date>`.
+    ...base(cfg, now), namespace: 'task', upstream: upstream!, intent: date ? `closed-${date}` : 'closed', kind: 'artifact', urgency: 'log', thread: t.thread, supersedes: t.card,
     title: `${t.label}: ${title}`, summary: summary(`${t.label}: ${text}`), body: `**${t.label}**: ${text}`, ...source(item?.url ?? t.url, 'GoalPath item'), ...labels(cfg, m),
   });
 }
@@ -152,7 +160,7 @@ export function digestCard(date: string, items: Item[], ms: Milestone[], trend: 
   });
 }
 
-/** One state entry per key in the store's `goalpath` namespace: `risk:<milestone-id>`, `approval:<item-id>`, `task:<item-id>`, `digest`. */
+/** One state entry per key in the store's `goalpath` namespace: `risk:<milestone-id>`, `approval:<item-id>`, `task:<item-id>[:<date>]`, `digest`. */
 export const NAMESPACE = 'goalpath';
 
 /**
@@ -165,8 +173,10 @@ export function goalpathProducer(gp: GoalPathSource, store: StateStore, cfg: Con
   const approval = async (id: string) => (await kv.get(`approval:${id}`)) as Approval | undefined;
   const setApproval = (id: string, a: Approval) => kv.set(`approval:${id}`, a);
   const approvals = async () => Promise.all((await kv.keys('approval:')).map(async (k) => [k.slice('approval:'.length), (await kv.get(k)) as Approval] as const));
-  const setTask = (id: string, t: Task) => kv.set(`task:${id}`, t);
-  const tasks = async () => Promise.all((await kv.keys('task:')).map(async (k) => [k.slice('task:'.length), (await kv.get(k)) as Task] as const));
+  const setTask = (key: string, t: Task) => kv.set(key, t);
+  /** Every task entry by store key, with `item` filled in (an old entry's key is `task:<item-id>`). */
+  const tasks = async () => Promise.all((await kv.keys('task:')).map(async (k) => ((t) => [k, { ...t, item: t.item ?? k.slice('task:'.length) }] as const)((await kv.get(k)) as Task)));
+  const spent = (t: Task) => !!(t.decision || t.closed);
   const closed = (a: Approval) => !!(a.decided || a.answered);
   /** What to record once the head answered a card, by card id; filled by produce, run by onSubmitted. */
   const then = new Map<string, (r: SubmitResponse) => Promise<void>>();
@@ -207,19 +217,24 @@ export function goalpathProducer(gp: GoalPathSource, store: StateStore, cfg: Con
       }
 
       // Tasks: re-sent every pass while open, so a moved due date or the due day arriving revises the card (§5).
-      const due = new Map(items.filter((i) => i.due && !ENDED.has(i.status)).map((i) => [i.id, i]));
+      // An item in the approval queue has its approval card instead.
       const known = new Map(await tasks());
-      for (const i of due.values()) {
-        const t = known.get(i.id);
-        if (t?.decision || t?.closed) continue;
-        const c = taskCard(i, byId.get(i.milestoneId ?? ''), cfg, now);
-        yield after(c, () => setTask(i.id, { card: c.id, label: label(i), thread: c.thread!, ...(i.url ? { url: i.url } : {}), submitted: true }));
+      const listed = new Set<string>();
+      for (const i of items.filter((i) => i.due && !ENDED.has(i.status) && !queue.has(i.id))) {
+        // The item's open task follows it; once spent, a new due day gets a dated id, so a re-dated or reopened item is a task again (§5).
+        // An entry from before dated ids has no `date` and counts as this day's.
+        const d = dueDay(i, cfg.tz), mine = [...known].filter(([, t]) => t.item === i.id);
+        const [key] = mine.find(([, t]) => !spent(t)) ?? (mine.some(([, t]) => (t.date ?? d) === d) ? [] : known.has(`task:${i.id}`) ? [`task:${i.id}:${d}`] : [`task:${i.id}`]);
+        if (!key || (known.has(key) && spent(known.get(key)!))) continue;
+        listed.add(key);
+        const c = taskCard(i, byId.get(i.milestoneId ?? ''), cfg, now, known.get(key)?.card ?? taskId(i.id, key === `task:${i.id}` ? undefined : d));
+        yield after(c, () => setTask(key, { card: c.id, item: i.id, date: d, label: label(i), thread: c.thread!, ...(i.url ? { url: i.url } : {}), submitted: true }));
       }
-      for (const [id, t] of known) {
-        if (!t.submitted || t.closed || (due.has(id) && !t.decision)) continue;
-        const item = items.find((i) => i.id === id);
+      for (const [key, t] of known) {
+        if (!t.submitted || t.closed || (listed.has(key) && !t.decision)) continue;
+        const item = items.find((i) => i.id === t.item);
         const c = taskClosedCard(t, item, cfg, now, byId.get(t.thread));
-        yield after(c, async (r) => void (ok(r) && (await setTask(id, { ...t, closed: true }))));
+        yield after(c, async (r) => void (ok(r) && (await setTask(key, { ...t, closed: true }))));
       }
 
       const runs = new Set<string>();
@@ -248,13 +263,13 @@ export function goalpathProducer(gp: GoalPathSource, store: StateStore, cfg: Con
     async onDecision(c: Card) {
       if (c.decision === undefined) return;
       if (c.kind === 'task') {
-        const [itemId, t] = (await tasks()).find(([, t]) => t.card === c.id) ?? [];
-        if (!itemId || !t || t.decision || t.closed) return;
+        const [key, t] = (await tasks()).find(([, t]) => t.card === c.id) ?? [];
+        if (!key || !t || spent(t)) return;
         if (c.decision === 'done') {
-          await gp.setItemStatus(itemId, 'Accepted');
-          if (c.comment) await gp.addComment(itemId, c.comment);
+          await gp.setItemStatus(t.item!, 'Accepted');
+          if (c.comment) await gp.addComment(t.item!, c.comment);
         }
-        return setTask(itemId, { ...t, decision: c.decision });
+        return setTask(key, { ...t, decision: c.decision });
       }
       if (c.kind !== 'decision') return;
       const [itemId, a] = (await approvals()).find(([, a]) => a.card === c.id) ?? [];

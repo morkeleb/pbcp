@@ -356,6 +356,44 @@ describe('goalpath producer', () => {
       expect(gp.writes).toEqual([]);
     });
 
+    it('gives an item due again on another day, after its task closed, a dated task that closes as closed-<date>', async () => {
+      const { pass, stub, gp, item } = dated();
+      await pass();
+      stub.decideHere(TASK, { decision: 'dismissed' });
+      await pass();
+      await pass(); // the `:closed` card
+      item('15').deadline = '2026-11-02';
+      const DATED = `${TASK}:2026-11-02`;
+      const [again] = tasksOf(await pass()).filter((c) => c.id.startsWith(TASK));
+      expect(again).toMatchObject({ id: DATED, kind: 'task', about: '2026-11-02', urgency: 'log', title: 'GP-15 Offline mode for receipts' });
+      expect(again).not.toHaveProperty('supersedes');
+      expect(isId(DATED)).toBe(true);
+      expect(stub.cards.get(TASK)).toMatchObject({ state: 'superseded' });
+      expect(tasksOf(await pass()).filter((c) => c.id.startsWith(TASK)).map((c) => c.id)).toEqual([DATED]); // re-sent while open, nothing new
+      stub.decideHere(DATED, { decision: 'done' });
+      await pass();
+      expect(gp.writes).toEqual([['set_item_status', { itemId: I('15'), status: 'Accepted' }]]);
+      const [closed] = tasksOf(await pass()).filter((c) => c.id.startsWith(TASK));
+      expect(closed).toMatchObject({ id: `${TASK}:closed-2026-11-02`, kind: 'artifact', supersedes: DATED, title: 'GP-15 Offline mode for receipts: done in GoalPath' });
+      expect(isId(closed!.id)).toBe(true);
+      expect(stub.cards.get(DATED)).toMatchObject({ state: 'superseded', decision: 'done' });
+      item('15').status = 'Accepted';
+      expect(tasksOf(await pass()).filter((c) => c.id.startsWith(TASK))).toEqual([]);
+    });
+
+    it('makes no task of an item in the approval queue, and closes an open task whose item enters it', async () => {
+      const { pass, stub, item } = dated();
+      item('12').deadline = '2026-10-26'; // Finished: the approval queue
+      const first = await pass();
+      expect(first.some((c) => c.id === APPROVAL)).toBe(true);
+      expect(tasksOf(first).map((c) => c.id)).toEqual([TASK, taskId(I('16'))]);
+      item('15').status = 'Finished';
+      const cards = await pass();
+      expect(cards.find((c) => c.id === `${TASK}:closed`)).toMatchObject({ supersedes: TASK, title: 'GP-15 Offline mode for receipts: waiting for acceptance', body: '**GP-15 Offline mode for receipts**: Finished in GoalPath and waiting for your acceptance; the approval card asks for it.' });
+      expect(cards.some((c) => c.id === approvalId(I('15'), 1))).toBe(true);
+      expect(stub.cards.get(TASK)).toMatchObject({ state: 'superseded' });
+    });
+
     it('acts on a decision once, however often it is delivered', async () => {
       const { pass, stub, gp, producer, restart } = dated();
       await pass();
