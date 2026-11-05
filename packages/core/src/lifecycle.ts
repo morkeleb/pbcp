@@ -7,7 +7,7 @@
 
 import { z } from 'zod';
 import {
-  BUILTIN_DECISIONS, EDIT_ACTION, actionId, effectiveActions, equal, isUtcTimestamp, producerPart,
+  BUILTIN_DECISIONS, EDIT_ACTION, TASK_DONE, actionId, effectiveActions, equal, isDecidable, isUtcTimestamp, producerPart,
   type Card, type ProducerCard, type Urgency,
 } from './card.js';
 import { PbcpError } from './errors.js';
@@ -126,7 +126,7 @@ export function decide(stored: Card, d: Decision, now: string): DecideResult {
     const card = dismissOrder(stored as unknown as OrderCard, parsed.data, now) as unknown as Card;
     return { status: 200, card, changed: [card] };
   }
-  if (stored.kind !== 'decision') throw new PbcpError('not_decidable', `${stored.kind} cards take no decision`);
+  if (!isDecidable(stored.kind)) throw new PbcpError('not_decidable', `${stored.kind} cards take no decision`);
   if (stored.state !== 'open') return { status: 409, card: stored, changed: [] };
 
   const parsed = DecisionSchema.safeParse(d);
@@ -134,7 +134,12 @@ export function decide(stored: Card, d: Decision, now: string): DecideResult {
   const { decision, edited_proposal, comment, delegated_to } = parsed.data;
 
   const offered = effectiveActions(stored).map(actionId).filter((id) => id !== EDIT_ACTION);
-  if (!offered.includes(decision) && !(BUILTIN_DECISIONS as readonly string[]).includes(decision)) {
+  if (stored.kind === 'task') {
+    // §4.3, §7.3: done, a listed action, or dismissed; a task is not edited or delegated.
+    if (decision !== TASK_DONE && decision !== 'dismissed' && !offered.includes(decision)) {
+      throw new PbcpError('invalid_decision', `${decision} is not done, one of the task's actions, or dismissed`);
+    }
+  } else if (!offered.includes(decision) && !(BUILTIN_DECISIONS as readonly string[]).includes(decision)) {
     const hint = decision === EDIT_ACTION ? ' (the edit option is recorded as edited)' : '';
     throw new PbcpError('invalid_decision', `${decision} is not one of the card's actions or a protocol decision${hint}`);
   }
@@ -160,7 +165,7 @@ export function decide(stored: Card, d: Decision, now: string): DecideResult {
 
 /** §4.2: explicit acknowledgement of an artifact or signal. Not a transition; the card stays in its state. */
 export function acknowledge(stored: Card, now: string): UpdateResult {
-  if (stored.kind === 'decision') throw new PbcpError('not_acknowledgeable', 'decision cards are decided, not acknowledged');
+  if (isDecidable(stored.kind)) throw new PbcpError('not_acknowledgeable', `${stored.kind} cards are decided, not acknowledged`);
   if (stored.acknowledged_at !== undefined) return { status: 200, card: stored, changed: [] };
   const card: Card = { ...stored, acknowledged_at: now, changed_at: now };
   return { status: 200, card, changed: [card] };

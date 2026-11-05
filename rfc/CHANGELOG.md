@@ -1,6 +1,40 @@
 # RFC changelog
 
-## 0.8 (unreleased)
+## 0.9 (unreleased)
+
+Draft 0.9 adds a fourth kind, `task`: something the person is to do themselves, which stays open until they mark it done. A task is decided with the existing decision operation and needs no new field, operation or error code; `at`, `until`, `about`, `thread` and `source` carry what a to-do tool knows about it. In-process conformance: 62 → 67 cases (core C52–C56).
+
+**§4.1 — `kind: task`.**
+- **Shape:** the `kind` enum gains `task`, and `actions` is allowed on a task. On a task, `at` is when it is due (the start of its window), `until` the end of the window, `about` its day when it has no due time, `source` where it lives, `thread` its project or parent task.
+- **Rules:** `done` is implicit, always offered and always the default. A task whose `actions` list `done` or `edit`, or mark any entry `default`, is `400 invalid_card`. Further actions (`tomorrow`) are offered beside `done`. New fixtures C53, C54.
+
+**§4.1a — task · do.** The fourth kind in the list: an obligation the person holds. A task is `brief` when due on the day, `log` when due later, `immediate` only when due within hours and still open; priority in a task tool maps to `urgency`. Two example rows (a task due at 17:00; a chore due Saturday with no time). Advisory.
+
+**§4.2 — fields.** `decision` is meaningful on a task (`done`, a listed action, or `dismissed`); `acknowledged_at` is never set on a task, which is decided, not acknowledged.
+
+**§4.3 — deciding a task.** The decision operation (§7.3) with `done`, a listed action id, or `dismissed`; `edited` and `delegated` are not decisions on a task. The producer acts on the decision where the task lives and then supersedes the task with a `log` artifact recording the result; a task completed in its own tool is superseded the same way, without a decision. New fixtures C52, C56.
+
+**§4.4 — default.** On a task, `done` is the default and no listed option may be.
+
+**§4.5 — presenting a task.** `done` is the primary control and the only one styled as primary; the lead and the due time are visible; a head SHOULD list a day's open tasks together, overdue first and marked. Overdue is derived (open, and `at` or the end of the `about` day has passed), never a field.
+
+**§5 — equality.** An absent `actions` on a task equals `[]`.
+
+**§6, §9 — lifecycle.** Tasks take part in the decision layer with decision cards, and stay open until decided whatever their `delivery`.
+
+**§7.3, §7.4 — decide.** A task accepts `done`, its listed actions or `dismissed`. `done` on a decision card that does not list it is `400 invalid_decision`, as any value not offered; on an artifact or signal any decision is `400 not_decidable`. No new codes. New fixture C55.
+
+**§8 — tasks in the brief.** A brief MUST include every open, unsnoozed task due on or before its day, with title, lead and due time, and MAY count them ("4 tasks due, 1 overdue"). A task's day follows the existing rule: `about`, else the day of `at`, else `received_at`.
+
+**§11.1 — a task reader.** A to-do tool's items due today or overdue become tasks; `done` completes the item in the tool, `tomorrow` reschedules it, and each is followed by a superseding `log` artifact; an item completed in the tool supersedes its card the same way; a recurring item is a new card per occurrence, its id carrying the due date.
+
+**§11.3 — head checklist** gains task validation, task presentation and tasks in the brief.
+
+**Status.** Both implementations pass the 62 cases of the 0.8 suite; the in-process reference also passes the 67 of 0.9, which `pbcp-head` has not run yet.
+
+**Connectors.** todoist gains a reader mode that sends due and overdue items as tasks; goalpath sends the owner's dated items as tasks; the MCP `submit_card` description and the hermes skills say when to use a task.
+
+## 0.8 (2026-10-29)
 
 Draft 0.8 adds two producer-owned fields, `at` and `until`: when the thing a card is about happens, and when it ends. 0.7 gave a card a day (`about`); 0.8 gives it a time, so a head can lay the day's cards out by producer-independent time rather than reading it from titles. There are no changes to the operations, the lifecycle, orders or delegation. In-process conformance: 59 → 62 cases (core C49–C51).
 

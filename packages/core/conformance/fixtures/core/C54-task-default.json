@@ -1,0 +1,55 @@
+{
+  "name": "C54 a task that marks a listed action default is 400 invalid_card, and nothing is stored",
+  "rfc": [
+    "§4.1",
+    "§4.4"
+  ],
+  "covers": [
+    "§4.1 or mark any entry `default`"
+  ],
+  "steps": [
+    {
+      "op": "put",
+      "args": {
+        "token": "todo",
+        "card": {
+          "protocol": "pbcp/1",
+          "id": "todo:task:7733",
+          "kind": "task",
+          "to_person": "morten",
+          "producer": "todo",
+          "title": "Renew the passport",
+          "body": "Form and photo at the town hall.",
+          "emitted_at": "2026-11-05T06:00:00Z",
+          "actions": [
+            {
+              "id": "tomorrow",
+              "default": true
+            }
+          ]
+        }
+      },
+      "expect": {
+        "status": 400,
+        "body": {
+          "error": "invalid_card"
+        }
+      }
+    },
+    {
+      "op": "syncAll",
+      "args": {
+        "token": "todo",
+        "after": 0
+      },
+      "expect": {
+        "status": 200,
+        "body": {
+          "changes": {
+            "$len": 0
+          }
+        }
+      }
+    }
+  ]
+}

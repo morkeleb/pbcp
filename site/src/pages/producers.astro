@@ -111,7 +111,8 @@ const sent = toFrontMatter(parseCardOrThrow({
   <p>
     <code>kind</code> is what the card asks of the person (<a href={rfc('4.1a')}>§4.1a</a>): a <code>decision</code> to
     choose, with <code>actions</code>, open until decided; a <code>signal</code> to know that something happened; an
-    <code>artifact</code> to read something made for them. <code>urgency</code> is when: <code>immediate</code>
+    <code>artifact</code> to read something made for them; a <code>task</code> to do something themselves, open until
+    they mark it done (<a href={rfc('4.3')}>§4.3</a>). <code>urgency</code> is when: <code>immediate</code>
     interrupts, <code>brief</code> waits for the next brief, <code>log</code> is recorded and never surfaced on its own
     (<a href={rfc('9')}>§9</a>). The two are independent.
   </p>
@@ -122,7 +123,17 @@ const sent = toFrontMatter(parseCardOrThrow({
       An artifact is <code>brief</code> when it is read daily (a report, an agenda, a digest), and <code>log</code> when
       it is a routine record (a commit, a completed task, a producer connecting).
     </li>
+    <li>
+      A task is <code>brief</code> when it is due on the day and <code>log</code> when it is due later; priority in a
+      task tool maps to <code>urgency</code>.
+    </li>
   </ul>
+  <p>
+    A task never lists <code>done</code> in its <code>actions</code>: done is implicit and the default, and a task marks
+    nothing else <code>default</code>. It may offer more, such as <code>tomorrow</code>. When the person decides it, the
+    producer acts where the task lives and supersedes the card with a <code>log</code> artifact saying what happened
+    (<a href={rfc('11.1')}>§11.1</a>).
+  </p>
 
   <h2>Until the packages are published</h2>
   <div set:html={fromSourceHtml} />

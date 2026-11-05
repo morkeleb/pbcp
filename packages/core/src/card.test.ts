@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { equal, HEAD_OWNED_FIELDS, parseCard, parseCardOrThrow, toFrontMatter, toJSON, type ProducerCard } from './card.js';
+import { actionId, effectiveActions, equal, HEAD_OWNED_FIELDS, parseCard, parseCardOrThrow, toFrontMatter, toJSON, type ProducerCard } from './card.js';
 import type { ErrorCode } from './errors.js';
 
 const RFC_FILE = `---
@@ -223,6 +223,34 @@ describe('at and until (§4.1)', () => {
     expect(equal(a, parseCardOrThrow(minimal({ at: '2026-11-03T09:20:00Z', until })))).toBe(false);
     expect(equal(a, parseCardOrThrow(minimal({ at, until: '2026-11-03T09:45:00Z' })))).toBe(false);
     expect(equal(a, parseCardOrThrow(minimal({ at })))).toBe(false);
+  });
+});
+
+describe('tasks (§4.1)', () => {
+  const task = (over: Record<string, unknown> = {}) => minimal({ kind: 'task', title: 'Renew the passport', body: 'Form at the town hall.', ...over });
+
+  it('accepts a task with or without further actions, in both forms', () => {
+    expect(parseCardOrThrow(task()).kind).toBe('task');
+    const t = parseCardOrThrow(task({ actions: ['tomorrow', { id: 'later', label: 'Later' }], about: '2026-11-05', at: '2026-11-05T16:00:00Z' }));
+    expect(parseCardOrThrow(toFrontMatter(t))).toEqual(t);
+    expect(effectiveActions(t).map(actionId)).toEqual(['tomorrow', 'later']);
+    expect(effectiveActions(parseCardOrThrow(task()))).toEqual([]);
+  });
+
+  it('refuses done or edit in a task\'s actions, and any default, with invalid_card', () => {
+    refused(task({ actions: ['done'] }), 'invalid_card');
+    refused(task({ actions: ['tomorrow', { id: 'done', label: 'Did it' }] }), 'invalid_card');
+    refused(task({ actions: ['edit'] }), 'invalid_card');
+    refused(task({ actions: [{ id: 'tomorrow', default: true }] }), 'invalid_card');
+    expect(parseCardOrThrow(task({ actions: [{ id: 'tomorrow', default: false }] })).kind).toBe('task');
+  });
+
+  it('keeps done an ordinary action id on a decision card', () => {
+    expect(parseCardOrThrow(minimal({ actions: ['done', 'not-yet'] })).kind).toBe('decision');
+  });
+
+  it('compares an absent actions on a task as [] (§5)', () => {
+    expect(equal(parseCardOrThrow(task()), parseCardOrThrow(task({ actions: [] })))).toBe(true);
   });
 });
 

@@ -54,7 +54,7 @@ Pure functions over plain objects. Every RFC MUST that can be checked without a 
 
 ```ts
 // card.ts
-export type Kind = 'decision' | 'artifact' | 'signal' | 'order';
+export type Kind = 'decision' | 'artifact' | 'signal' | 'task' | 'order';
 export type Urgency = 'immediate' | 'brief' | 'log';
 export type State = 'open' | 'decided' | 'superseded';
 

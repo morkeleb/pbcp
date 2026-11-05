@@ -6,7 +6,7 @@ import { isId, isIntent, parseId } from './id.js';
 import { parseYaml, stringifyYaml, type YamlDoc, type YamlMap, type YamlValue } from './yaml.js';
 
 export const PROTOCOL = 'pbcp/1';
-export const KINDS = ['decision', 'artifact', 'signal'] as const;
+export const KINDS = ['decision', 'artifact', 'signal', 'task'] as const;
 export const URGENCIES = ['immediate', 'brief', 'log'] as const;
 export const STATES = ['open', 'decided', 'superseded'] as const;
 /** Decision values the protocol defines (§4.3). */
@@ -14,6 +14,10 @@ export const BUILTIN_DECISIONS = ['dismissed', 'edited', 'delegated'] as const;
 /** The choice-list entry meaning "none of these" (§4.4); recorded as `edited`. */
 export const EDIT_ACTION = 'edit';
 export const DEFAULT_ACTIONS = ['approve', 'reject'] as const;
+/** A task's own decision (§4.1, §4.3): implicit, always offered, always the default. */
+export const TASK_DONE = 'done';
+/** The kinds the person decides (§4.3, §7.3); the others are acknowledged. */
+export const isDecidable = (kind: string): kind is 'decision' | 'task' => kind === 'decision' || kind === 'task';
 /** §3.1 size floor: a head MUST accept a card whose JSON wire form is up to this many bytes. */
 export const CARD_LIMIT_BYTES = 64 * 1024;
 
@@ -173,10 +177,11 @@ export function parseCardOrThrow(input: unknown): ProducerCard {
   if (parseId(card.id)!.producer !== card.producer) {
     throw new PbcpError('producer_mismatch', `producer ${JSON.stringify(card.producer)} does not match the id's root`);
   }
-  if (card.actions !== undefined && card.kind !== 'decision') {
-    throw new PbcpError('invalid_card', `actions are only for kind: decision; ${card.kind} cards never carry them`);
+  if (card.actions !== undefined && !isDecidable(card.kind)) {
+    throw new PbcpError('invalid_card', `actions are only for kind: decision and kind: task; ${card.kind} cards never carry them`);
   }
   checkActions(card.actions);
+  if (card.kind === 'task') checkTaskActions(card.actions ?? []);
   if (card.until !== undefined && card.at === undefined) throw new PbcpError('invalid_card', 'until needs at (§4.1)');
   if (card.until !== undefined && instant(card.until) < instant(card.at!)) throw new PbcpError('invalid_card', 'until must not be before at (§4.1)');
   return card;
@@ -195,9 +200,18 @@ function checkActions(actions: Action[] | undefined): void {
   }
 }
 
+/** §4.1 tasks: `done` is implicit and the default, so it is never listed, `edit` has no meaning, and nothing else is default. */
+function checkTaskActions(actions: Action[]): void {
+  const listed = actions.map(actionId).find((id) => id === TASK_DONE || id === EDIT_ACTION);
+  if (listed !== undefined) throw new PbcpError('invalid_card', `a task's actions must not list ${listed} (§4.1)`);
+  if (actions.some((a) => typeof a === 'object' && a.default === true)) {
+    throw new PbcpError('invalid_card', 'a task marks no action default: done is its default (§4.1)');
+  }
+}
+
 export const actionId = (a: Action): string => (typeof a === 'string' ? a : a.id);
 
-/** The actions a decision card offers, applying the §4.1 default. */
+/** The actions a card lists, applying the §4.1 default for a decision; a task's implicit `done` is not among them. */
 export function effectiveActions(card: ProducerCard): Action[] {
   return card.actions ?? (card.kind === 'decision' ? [...DEFAULT_ACTIONS] : []);
 }

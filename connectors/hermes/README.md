@@ -25,7 +25,7 @@ The token is bound to the root `hermes` (RFC §12): the skills submit every card
 **Until the packages are on npm**, the `npm` and `npx` commands here do not work yet. Use a checkout of the repository at a release tag, built:
 
 ```sh
-git clone --branch v0.8.0 --depth 1 https://github.com/morkeleb/pbcp && cd pbcp
+git clone --branch v0.10.0 --depth 1 https://github.com/morkeleb/pbcp && cd pbcp
 corepack pnpm install --frozen-lockfile && corepack pnpm build
 ```
 

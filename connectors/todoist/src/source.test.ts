@@ -41,4 +41,37 @@ describe('restSource', () => {
     ]);
     expect(calls[4]![2]).toEqual({ content: 'Buy milk', description: 'd', due_string: 'friday', labels: ['pbcp'], project_id: 'p1' });
   });
+
+  it('reads due, recurring and timed tasks, subtasks, comments and project names, and closes and reschedules (reader)', async () => {
+    const due = JSON.parse(readFileSync(fileURLToPath(new URL('../fixtures/due.json', import.meta.url)), 'utf8')) as Record<string, { results: Record<string, unknown>[] }>;
+    const calls: string[] = [];
+    const fake: typeof fetch = async (url, init) => {
+      const u = new URL(String(url));
+      calls.push(`${init?.method ?? 'GET'} ${u.pathname}${u.search}${init?.body ? ` ${String(init.body)}` : ''}`);
+      if (u.pathname === '/api/v1/tasks/filter') return Response.json({ results: due.tasks!.results.slice(0, 3), next_cursor: null });
+      if (u.pathname === '/api/v1/tasks') return Response.json({ results: [due.tasks!.results[3]], next_cursor: null });
+      if (u.pathname === '/api/v1/comments') return Response.json(due.comments);
+      if (u.pathname === '/api/v1/projects/6Xfp0002') return Response.json(due.projects!.results[1]);
+      if (u.pathname.endsWith('/close')) return new Response(null, { status: 204 });
+      return Response.json({ ...due.tasks!.results[2], due: { date: '2026-11-06', string: 'tomorrow', is_recurring: false } });
+    };
+    const src = restSource('tok', { fetch: fake });
+    const [bank, plants, passport] = await src.due();
+    expect(bank).toMatchObject({ id: '6Xfx0101', priority: 4, projectId: '6Xfp0002', labels: ['Errands', 'phone'], due: { date: '2026-11-05', time: '2026-11-05T17:00:00', recurring: false }, duration: { amount: 30, unit: 'minute' } });
+    expect(plants!.due).toEqual({ date: '2026-11-04', recurring: true });
+    expect(passport!.due).toEqual({ date: '2026-11-05', recurring: false });
+    expect((await src.subtasks('6Xfx0101')).map((t) => t.parentId)).toEqual(['6Xfx0101']);
+    expect(await src.comments('6Xfx0101')).toEqual(['Their number is on the back of the card.']);
+    expect(await src.project('6Xfp0002')).toBe('Home & Garden');
+    await src.close('6Xfx0101');
+    expect((await src.reschedule('6Xfx0103', 'tomorrow')).due).toEqual({ date: '2026-11-06', recurring: false });
+    expect(calls).toEqual([
+      'GET /api/v1/tasks/filter?query=today%20%7C%20overdue&limit=200',
+      'GET /api/v1/tasks?parent_id=6Xfx0101&limit=200',
+      'GET /api/v1/comments?task_id=6Xfx0101&limit=200',
+      'GET /api/v1/projects/6Xfp0002',
+      'POST /api/v1/tasks/6Xfx0101/close',
+      'POST /api/v1/tasks/6Xfx0103 {"due_string":"tomorrow"}',
+    ]);
+  });
 });

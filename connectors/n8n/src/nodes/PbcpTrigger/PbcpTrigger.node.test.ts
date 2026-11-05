@@ -74,6 +74,15 @@ describe('PbcpTrigger', () => {
     expect(none.staticData.after).toBe(6);
   });
 
+  it('only decisions includes a decided task (RFC §4.3)', async () => {
+    const stub = await headWith(1);
+    const head = new HeadClient({ baseUrl: 'https://head.test', token: 't', fetch: stub.fetch });
+    await head.submit(card({ producer: 'n8n', namespace: 'test', upstream: 'chore', kind: 'task', to_person: 'morten', title: 'Call the plumber', body: '' }));
+    stub.decideHere('n8n:test:chore', { decision: 'done' });
+    const decisions = pollContext({ params: { onlyDecisions: true }, staticData: { after: 0 } });
+    expect((await poll(decisions.ctx))?.[0]?.map((i) => (i.json.card as { decision: string }).decision)).toEqual(['done']);
+  });
+
   it('a later page that fails is not skipped: earlier items are returned and only their cursor stored', async () => {
     const stub = await headWith(5);
     let n = 0;

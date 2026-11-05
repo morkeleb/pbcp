@@ -1,0 +1,101 @@
+{
+  "name": "C52 a task is stored in either form, and done decides it",
+  "rfc": [
+    "§3",
+    "§4.1",
+    "§4.3",
+    "§7.3"
+  ],
+  "covers": [
+    "§7.3 On a task, `decision` MUST be `done`",
+    "§4.1 The head MUST NOT alter them"
+  ],
+  "steps": [
+    {
+      "op": "put",
+      "args": {
+        "token": "todo",
+        "card": {
+          "protocol": "pbcp/1",
+          "id": "todo:task:7731",
+          "kind": "task",
+          "to_person": "morten",
+          "producer": "todo",
+          "title": "Renew the passport",
+          "body": "Form and photo at the town hall.",
+          "emitted_at": "2026-11-05T06:00:00Z",
+          "about": "2026-11-05",
+          "at": "2026-11-05T16:00:00Z"
+        }
+      },
+      "expect": {
+        "status": 201,
+        "body": {
+          "kind": "task",
+          "state": "open",
+          "at": "2026-11-05T16:00:00Z",
+          "change_seq": {
+            "$type": "number"
+          }
+        }
+      },
+      "save": {
+        "seq": "body.change_seq"
+      }
+    },
+    {
+      "op": "put",
+      "args": {
+        "token": "todo",
+        "card": "---\nprotocol: pbcp/1\nid: todo:task:7731\nkind: task\nto_person: morten\nproducer: todo\ntitle: Renew the passport\nabout: \"2026-11-05\"\nat: \"2026-11-05T16:00:00Z\"\nemitted_at: \"2026-11-05T06:30:00Z\"\n---\n\nForm and photo at the town hall.\n"
+      },
+      "expect": {
+        "status": 200,
+        "body": {
+          "state": "open",
+          "change_seq": {
+            "$var": "seq"
+          }
+        }
+      }
+    },
+    {
+      "op": "decide",
+      "args": {
+        "id": "todo:task:7731",
+        "decision": {
+          "decision": "done"
+        }
+      },
+      "expect": {
+        "status": 200,
+        "body": {
+          "state": "decided",
+          "decision": "done"
+        }
+      }
+    },
+    {
+      "op": "syncAll",
+      "args": {
+        "token": "todo",
+        "after": 0
+      },
+      "expect": {
+        "status": 200,
+        "body": {
+          "changes": [
+            {
+              "card": {
+                "id": "todo:task:7731",
+                "kind": "task",
+                "state": "decided",
+                "decision": "done"
+              }
+            }
+          ]
+        }
+      }
+    }
+  ]
+}

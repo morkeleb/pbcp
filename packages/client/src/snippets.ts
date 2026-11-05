@@ -22,7 +22,7 @@ export function producerConfig({ api, owner, token }: Connection): { PBCP_HEAD_U
 }
 
 /** The release a checkout should use until the packages are on npm; a test keeps it equal to this package's version. */
-export const RELEASE_TAG = 'v0.8.0';
+export const RELEASE_TAG = 'v0.10.0';
 
 /**
  * Markdown for every Setup that installs from npm, until the packages are published there: build from a checkout of the

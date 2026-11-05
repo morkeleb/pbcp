@@ -264,6 +264,39 @@ describe('the fixtures catch broken heads', () => {
     await fails(core.C51, { head: sabotage(h, { put }) });
   });
 
+  it('C52: recording done on a task as dismissed', async () => {
+    const h = inProcessHead();
+    const decide: HeadUnderTest['decide'] = async (id, d) => h.decide(id, d.decision === 'done' ? { ...d, decision: 'dismissed' } : d);
+    await fails(core.C52, { head: sabotage(h, { decide }) });
+  });
+
+  it('C53, C54: cleaning a task\'s actions instead of refusing them', async () => {
+    const h = inProcessHead();
+    const clean = (c: unknown) => {
+      const card = c as { kind?: unknown; actions?: unknown[] };
+      if (card.kind !== 'task' || !Array.isArray(card.actions)) return c;
+      const actions = card.actions
+        .filter((a) => (typeof a === 'string' ? a : (a as { id: string }).id) !== 'done')
+        .map((a) => (typeof a === 'object' && a !== null ? { ...(a as object), default: false } : a));
+      return { ...card, actions };
+    };
+    const put: HeadUnderTest['put'] = async (t, c) => h.put(t, clean(c));
+    await fails(core.C53, { head: sabotage(h, { put }) });
+    await fails(core.C54, { head: sabotage(h, { put }) });
+  });
+
+  it('C55: taking done as approve on a decision card', async () => {
+    const h = inProcessHead();
+    const decide: HeadUnderTest['decide'] = async (id, d) => h.decide(id, d.decision === 'done' ? { ...d, decision: 'approve' } : d);
+    await fails(core.C55, { head: sabotage(h, { decide }) });
+  });
+
+  it('C56: recording any decision on a task as done', async () => {
+    const h = inProcessHead();
+    const decide: HeadUnderTest['decide'] = async (id, d) => h.decide(id, id.includes(':task:') ? { ...d, decision: 'done' } : d);
+    await fails(core.C56, { head: sabotage(h, { decide }) });
+  });
+
   it('R12: falling back on an extended-tier type', async () => {
     const r = referenceRenderer();
     const draw: RenderUnderTest['render'] = async (body) => {
