@@ -107,8 +107,9 @@ Builds one card per input item with `card()` from `@pbcp/client` and PUTs it.
 | Kind | `decision`, `artifact`, `signal` or `task`. |
 | To Person | Optional. Empty means the head's `owner`, read with describe once per execution. |
 | Title, Body | One-line title; markdown body. |
-| Additional Fields | `Thread`, `Urgency`, `Actions`, `References`, `Supersedes`, `Source URL`, `Source Label`. |
+| Additional Fields | `Thread`, `Urgency`, `Sensitivity`, `About`, `At`, `Until`, `Actions`, `References`, `Supersedes`, `Source URL`, `Source Label`. |
 
+- **Sensitivity** (RFC §4.1): `Normal` (the default, left off the card), `Private` keeps the lead and body off notifications, assistants and lock screens, and `Confirm` also makes the head ask the person to identify themselves before it records a decision. Use `Confirm` for a decision that spends money, deletes, sends outside the person's own space, or cannot be undone.
 - **About**, **At**, **Until** (RFC §4.1): the card's day, `YYYY-MM-DD`, and when its subject happens and ends, UTC timestamps ending in `Z`. A task's due time is its At.
 - **Actions** (decision and task cards only; a task never lists `done` and marks no default): either comma-separated ids (`approve, reject`) or a JSON array of ids and §4.4 objects (`[{"id":"ship-friday","label":"Ship Friday","default":true},"hold","edit"]`). A value starting with `[` is read as JSON.
 - **References**: comma-separated card ids.

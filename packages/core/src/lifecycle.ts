@@ -7,8 +7,8 @@
 
 import { z } from 'zod';
 import {
-  BUILTIN_DECISIONS, EDIT_ACTION, TASK_DONE, actionId, effectiveActions, equal, isDecidable, isUtcTimestamp, producerPart,
-  type Card, type ProducerCard, type Urgency,
+  BUILTIN_DECISIONS, EDIT_ACTION, SENSITIVITIES, TASK_DONE, actionId, effectiveActions, equal, isDecidable, isUtcTimestamp, producerPart,
+  type Card, type ProducerCard, type Sensitivity, type Urgency,
 } from './card.js';
 import { PbcpError } from './errors.js';
 import { inRoot, sameNamespace } from './id.js';
@@ -69,6 +69,14 @@ const RANK: Record<Urgency, number> = { log: 0, brief: 1, immediate: 2 };
 export function clampUrgency(urgency: Urgency | undefined, ceiling?: Urgency): Urgency {
   const u = urgency ?? 'brief';
   return ceiling !== undefined && RANK[u] > RANK[ceiling] ? ceiling : u;
+}
+
+/**
+ * §9: the sensitivity a head handles a card with: the card's (absent is `normal`), raised to the strictest of the owner's
+ * `policies` (per producer, per label, for every card), never lowered. The card itself keeps what the producer sent.
+ */
+export function effectiveSensitivity(sensitivity: Sensitivity | undefined, ...policies: (Sensitivity | undefined)[]): Sensitivity {
+  return [sensitivity, ...policies].reduce<Sensitivity>((max, s) => (s !== undefined && SENSITIVITIES.indexOf(s) > SENSITIVITIES.indexOf(max) ? s : max), 'normal');
 }
 
 /**

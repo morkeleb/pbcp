@@ -1,0 +1,174 @@
+{
+  "name": "C57 sensitivity is stored and synced as sent in either form and counts for equality: an identical re-PUT in the file form changes nothing, a changed sensitivity replaces the open card, and an absent sensitivity equals normal",
+  "rfc": [
+    "§3",
+    "§4.1",
+    "§5"
+  ],
+  "covers": [
+    "§4.1 The head MUST NOT alter them"
+  ],
+  "steps": [
+    {
+      "op": "put",
+      "args": {
+        "token": "pay",
+        "card": {
+          "protocol": "pbcp/1",
+          "id": "pay:invoice:2026-118",
+          "kind": "decision",
+          "to_person": "morten",
+          "producer": "pay",
+          "title": "Pay the plumber's invoice",
+          "summary": "The invoice is 4,200 kr, due Friday; the proposal is to pay it from the household account.",
+          "body": "Invoice 2026-118 from the plumber, due Friday.\n\n## Proposed payment\n\n4,200 kr from the household account.",
+          "emitted_at": "2026-11-10T07:00:00Z",
+          "sensitivity": "confirm"
+        }
+      },
+      "expect": {
+        "status": 201,
+        "body": {
+          "state": "open",
+          "sensitivity": "confirm"
+        }
+      },
+      "save": {
+        "seq": "body.change_seq"
+      }
+    },
+    {
+      "op": "put",
+      "args": {
+        "token": "pay",
+        "card": "---\nprotocol: pbcp/1\nid: pay:invoice:2026-118\nkind: decision\nto_person: morten\nproducer: pay\nsensitivity: confirm\ntitle: Pay the plumber's invoice\nsummary: The invoice is 4,200 kr, due Friday; the proposal is to pay it from the household account.\nemitted_at: \"2026-11-10T07:30:00Z\"\n---\n\nInvoice 2026-118 from the plumber, due Friday.\n\n## Proposed payment\n\n4,200 kr from the household account.\n"
+      },
+      "expect": {
+        "status": 200,
+        "body": {
+          "state": "open",
+          "sensitivity": "confirm",
+          "change_seq": {
+            "$var": "seq"
+          }
+        }
+      }
+    },
+    {
+      "op": "put",
+      "args": {
+        "token": "pay",
+        "card": {
+          "protocol": "pbcp/1",
+          "id": "pay:invoice:2026-118",
+          "kind": "decision",
+          "to_person": "morten",
+          "producer": "pay",
+          "title": "Pay the plumber's invoice",
+          "summary": "The invoice is 4,200 kr, due Friday; the proposal is to pay it from the household account.",
+          "body": "Invoice 2026-118 from the plumber, due Friday.\n\n## Proposed payment\n\n4,200 kr from the household account.",
+          "emitted_at": "2026-11-10T07:00:00Z",
+          "sensitivity": "private"
+        }
+      },
+      "expect": {
+        "status": 200,
+        "body": {
+          "state": "open",
+          "sensitivity": "private",
+          "change_seq": {
+            "$gt": {
+              "$var": "seq"
+            }
+          }
+        }
+      }
+    },
+    {
+      "op": "put",
+      "args": {
+        "token": "pay",
+        "card": {
+          "protocol": "pbcp/1",
+          "id": "pay:invoice:2026-119",
+          "kind": "decision",
+          "to_person": "morten",
+          "producer": "pay",
+          "title": "Pay the electrician's invoice",
+          "summary": "The invoice is 4,200 kr, due Friday; the proposal is to pay it from the household account.",
+          "body": "Invoice 2026-118 from the plumber, due Friday.\n\n## Proposed payment\n\n4,200 kr from the household account.",
+          "emitted_at": "2026-11-10T07:00:00Z"
+        }
+      },
+      "expect": {
+        "status": 201,
+        "body": {
+          "state": "open",
+          "sensitivity": {
+            "$absent": true
+          }
+        }
+      },
+      "save": {
+        "plain": "body.change_seq"
+      }
+    },
+    {
+      "op": "put",
+      "args": {
+        "token": "pay",
+        "card": {
+          "protocol": "pbcp/1",
+          "id": "pay:invoice:2026-119",
+          "kind": "decision",
+          "to_person": "morten",
+          "producer": "pay",
+          "title": "Pay the electrician's invoice",
+          "summary": "The invoice is 4,200 kr, due Friday; the proposal is to pay it from the household account.",
+          "body": "Invoice 2026-118 from the plumber, due Friday.\n\n## Proposed payment\n\n4,200 kr from the household account.",
+          "emitted_at": "2026-11-10T07:30:00Z",
+          "sensitivity": "normal"
+        }
+      },
+      "expect": {
+        "status": 200,
+        "body": {
+          "change_seq": {
+            "$var": "plain"
+          },
+          "sensitivity": {
+            "$absent": true
+          }
+        }
+      }
+    },
+    {
+      "op": "syncAll",
+      "args": {
+        "token": "pay",
+        "after": 0
+      },
+      "expect": {
+        "status": 200,
+        "body": {
+          "changes": [
+            {
+              "card": {
+                "id": "pay:invoice:2026-118",
+                "sensitivity": "private"
+              }
+            },
+            {
+              "card": {
+                "id": "pay:invoice:2026-119",
+                "sensitivity": {
+                  "$absent": true
+                }
+              }
+            }
+          ]
+        }
+      }
+    }
+  ]
+}

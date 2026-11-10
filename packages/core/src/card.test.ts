@@ -254,6 +254,30 @@ describe('tasks (§4.1)', () => {
   });
 });
 
+describe('sensitivity (§4.1)', () => {
+  it('accepts normal, private and confirm, in both forms, and keeps what was sent', () => {
+    for (const sensitivity of ['normal', 'private', 'confirm']) {
+      const c = parseCardOrThrow(minimal({ sensitivity }));
+      expect(c.sensitivity).toBe(sensitivity);
+      expect(toFrontMatter(c)).toContain(`sensitivity: ${sensitivity}\n`);
+      expect(parseCardOrThrow(toFrontMatter(c))).toEqual(c);
+      expect(parseCardOrThrow(toJSON(c))).toEqual(c);
+    }
+    expect(parseCardOrThrow(minimal()).sensitivity).toBeUndefined();
+  });
+
+  it('refuses any other value with invalid_card', () => {
+    for (const sensitivity of ['secret', 'Private', '', 'none', 1, true, null]) refused(minimal({ sensitivity }), 'invalid_card');
+  });
+
+  it('counts for equality (§5): absent equals normal, and any other change is a different card', () => {
+    const plain = parseCardOrThrow(minimal());
+    expect(equal(plain, parseCardOrThrow(minimal({ sensitivity: 'normal' })))).toBe(true);
+    expect(equal(plain, parseCardOrThrow(minimal({ sensitivity: 'private' })))).toBe(false);
+    expect(equal(parseCardOrThrow(minimal({ sensitivity: 'private' })), parseCardOrThrow(minimal({ sensitivity: 'confirm' })))).toBe(false);
+  });
+});
+
 describe('equal (§5)', () => {
   const base = parseCardOrThrow(minimal());
 

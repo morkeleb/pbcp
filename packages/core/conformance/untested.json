@@ -242,5 +242,21 @@
   {
     "requirement": "§8 A brief MUST likewise include every open task",
     "why": "interface behaviour a fixture cannot observe"
+  },
+  {
+    "requirement": "§4.1 MUST NOT include the card's lead or body in a notification",
+    "why": "interface behaviour a fixture cannot observe: notifications, assistant indexes and locked devices are outside the protocol's operations"
+  },
+  {
+    "requirement": "§4.1 MUST NOT record a decision on the card, of any value",
+    "why": "owner-side behaviour: the protocol defines no owner credential (§7.3), so a fixture cannot identify the person again or decide through a surface that cannot"
+  },
+  {
+    "requirement": "§4.5 Identifying again.",
+    "why": "interface behaviour a fixture cannot observe"
+  },
+  {
+    "requirement": "§9 MUST NOT lower it below what the producer sent",
+    "why": "owner policy is set in the head's interface, which a fixture cannot drive; the card's own sensitivity is unaltered (C57)"
   }
 ]

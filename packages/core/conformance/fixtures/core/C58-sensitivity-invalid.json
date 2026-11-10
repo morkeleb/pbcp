@@ -1,0 +1,112 @@
+{
+  "name": "C58 a sensitivity other than normal, private or confirm is 400 invalid_card in either form, case included, and nothing is stored",
+  "rfc": [
+    "§4.1",
+    "§7.4"
+  ],
+  "covers": [
+    "§4.1 a card whose field breaks the rule given in its row below"
+  ],
+  "steps": [
+    {
+      "op": "put",
+      "args": {
+        "token": "pay",
+        "card": {
+          "protocol": "pbcp/1",
+          "id": "pay:invoice:bad-1",
+          "kind": "decision",
+          "to_person": "morten",
+          "producer": "pay",
+          "title": "Pay the plumber's invoice",
+          "summary": "The invoice is 4,200 kr, due Friday; the proposal is to pay it from the household account.",
+          "body": "Invoice 2026-118 from the plumber, due Friday.\n\n## Proposed payment\n\n4,200 kr from the household account.",
+          "emitted_at": "2026-11-10T07:00:00Z",
+          "sensitivity": "Private"
+        }
+      },
+      "expect": {
+        "status": 400,
+        "body": {
+          "error": "invalid_card"
+        }
+      }
+    },
+    {
+      "op": "put",
+      "args": {
+        "token": "pay",
+        "card": {
+          "protocol": "pbcp/1",
+          "id": "pay:invoice:bad-2",
+          "kind": "decision",
+          "to_person": "morten",
+          "producer": "pay",
+          "title": "Pay the plumber's invoice",
+          "summary": "The invoice is 4,200 kr, due Friday; the proposal is to pay it from the household account.",
+          "body": "Invoice 2026-118 from the plumber, due Friday.\n\n## Proposed payment\n\n4,200 kr from the household account.",
+          "emitted_at": "2026-11-10T07:00:00Z",
+          "sensitivity": "high"
+        }
+      },
+      "expect": {
+        "status": 400,
+        "body": {
+          "error": "invalid_card"
+        }
+      }
+    },
+    {
+      "op": "put",
+      "args": {
+        "token": "pay",
+        "card": {
+          "protocol": "pbcp/1",
+          "id": "pay:invoice:bad-3",
+          "kind": "decision",
+          "to_person": "morten",
+          "producer": "pay",
+          "title": "Pay the plumber's invoice",
+          "summary": "The invoice is 4,200 kr, due Friday; the proposal is to pay it from the household account.",
+          "body": "Invoice 2026-118 from the plumber, due Friday.\n\n## Proposed payment\n\n4,200 kr from the household account.",
+          "emitted_at": "2026-11-10T07:00:00Z",
+          "sensitivity": ""
+        }
+      },
+      "expect": {
+        "status": 400,
+        "body": {
+          "error": "invalid_card"
+        }
+      }
+    },
+    {
+      "op": "put",
+      "args": {
+        "token": "pay",
+        "card": "---\nprotocol: pbcp/1\nid: pay:invoice:bad-4\nkind: decision\nto_person: morten\nproducer: pay\nsensitivity: secret\ntitle: Pay the plumber's invoice\nemitted_at: \"2026-11-10T07:00:00Z\"\n---\n\nInvoice 2026-118.\n"
+      },
+      "expect": {
+        "status": 400,
+        "body": {
+          "error": "invalid_card"
+        }
+      }
+    },
+    {
+      "op": "syncAll",
+      "args": {
+        "token": "pay",
+        "after": 0
+      },
+      "expect": {
+        "status": 200,
+        "body": {
+          "changes": {
+            "$len": 0
+          }
+        }
+      }
+    }
+  ]
+}

@@ -59,6 +59,8 @@ Set "labels" (§4.1) to the project, client or mailbox the card concerns, so the
 
 Set "kind" by what the card asks of the person: "decision" to choose (with "actions"; open until they decide), "signal" to know that something happened, "artifact" to read something made for them (a report, a record), "task" to do something themselves. Use "task" when the person has to do something themselves (sign the form, call the plumber), not when you want their permission to act: it stays open until they mark it done, "done" is implicit (never list it in "actions" and mark nothing "default"; you may offer "tomorrow"), and "at" is when it is due. When they decide it, act on the decision where the task lives, then supersede the task with a "log" artifact saying what happened. Set "urgency" by when they should see it: "brief" (the default) waits for their next brief, "immediate" interrupts and is only for a decision that cannot wait or a signal about the next few hours, and "log" is only recorded, for routine records such as a completed task.
 
+Set "sensitivity" to "confirm" on a decision whose effect is money, deletion, sending on the person's behalf outside their own space, or anything you could not undo: the head then asks the person to identify themselves before it records their decision, so no assistant, you included, can decide it for them. Set it to "private" when the content is not for a notification, a lock screen or being read aloud, and leave it out ("normal") otherwise.
+
 Leave out "to_person": the server addresses the card to the person the head is for.
 
 Returns { status, id, state, change_seq, card }: the head's answer, with the card as it stored it. That answer is the confirmation that the card landed. 201: new card stored. 200: already current; read card.state and card.decision, since the person may already have answered. 409: the person already decided an earlier version; card carries that decision. Never re-submit the same id after a 409; submit a new card with "supersedes" set to the old id if you still need an answer.`;
@@ -83,7 +85,7 @@ Returns { status, id, state, change_seq, card }, as submit_card does.`;
 
 const COMPLETE = `Close an order you claimed with its outcome (PBCP Appendix A.3). Call it exactly once per claim, when the work is done, when it failed, or when a claim_order renewal answered 410 (the person cancelled). This card is the person's answer to the order: it is what they read in their brief, so the title says what happened ("Booked the dentist for Tue 3 Nov 09:00", "Could not book: the clinic is closed until Monday") and the body says what you did, with links, and, if you stopped early, what was and was not done.
 
-result is "done" or "failed". kind is "artifact" (the default) for a record of what you did, "signal" for something the person should know happened, or "decision" when you propose something that needs their approval before it takes effect ("here is the draft, send it?"): then give "actions" and a "summary" that states the proposal. Optional fields are as on any card (see submit_card): summary, source, labels, about, at, until, urgency.
+result is "done" or "failed". kind is "artifact" (the default) for a record of what you did, "signal" for something the person should know happened, or "decision" when you propose something that needs their approval before it takes effect ("here is the draft, send it?"): then give "actions" and a "summary" that states the proposal. A proposal whose effect is money, deletion, sending on the person's behalf outside their own space, or anything you could not undo takes sensitivity "confirm" (see submit_card), so that only the person can approve it. Optional fields are as on any card (see submit_card): summary, source, labels, about, at, until, urgency, sensitivity.
 
 You only need the order id: the server mints the outcome's id and sets orders.claim_seq from the claim it holds, and thread and references to the order. Refused if this server has not claimed the order.
 
@@ -236,6 +238,7 @@ export function createServer(head: Pick<HeadClient, 'submit' | 'sync' | 'claim' 
         at: z.string().optional().describe('UTC timestamp ending in Z'),
         until: z.string().optional().describe('UTC timestamp ending in Z'),
         urgency: z.enum(['immediate', 'brief', 'log']).optional(),
+        sensitivity: z.enum(['normal', 'private', 'confirm']).optional().describe('"confirm" on a proposal only the person may approve; "private" keeps the content off notifications (§4.1)'),
       },
       annotations: { idempotentHint: true, destructiveHint: false, openWorldHint: true },
     },

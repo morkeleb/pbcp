@@ -297,6 +297,32 @@ describe('the fixtures catch broken heads', () => {
     await fails(core.C56, { head: sabotage(h, { decide }) });
   });
 
+  it('C57: dropping sensitivity, or storing absent as normal', async () => {
+    const h = inProcessHead();
+    const drop: HeadUnderTest['put'] = async (t, c) => {
+      const res = await h.put(t, c);
+      if (typeof res.body === 'object' && res.body !== null && 'sensitivity' in res.body) delete (res.body as Record<string, unknown>).sensitivity;
+      return res;
+    };
+    await fails(core.C57, { head: sabotage(h, { put: drop }) });
+    const h2 = inProcessHead();
+    const fill: HeadUnderTest['put'] = async (t, c) => {
+      const res = await h2.put(t, c);
+      if (typeof res.body === 'object' && res.body !== null && res.status < 300) (res.body as Record<string, unknown>).sensitivity ??= 'normal';
+      return res;
+    };
+    await fails(core.C57, { head: sabotage(h2, { put: fill }) });
+  });
+
+  it('C58: storing an unknown sensitivity as normal instead of refusing it', async () => {
+    const h = inProcessHead();
+    const put: HeadUnderTest['put'] = async (t, c) => {
+      if (typeof c === 'object' && c !== null && 'sensitivity' in c) return h.put(t, { ...(c as object), sensitivity: 'normal' });
+      return h.put(t, typeof c === 'string' ? c.replace(/^sensitivity: .*\n/m, '') : c);
+    };
+    await fails(core.C58, { head: sabotage(h, { put }) });
+  });
+
   it('R12: falling back on an extended-tier type', async () => {
     const r = referenceRenderer();
     const draw: RenderUnderTest['render'] = async (body) => {
