@@ -85,7 +85,7 @@ Returns { status, id, state, change_seq, card }, as submit_card does.`;
 
 const COMPLETE = `Close an order you claimed with its outcome (PBCP Appendix A.3). Call it exactly once per claim, when the work is done, when it failed, or when a claim_order renewal answered 410 (the person cancelled). This card is the person's answer to the order: it is what they read in their brief, so the title says what happened ("Booked the dentist for Tue 3 Nov 09:00", "Could not book: the clinic is closed until Monday") and the body says what you did, with links, and, if you stopped early, what was and was not done.
 
-result is "done" or "failed". kind is "artifact" (the default) for a record of what you did, "signal" for something the person should know happened, or "decision" when you propose something that needs their approval before it takes effect ("here is the draft, send it?"): then give "actions" and a "summary" that states the proposal. Optional fields are as on any card (see submit_card): summary, source, labels, about, at, until, urgency.
+result is "done" or "failed". kind is "artifact" (the default) for a record of what you did, "signal" for something the person should know happened, or "decision" when you propose something that needs their approval before it takes effect ("here is the draft, send it?"): then give "actions" and a "summary" that states the proposal. A proposal whose effect is money, deletion, sending on the person's behalf outside their own space, or anything you could not undo takes sensitivity "confirm" (see submit_card), so that only the person can approve it. Optional fields are as on any card (see submit_card): summary, source, labels, about, at, until, urgency, sensitivity.
 
 You only need the order id: the server mints the outcome's id and sets orders.claim_seq from the claim it holds, and thread and references to the order. Refused if this server has not claimed the order.
 
@@ -238,6 +238,7 @@ export function createServer(head: Pick<HeadClient, 'submit' | 'sync' | 'claim' 
         at: z.string().optional().describe('UTC timestamp ending in Z'),
         until: z.string().optional().describe('UTC timestamp ending in Z'),
         urgency: z.enum(['immediate', 'brief', 'log']).optional(),
+        sensitivity: z.enum(['normal', 'private', 'confirm']).optional().describe('"confirm" on a proposal only the person may approve; "private" keeps the content off notifications (§4.1)'),
       },
       annotations: { idempotentHint: true, destructiveHint: false, openWorldHint: true },
     },

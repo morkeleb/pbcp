@@ -45,6 +45,10 @@ describe('@pbcp/mcp', () => {
     expect(submit).toContain('"done" is implicit');
     expect(submit).toContain('Set "sensitivity" to "confirm" on a decision whose effect is money');
     expect(submit).toContain('Set it to "private" when the content is not for a notification');
+    const { tools } = await client.listTools();
+    const complete = tools.find((x) => x.name === 'complete_order')!;
+    expect(complete.description).toContain('takes sensitivity "confirm"');
+    expect(Object.keys((complete.inputSchema as { properties: object }).properties)).toContain('sensitivity');
   });
 
   it('submits a confirm card and keeps its sensitivity; refuses an unknown one (RFC §4.1)', async () => {
@@ -152,8 +156,8 @@ describe('@pbcp/mcp', () => {
 
     const d = stub.order({ to_producer: 'hermes', title: 'Answer Lars', body: '' });
     await call('claim_order', { id: d.id });
-    const draft = await call('complete_order', { order_id: d.id, result: 'done', kind: 'decision', actions: ['approve', 'reject', 'edit'], title: 'Send this reply to Lars?', body: '> Yes.', summary: 'A reply to Lars accepting the renewal; send it?' });
-    expect(draft.json).toMatchObject({ status: 201, card: { kind: 'decision', actions: ['approve', 'reject', 'edit'], 'orders.result': 'done' } });
+    const draft = await call('complete_order', { order_id: d.id, result: 'done', kind: 'decision', actions: ['approve', 'reject', 'edit'], title: 'Send this reply to Lars?', body: '> Yes.', summary: 'A reply to Lars accepting the renewal; send it?', sensitivity: 'confirm' });
+    expect(draft.json).toMatchObject({ status: 201, card: { kind: 'decision', actions: ['approve', 'reject', 'edit'], sensitivity: 'confirm', 'orders.result': 'done' } });
     const bad = stub.order({ to_producer: 'hermes', title: 'X', body: '' });
     await call('claim_order', { id: bad.id });
     expect(await call('complete_order', { order_id: bad.id, result: 'done', title: 'two\nlines', body: '' })).toMatchObject({ isError: true, json: { status: 400, error: 'invalid_card' } });

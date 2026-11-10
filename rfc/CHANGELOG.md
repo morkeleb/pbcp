@@ -54,7 +54,7 @@ Draft 0.9 adds a fourth kind, `task`: something the person is to do themselves, 
 
 **Status.** Both implementations pass the 62 cases of the 0.8 suite; the in-process reference also passes the 69 of 0.9, which `pbcp-head` has not run yet.
 
-**Connectors.** todoist gains a reader mode that sends due and overdue items as tasks; goalpath sends the owner's dated items as tasks; the MCP `submit_card` description and the hermes skills say when to use a task, and describe `sensitivity`. No connector sets `sensitivity`.
+**Connectors.** todoist gains a reader mode that sends due and overdue items as tasks; goalpath sends the owner's dated items as tasks; the MCP `submit_card` description and the hermes skills say when to use a task, and describe `sensitivity`; an executor's `complete_order` and the n8n Submit node can set it. The readers (todoist, goalpath, imap) leave it absent.
 
 ## 0.8 (2026-10-29)
 

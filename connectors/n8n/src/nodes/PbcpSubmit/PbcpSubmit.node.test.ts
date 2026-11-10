@@ -61,6 +61,15 @@ describe('PbcpSubmit', () => {
     expect(t!.card).toMatchObject({ kind: 'task', about: '2026-11-05', at: '2026-11-05T16:00:00Z', until: '2026-11-05T17:00:00Z', actions: ['tomorrow'] });
   });
 
+  it('sets sensitivity when given and leaves it out otherwise (RFC §4.1)', async () => {
+    const [c, p] = json(await run([
+      { ...base, upstream: 'pay-1', additionalFields: { sensitivity: 'confirm' } },
+      { ...base, upstream: 'pay-2' },
+    ]));
+    expect(c!.card).toMatchObject({ sensitivity: 'confirm' });
+    expect((p!.card as Record<string, unknown>).sensitivity).toBeUndefined();
+  });
+
   it('refuses a card that does not conform before calling the head; continueOnFail emits the error', async () => {
     const bad = { ...base, namespace: 'not ok', toPerson: 'morten' };
     const err = await run([bad]).catch((e: unknown) => e);

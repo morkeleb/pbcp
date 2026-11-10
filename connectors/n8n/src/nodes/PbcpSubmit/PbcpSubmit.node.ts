@@ -1,13 +1,14 @@
 // Submit (RFC §7.1) as an n8n action: one card per input item. A 409 is an output, not an error.
 
 import { card, type HeadClient } from '@pbcp/client';
-import { encodeUpstream, type Kind, type ProducerCard, type Urgency } from '@pbcp/core';
+import { encodeUpstream, type Kind, type ProducerCard, type Sensitivity, type Urgency } from '@pbcp/core';
 import { NodeConnectionTypes, type IDataObject, type IExecuteFunctions, type INodeExecutionData, type INodeType, type INodeTypeDescription } from 'n8n-workflow';
 import { actions, connect, errorJson, list, nodeError } from '../../shared.js';
 
 interface Extra {
   thread?: string;
   urgency?: Urgency;
+  sensitivity?: Sensitivity;
   about?: string;
   at?: string;
   until?: string;
@@ -33,6 +34,7 @@ function build(ctx: IExecuteFunctions, i: number, toPerson: string): ProducerCar
     body: p('body'),
     thread: x.thread || undefined,
     urgency: x.urgency || undefined,
+    sensitivity: x.sensitivity || undefined,
     about: x.about || undefined,
     at: x.at || undefined,
     until: x.until || undefined,
@@ -94,6 +96,18 @@ export class PbcpSubmit implements INodeType {
               { name: 'Log', value: 'log' },
             ],
             default: 'brief',
+          },
+          {
+            displayName: 'Sensitivity',
+            name: 'sensitivity',
+            type: 'options',
+            options: [
+              { name: 'Normal', value: 'normal' },
+              { name: 'Private', value: 'private', description: 'The lead and body stay off notifications, assistants and lock screens' },
+              { name: 'Confirm', value: 'confirm', description: 'As Private, and the person identifies themselves again before a decision is recorded' },
+            ],
+            default: 'normal',
+            description: 'RFC §4.1. Confirm a decision whose effect is money, deletion, sending outside the person\'s own space, or anything that cannot be undone; Private for content not to be read aloud or seen on a lock screen.',
           },
           { displayName: 'About', name: 'about', type: 'string', default: '', placeholder: '2026-11-05', description: 'The day the card concerns, YYYY-MM-DD (RFC §4.1); a task due on a day without a time' },
           { displayName: 'At', name: 'at', type: 'string', default: '', placeholder: '2026-11-05T16:00:00Z', description: 'When the subject happens, or a task is due: a UTC timestamp ending in Z (RFC §4.1)' },
