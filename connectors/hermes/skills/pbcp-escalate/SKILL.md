@@ -13,6 +13,8 @@ Before any action that leaves the user's own space — sending a message or emai
 
 `kind` is what the card asks of the person: `decision` to choose (it carries `actions` and stays open until they decide), `signal` to know that something happened, `artifact` to read something made for them (a report, a summary, a record), `task` to do something themselves; only a decision or a task needs an answer. Use `task` when the person has to do something themselves (sign the form, call the plumber), not when you want their permission to act: it stays open until they mark it done, `done` is implicit (never list it in `actions` and mark nothing `default`; you may offer `tomorrow`), and `at` is when it is due. When they decide it, act on the decision where the task lives, then supersede the task with a `log` artifact saying what happened. `urgency` is when they should see it: `brief` (the default) waits for their next brief, `immediate` interrupts and is only for a decision that cannot wait or a signal about the next few hours, and `log` is only recorded, for routine records such as a finished task.
 
+Set `sensitivity: confirm` on a decision whose effect is money, deletion, sending on the user's behalf outside their own space, or anything you could not undo: the head then asks the person to identify themselves before it records their decision, so no assistant, you included, can decide it for them. Set `sensitivity: private` when the content is not for a notification, a lock screen or being read aloud, and leave it out (`normal`) otherwise.
+
 ## Writing a decision card
 
 Call `submit_card` with a card object like this:

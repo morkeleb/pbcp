@@ -43,6 +43,15 @@ describe('@pbcp/mcp', () => {
     expect(submit).not.toContain('Write the time nowhere else');
     expect(submit).toContain('"task" to do something themselves');
     expect(submit).toContain('"done" is implicit');
+    expect(submit).toContain('Set "sensitivity" to "confirm" on a decision whose effect is money');
+    expect(submit).toContain('Set it to "private" when the content is not for a notification');
+  });
+
+  it('submits a confirm card and keeps its sensitivity; refuses an unknown one (RFC §4.1)', async () => {
+    const { call } = await setup();
+    const card = { ...sample('Pay the plumber'), sensitivity: 'confirm' };
+    expect((await call('submit_card', { card })).json).toMatchObject({ status: 201, card: { sensitivity: 'confirm' } });
+    expect(await call('submit_card', { card: { ...sample('Pay the electrician'), sensitivity: 'secret' } })).toMatchObject({ isError: true, json: { status: 400, error: 'invalid_card' } });
   });
 
   it('submits a task, and refuses one that lists done (RFC §4.1)', async () => {
