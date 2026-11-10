@@ -2,7 +2,7 @@
 
 ## 0.9 (unreleased)
 
-Draft 0.9 adds a fourth kind, `task`: something the person is to do themselves, which stays open until they mark it done. A task is decided with the existing decision operation and needs no new field, operation or error code; `at`, `until`, `about`, `thread` and `source` carry what a to-do tool knows about it. In-process conformance: 62 → 67 cases (core C52–C56).
+Draft 0.9 adds a fourth kind, `task`: something the person is to do themselves, which stays open until they mark it done. A task is decided with the existing decision operation and needs no new field, operation or error code; `at`, `until`, `about`, `thread` and `source` carry what a to-do tool knows about it. It also adds a producer-owned field, `sensitivity`, which keeps a card's content off surfaces the owner does not fully control and can require the person to identify themselves again before a decision is recorded; it brings one new error code, `403 reauthentication_required`. In-process conformance: 62 → 69 cases (core C52–C58).
 
 **§4.1 — `kind: task`.**
 - **Shape:** the `kind` enum gains `task`, and `actions` is allowed on a task. On a task, `at` is when it is due (the start of its window), `until` the end of the window, `about` its day when it has no due time, `source` where it lives, `thread` its project or parent task.
@@ -30,9 +30,31 @@ Draft 0.9 adds a fourth kind, `task`: something the person is to do themselves, 
 
 **§11.3 — head checklist** gains task validation, task presentation and tasks in the brief.
 
-**Status.** Both implementations pass the 62 cases of the 0.8 suite; the in-process reference also passes the 67 of 0.9, which `pbcp-head` has not run yet.
+**§4.1 — `sensitivity`.**
+- **Shape:** optional, `normal` (the default), `private` or `confirm`; any other value is `400 invalid_card`. It counts for equality, and an absent `sensitivity` equals `normal` (§5). New fixtures C57, C58.
+- **`private`:** a head MUST NOT include the card's lead or body in a notification, an assistant index or any surface outside the owner's signed-in session. The title MAY be shown; on a locked device a head SHOULD show the producer name and kind only.
+- **`confirm`:** everything `private` requires, and a head MUST NOT record a decision on the card, `dismissed` included, unless the person has identified themselves again within a short window the head chooses (a passkey, a platform biometric, a password). A decision through a surface that cannot ask (an assistant connector, a notification action, a voice intent) is refused with `403 reauthentication_required` and recorded nowhere. Snoozing and acknowledging are unaffected.
+- **Core:** `decide` is unchanged; the check is the head's, on its owner routes. Both MUST NOTs are listed as untested interface behaviour (§14).
 
-**Connectors.** todoist gains a reader mode that sends due and overdue items as tasks; goalpath sends the owner's dated items as tasks; the MCP `submit_card` description and the hermes skills say when to use a task.
+**§4.1a — choosing a sensitivity.** `confirm` for a decision whose effect is money, deletion, sending on the person's behalf outside their own space, or anything the producer could not undo; `private` for content the person would not want read aloud or seen on a lock screen; `normal` otherwise. Advisory.
+
+**§4.5 — identifying again.** A `confirm` card is presented with its controls, which say that deciding will ask the person to identify themselves.
+
+**§5 — equality.** An absent `sensitivity` equals `normal`.
+
+**§7.3, §7.4 — `reauthentication_required`.** A new `403` code, for a decision on a `confirm` card without fresh identification.
+
+**§9 — sensitivity policy.** A head MAY raise a card's effective sensitivity by the owner's policy (per producer, per label, or for every card) and MUST NOT lower it below what the producer sent; the card keeps the producer's value.
+
+**§11.3 — head checklist** gains: validates and never lowers `sensitivity`; keeps a `private` or `confirm` card's lead and body off notifications, assistant indexes and locked devices; records a decision on a `confirm` card only after the person identifies themselves again.
+
+**§12 — sensitivity is a floor.** The producer's value is the floor and the owner's policy the ceiling, so an assistant connector holding the owner's credential, or a compromised one, cannot approve a `confirm` card.
+
+**§14.** The handling rules of `sensitivity` join §4.5 and §8 as interface obligations not tested by fixtures.
+
+**Status.** Both implementations pass the 62 cases of the 0.8 suite; the in-process reference also passes the 69 of 0.9, which `pbcp-head` has not run yet.
+
+**Connectors.** todoist gains a reader mode that sends due and overdue items as tasks; goalpath sends the owner's dated items as tasks; the MCP `submit_card` description and the hermes skills say when to use a task, and describe `sensitivity`. No connector sets `sensitivity`.
 
 ## 0.8 (2026-10-29)
 
