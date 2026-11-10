@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { parseCardOrThrow, type Card, type ProducerCard } from './card.js';
 import { PbcpError } from './errors.js';
-import { acknowledge, canSupersede, checkSubmission, decide, markSeen, snooze, submit, unsnooze } from './lifecycle.js';
+import { acknowledge, canSupersede, checkSubmission, decide, effectiveSensitivity, markSeen, snooze, submit, unsnooze } from './lifecycle.js';
 
 const T0 = '2026-10-07T06:00:00Z';
 const T1 = '2026-10-07T07:00:00Z';
@@ -282,5 +282,22 @@ describe('checkSubmission (§5, §10, §12)', () => {
     throws(() => checkSubmission(card({ to_person: 'anna' }), { root: 'goalpath', owner: 'morten' }), 'wrong_person', 403);
     throws(() => checkSubmission(card(), { root: 'goalpath', owner: 'morten', pathId: 'goalpath:item:1' }), 'id_mismatch', 400);
     expect(() => checkSubmission(card(), { root: 'goalpath', owner: 'morten', pathId: 'goalpath:item:4421' })).not.toThrow();
+  });
+});
+
+describe('effectiveSensitivity (§9)', () => {
+  it('raises the card\'s sensitivity to the strictest policy and never lowers it', () => {
+    expect(effectiveSensitivity(undefined)).toBe('normal');
+    expect(effectiveSensitivity('private')).toBe('private');
+    expect(effectiveSensitivity(undefined, 'private')).toBe('private');
+    expect(effectiveSensitivity('normal', 'private', 'confirm', undefined)).toBe('confirm');
+    expect(effectiveSensitivity('confirm', 'normal')).toBe('confirm');
+    expect(effectiveSensitivity('private', undefined, 'normal')).toBe('private');
+  });
+
+  it('leaves decide alone: the head checks a confirm card on its owner routes (§4.1, §7.3)', () => {
+    const c = submit(null, card({ sensitivity: 'confirm' }), T0).card;
+    expect(c.sensitivity).toBe('confirm');
+    expect(decide(c, { decision: 'approve' }, T1).card.state).toBe('decided');
   });
 });

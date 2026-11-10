@@ -30,6 +30,8 @@ export const ERROR_CODES = {
   outside_root: 403,
   cross_namespace_supersede: 403,
   wrong_person: 403,
+  // 403 — decide on a `sensitivity: confirm` card without the person identifying themselves again (§4.1). A head's, on its owner routes; core never throws it.
+  reauthentication_required: 403,
   // 404 — no card with this id (decide and other owner-side calls)
   not_found: 404,
   // 409 — a supersede target that is already superseded. A locked card is a 409 that carries the card, not an error body.

@@ -8,6 +8,8 @@ import { parseYaml, stringifyYaml, type YamlDoc, type YamlMap, type YamlValue } 
 export const PROTOCOL = 'pbcp/1';
 export const KINDS = ['decision', 'artifact', 'signal', 'task'] as const;
 export const URGENCIES = ['immediate', 'brief', 'log'] as const;
+/** §4.1 `sensitivity`, in increasing order of care (§9). Absent is `normal`. */
+export const SENSITIVITIES = ['normal', 'private', 'confirm'] as const;
 export const STATES = ['open', 'decided', 'superseded'] as const;
 /** Decision values the protocol defines (§4.3). */
 export const BUILTIN_DECISIONS = ['dismissed', 'edited', 'delegated'] as const;
@@ -23,6 +25,7 @@ export const CARD_LIMIT_BYTES = 64 * 1024;
 
 export type Kind = (typeof KINDS)[number];
 export type Urgency = (typeof URGENCIES)[number];
+export type Sensitivity = (typeof SENSITIVITIES)[number];
 export type State = (typeof STATES)[number];
 
 const RFC3339_UTC = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2}):(\d{2})(?:\.\d+)?(?:Z|[+-]00:00)$/;
@@ -75,6 +78,8 @@ export const ProducerCardSchema = z.looseObject({
   summary: z.string().min(1).refine((s) => !/[\r\n]/.test(s), 'must be one line').optional(),
   body: z.string(),
   urgency: z.enum(URGENCIES).optional(),
+  /** §4.1: how the card's content and decision may be handled off the owner's signed-in session; the head enforces it (§9, §12). */
+  sensitivity: z.enum(SENSITIVITIES).optional(),
   thread: NonEmpty.optional(),
   labels: z
     .array(z.string().refine(isLabel, 'each label must be 1–32 lowercase letters, digits or - (§4.1)'))
@@ -244,7 +249,7 @@ function typedFromYaml(doc: YamlDoc): Record<string, unknown> {
 }
 
 const FIELD_ORDER = [
-  'protocol', 'id', 'kind', 'to_person', 'producer', 'thread', 'labels', 'about', 'at', 'until', 'urgency', 'title', 'summary', 'actions',
+  'protocol', 'id', 'kind', 'to_person', 'producer', 'thread', 'labels', 'about', 'at', 'until', 'urgency', 'sensitivity', 'title', 'summary', 'actions',
   'references', 'supersedes', 'emitted_at', 'source',
 ];
 
@@ -305,7 +310,7 @@ export function producerPart(c: Card): ProducerCard {
 
 /**
  * §5: every producer-owned field except `emitted_at`, compared on parsed values.
- * Defaults are applied before comparing (urgency `brief`, references and labels `[]`, decision
+ * Defaults are applied before comparing (urgency `brief`, sensitivity `normal`, references and labels `[]`, decision
  * actions `[approve, reject]`), a bare action string equals `{ id }`, `default: false`
  * equals no default, labels compare as a set, and trailing whitespace at the end of the body is not significant.
  */
@@ -320,6 +325,7 @@ function normalise(c: ProducerCard): Record<string, unknown> {
     out[k] = v;
   }
   out.urgency = c.urgency ?? 'brief';
+  out.sensitivity = c.sensitivity ?? 'normal';
   out.references = c.references ?? [];
   out.labels = [...(c.labels ?? [])].sort(); // §5: a set; the card itself keeps the producer's order
   out.body = c.body.replace(/\s+$/, '');
