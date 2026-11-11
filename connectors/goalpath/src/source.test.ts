@@ -2,7 +2,7 @@ import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 import { fixtureSource, loadFixtures } from './fixture-source.js';
 import { toolResult } from './mcp-source.js';
-import { parse } from './source.js';
+import { parse, toolSource } from './source.js';
 
 const FIX = fileURLToPath(new URL('../fixtures', import.meta.url));
 const M = (n: number) => `7a1e0c2e-4d4b-4c51-9b1a-00000000000${n}`;
@@ -60,6 +60,14 @@ describe('normaliser over the recorded fixtures', () => {
     expect(due('2026-11-05T16:00:00+01:00')).toEqual(['2026-11-05', '2026-11-05T15:00:00Z']);
     expect(due(undefined)).toEqual([undefined, undefined]);
     expect(parse.items([{ id: 'b', dueDate: '2026-11-06', description: 'Two\nlines.' }])).toMatchObject([{ due: '2026-11-06', description: 'Two\nlines.' }]);
+  });
+
+  it('reads one item bare or under `item`, takes "not found" as deleted, and throws any other error', async () => {
+    expect(parse.item({ item: { id: 'a', number: 7, title: 'T', status: 'Started', deadline: '2026-11-02' } })).toMatchObject({ id: 'a', number: 'GP-7', due: '2026-11-02' });
+    expect(parse.item({ id: 'b', status: 'Accepted' })).toMatchObject({ id: 'b', status: 'Accepted' });
+    const failing = (message: string) => toolSource(async () => { throw new Error(message); }, 'p');
+    await expect(failing('GoalPath tool error: Item not found').item('x')).resolves.toBeUndefined();
+    await expect(failing('fetch failed').item('x')).rejects.toThrow('fetch failed');
   });
 
   it('accepts bare arrays and ignores entries without ids', () => {

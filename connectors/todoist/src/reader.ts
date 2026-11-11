@@ -1,13 +1,15 @@
 // RFC §11.1 "A task reader": each Todoist task due today or overdue becomes a `kind: task` card (§4.1). The person's
 // decision is carried out in Todoist, once. An outcome that ends the task supersedes the card with a `log` artifact; a
 // move keeps it a task: re-PUT under its id while open, superseded by a `moved-<n>` task once decided (§4.3, §8).
+// Dismissed ends the card, not the subject: nothing is sent until Todoist ends or re-dates the task.
 
 import { card, type KeyValue, type SubmitResponse } from '@pbcp/client';
 import { decodeUpstream, encodeUpstream, type Card, type ProducerCard, type Urgency } from '@pbcp/core';
 import { EXECUTOR_LABEL, type Task, type TodoistReader } from './source.js';
 
 /** How a subject ended (§4.3): the person's decision carried out, or the task completed or deleted in Todoist. A move is
- *  not here: it keeps the subject open (§8). */
+ *  not here: it keeps the subject open (§8); nor is a dismissal, which ends only the card (`dismissed` is on records
+ *  written before that rule). */
 export type Result = 'done' | 'already' | 'dismissed' | 'completed' | 'deleted';
 
 /** The reader's state per subject (§5): a task, or one occurrence of a recurring task, keyed by its first card's id
@@ -27,6 +29,9 @@ export interface Rec {
   moves?: number;
   /** When the subject's first card was accepted: a completion in Todoist's activity log after it ends the subject. */
   since?: string;
+  /** The card the person dismissed, while it is the current card: "not now". The subject stays open and nothing is sent
+   *  until Todoist ends the task or changes its due day, which supersedes this card with a `moved-<n>` task (§4.3). */
+  dismissed?: string;
   /** Set before a call to Todoist for the decision on `card`, cleared or replaced by `result` after it. */
   acting?: { card: string; decision: 'done' | 'tomorrow' };
   result?: Result;
@@ -160,6 +165,13 @@ export function todoistReader(src: TodoistReader, kv: KeyValue<Rec>, cfg: Reader
 
   /** The subject's current card from the task as it is now: the same id with the new day after a move in Todoist (§5,
    *  §8), or the successor after a decided move (§4.3). Recorded once the head has it open. */
+  /** A dismissed subject whose due day changed in Todoist comes back: the next `moved-<n>` supersedes the dismissed card,
+   *  numbered from the record and recorded only once the head has it, so a failed PUT mints the same id again. */
+  const redated = (key: string, rec: Rec, t: Task, day: string, today: string, now: Date) => {
+    const n = (rec.moves ?? 0) + 1;
+    return revise(key, { ...rec, dismissed: undefined, moves: n, prev: rec.current ?? key, current: successor(key, rec, n), date: day }, t, today, now);
+  };
+
   async function revise(key: string, rec: Rec, t: Task, today: string, now: Date): Promise<ProducerCard> {
     const id = rec.current ?? key, c = await taskCard(t, id, rec.prev, today, now);
     return after(c, async (r) => {
@@ -198,8 +210,9 @@ export function todoistReader(src: TodoistReader, kv: KeyValue<Rec>, cfg: Reader
           if (open.rec.acting || open.rec.result) continue; // a decision under way
           // A recurring task due on another day was completed (its next occurrence) or moved: only the activity log's yes ends it.
           if (!(recurring && day !== open.rec.date && (await completed(open.rec)) === true)) {
-            yield await revise(open.key, open.rec, t, today, now);
-            continue;
+            if (!open.rec.dismissed) yield await revise(open.key, open.rec, t, today, now);
+            else if (day && day !== open.rec.date) yield await redated(open.key, open.rec, t, day, today, now);
+            continue; // dismissed and not re-dated: not now, nothing to send
           }
           await end(open.key, open.rec, 'completed');
         }
@@ -217,7 +230,8 @@ export function todoistReader(src: TodoistReader, kv: KeyValue<Rec>, cfg: Reader
         if (t.state === 'deleted') await end(key, rec, (await completed(rec)) ? 'completed' : 'deleted');
         else if (t.state === 'done') await end(key, rec, 'completed');
         else if (t.due?.recurring && day !== rec.date && (await completed(rec)) === true) await end(key, rec, 'completed');
-        else yield await revise(key, rec, t, today, now); // moved in Todoist, or a successor waiting for its day
+        else if (!rec.dismissed) yield await revise(key, rec, t, today, now); // moved in Todoist, or a successor waiting for its day
+        else if (day && day !== rec.date) yield await redated(key, rec, t, day, today, now);
       }
       for (const key of await kv.keys(PREFIX)) {
         const rec = (await kv.get(key))!;
@@ -232,21 +246,22 @@ export function todoistReader(src: TodoistReader, kv: KeyValue<Rec>, cfg: Reader
       await fn?.(r);
     },
 
-    /** §11.1 step 3: done completes the task, tomorrow moves it, dismissed leaves it; each once per card (§5). Done and
-     *  dismissed end the subject, recorded by a closing card; tomorrow moves it to a successor task card (§4.3). */
+    /** §11.1 step 3: done completes the task, tomorrow moves it, dismissed leaves it; each once per card (§5). Done ends
+     *  the subject, recorded by a closing card; tomorrow moves it to a successor task card; dismissed ends only the card,
+     *  which stays the current one until Todoist ends or re-dates the task (§4.3). */
     async onDecision(c: Card) {
       const p = parse(c.id);
       // A superseded card has its successor or closing card already: only this reader supersedes its cards.
       if (!p || c.kind !== 'task' || !c.decision || c.state === 'superseded') return;
       const prev = await kv.get(p.key);
       // Acted on already, or an earlier card of a moved subject.
-      if (prev?.result || (prev && (prev.current ?? p.key) !== c.id)) return;
+      if (prev?.result || prev?.dismissed === c.id || (prev && (prev.current ?? p.key) !== c.id)) return;
       const rec: Rec = prev ?? {
         item: p.item, ...(p.orig ? { orig: p.orig } : {}), ...(c.about ? { date: c.about } : {}), title: c.title, thread: c.thread, url: c.source?.url,
         state: 'open', current: c.id, moves: p.n, ...(c.supersedes ? { prev: c.supersedes } : {}),
       };
       const settle = (result: Result) => kv.set(p.key, { ...rec, acting: undefined, result });
-      if (c.decision === 'dismissed') return settle('dismissed');
+      if (c.decision === 'dismissed') return kv.set(p.key, { ...rec, acting: undefined, dismissed: c.id });
       if (c.decision !== 'done' && c.decision !== 'tomorrow') return;
       const t = await src.get(rec.item);
       if (t.state === 'deleted') return settle('deleted');

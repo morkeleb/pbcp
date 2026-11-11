@@ -4,7 +4,7 @@ import { toolSource, type GoalPathSource } from './source.js';
 
 /** Raw tool output by tool name. Per-entity tools are keyed further by `milestoneId` or `itemId`. */
 export type Fixtures = Record<string, unknown>;
-const KEYED: Record<string, string> = { get_milestone_forecast: 'milestoneId', list_code_activity: 'itemId' };
+const KEYED: Record<string, string> = { get_milestone_forecast: 'milestoneId', list_code_activity: 'itemId', get_item: 'itemId' };
 
 /** Reads one JSON file, or a directory of `<tool>.json` files. */
 export function loadFixtures(path: string): Fixtures {
@@ -20,7 +20,7 @@ export function fixtureSource(data: Fixtures, projectId = 'fixture'): GoalPathSo
     if (tool === 'set_item_status' || tool === 'add_comment') return void writes.push([tool, args]);
     const raw = data[tool], key = KEYED[tool];
     const out = key === undefined ? raw : (raw as Record<string, unknown> | undefined)?.[String(args[key])];
-    if (out === undefined) throw new Error(`no fixture for ${tool} ${JSON.stringify(args)}`);
+    if (out === undefined) throw new Error(tool === 'get_item' ? 'Item not found' : `no fixture for ${tool} ${JSON.stringify(args)}`); // as GoalPath answers
     return out;
   };
   return { ...toolSource(call, projectId), writes };
