@@ -11,8 +11,8 @@ export interface Approval { card: string; round: number; label: string; thread: 
  *  on; `closed` once the closing card was sent. Stored under `task:<item-id>`; `task:<item-id>:<date>` entries are older dated ones, and `item`
  *  is absent on entries older still. */
 export interface Task { card: string; item?: string; date?: string; at?: string; label: string; thread: string; url?: string; submitted?: boolean; decision?: string; closed?: boolean; moves?: number; prev?: string }
-/** Why a task ended (§4.3): decided here, or what GoalPath says. */
-export type TaskEnd = 'done' | 'dismissed' | 'accepted' | 'rejected' | 'queue' | 'unassigned' | 'deleted';
+/** Why a task ended (§4.3): marked done here, or what GoalPath says. `dismissed` ends the card, not the subject, so it is not one. */
+export type TaskEnd = 'done' | 'accepted' | 'rejected' | 'queue' | 'unassigned' | 'deleted';
 /** The current card of a milestone's risk chain. */
 export interface Risk { card: string; projected: string; slipping: boolean }
 
@@ -122,7 +122,6 @@ export function taskCard(i: Item, m: Milestone | undefined, cfg: Config, now: Da
 export function taskClosedCard(t: Task, item: Item | undefined, why: TaskEnd, cfg: Config, now: Date, m?: Milestone): ProducerCard {
   const [title, text] = {
     done: ['done in GoalPath', 'Marked done here; set to Accepted in GoalPath.'],
-    dismissed: ['dismissed', `Dismissed here; left as it is in GoalPath${item ? ` (${item.status})` : ''}.`],
     accepted: ['done in GoalPath', 'Accepted in GoalPath.'],
     rejected: ['rejected in GoalPath', 'Rejected in GoalPath.'],
     queue: ['waiting for acceptance', `${item?.status} in GoalPath and waiting for your acceptance; the approval card asks for it.`],
@@ -229,7 +228,8 @@ export function goalpathProducer(gp: GoalPathSource, store: StateStore, cfg: Con
 
       // Tasks (§4.3, §5, §8, §11.1): one subject per item, `goalpath:task:<item-id>`. A card sent is followed until it is closed or moved,
       // whether or not the item is still listed: re-PUT while open, so a moved due date or the due day arriving revises it; superseded by a
-      // `moved-<n>` task when it was dismissed and the item is then re-dated; closed when the item ends. A closed subject is not sent again.
+      // `moved-<n>` task when it was dismissed and the item is later re-dated; closed when it is marked done or the item ends. A closed
+      // subject is not sent again.
       const queued = cfg.approvalStatus ?? 'Finished';
       const mine = new Map(items.map((i) => [i.id, i]));
       const known = await tasks();
@@ -240,13 +240,16 @@ export function goalpathProducer(gp: GoalPathSource, store: StateStore, cfg: Con
         const m = byId.get(item?.milestoneId ?? t.thread);
         const ended: TaskEnd | undefined = !item ? 'deleted' : !listed ? 'unassigned' : item.status === 'Accepted' ? 'accepted' : item.status === 'Rejected' ? 'rejected' : item.status === queued ? 'queue' : undefined;
         const d = item?.due ? dueDay(item, cfg.tz) : undefined;
-        if (t.decision === 'dismissed' && !ended && d && d !== t.date) {
-          // Moved after it was decided: the decided card is locked, so a task supersedes it (§4.3); a move closes nothing (§8).
+        if (t.decision === 'done' || ended) {
+          const c = taskClosedCard(t, item, t.decision === 'done' ? 'done' : ended!, cfg, now, m);
+          yield after(c, async (r) => void (ok(r) && (await setTask(key, { ...t, closed: true }))));
+        } else if (t.decision) {
+          // Dismissed: "not now" ends the card, not the subject (§4.3). Nothing is sent until GoalPath ends the item (above) or re-dates
+          // it, at any later pass: the decided card is locked, so a `moved-<n>` task supersedes it (§4.3), and the person can dismiss it
+          // again or do it. A move closes nothing (§8).
+          if (!d || d === t.date) continue;
           const n = (t.moves ?? 0) + 1, c = taskCard(item!, m, cfg, now, movedId(t.card, n), t.card);
           yield after(c, () => setTask(key, { card: c.id, item: t.item, date: d, ...(item!.dueAt ? { at: item!.dueAt } : {}), label: label(item!), thread: c.thread!, ...(item!.url ? { url: item!.url } : {}), submitted: true, moves: n, prev: t.card }));
-        } else if (t.decision || ended) {
-          const c = taskClosedCard(t, item, t.decision === 'done' ? 'done' : t.decision ? 'dismissed' : ended!, cfg, now, m);
-          yield after(c, async (r) => void (ok(r) && (await setTask(key, { ...t, closed: true }))));
         } else {
           // Open: re-PUT under its id (§5). An item that lost its due date keeps the day last sent; the card stays until closed or moved.
           const shown = item!.due ? item! : { ...item!, due: t.date, dueAt: t.at };

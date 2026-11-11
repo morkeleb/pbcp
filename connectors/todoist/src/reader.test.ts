@@ -246,7 +246,7 @@ describe('todoist reader', () => {
     expect(t.errors).toEqual([]);
   });
 
-  it('leaves the task alone on dismissed, supersedes the card with a Dismissed log artifact once, and does not send the card again', async () => {
+  it('leaves the task alone on dismissed and sends nothing: dismissal ends the card, not the subject, and the decision is the record (§4.3)', async () => {
     const t = setup();
     await t.pass();
     t.stub.decideHere(PASSPORT, { decision: 'dismissed' });
@@ -255,14 +255,41 @@ describe('todoist reader', () => {
     await t.onDecision(t.card(PASSPORT)); // the decision again
     t.resync();
     await t.pass();
+    t.clock.now = new Date('2026-11-06T09:00:00Z'); // the next day: still due, now overdue, still not now
+    t.src.today('2026-11-06');
     await t.pass();
     expect([t.src.closed, t.src.rescheduled]).toEqual([[], []]);
-    expect(t.card(`${PASSPORT}:closed`)).toMatchObject({
-      kind: 'artifact', urgency: 'log', title: 'Dismissed', summary: 'Renew the passport', body: 'Dismissed here; left as it is in Todoist.', supersedes: PASSPORT,
-    });
-    expect(t.card(PASSPORT)).toMatchObject({ state: 'superseded', decision: 'dismissed' });
+    expect(t.card(`${PASSPORT}:closed`)).toBeUndefined();
+    expect(t.card(PASSPORT)).toMatchObject({ state: 'decided', decision: 'dismissed' });
     expect(t.puts(PASSPORT)).toHaveLength(2); // the passes before the decision reached the reader
-    expect(new Set(t.puts(`${PASSPORT}:closed`).map((c) => JSON.stringify(c))).size).toBe(1);
+    expect([...t.stub.cards.keys()].filter((k) => k.startsWith(PASSPORT))).toEqual([PASSPORT]);
+    expect(t.errors).toEqual([]);
+  });
+
+  it('brings a dismissed task back as moved-<n> when its due date is later changed in Todoist, and closes it when Todoist completes it', async () => {
+    const t = setup();
+    await t.pass();
+    t.stub.decideHere(PASSPORT, { decision: 'dismissed' });
+    await t.pass();
+    await t.pass();
+    t.src.move('6Xfx0103', '2026-11-09'); // a new fact in Todoist, passes later
+    await t.pass();
+    const M1 = `${PASSPORT}:moved-1`;
+    expect(t.card(M1)).toMatchObject({ kind: 'task', state: 'open', supersedes: PASSPORT, about: '2026-11-09', urgency: 'log', title: 'Renew the passport', actions: ['tomorrow'] });
+    expect(t.card(PASSPORT)).toMatchObject({ state: 'superseded', decision: 'dismissed' });
+    await t.pass();
+    expect(new Set(t.puts(M1).map((c) => JSON.stringify(c))).size).toBe(1); // followed under its id, not minted again
+    // Dismissed again and re-dated again: the next number.
+    t.stub.decideHere(M1, { decision: 'dismissed' });
+    await t.pass();
+    t.src.move('6Xfx0103', '2026-11-12');
+    await t.pass();
+    expect(t.card(`${PASSPORT}:moved-2`)).toMatchObject({ state: 'open', supersedes: M1, about: '2026-11-12' });
+    t.src.complete('6Xfx0103');
+    await t.pass();
+    await t.pass();
+    expect(t.card(`${PASSPORT}:closed`)).toMatchObject({ kind: 'artifact', title: 'Done in Todoist', supersedes: `${PASSPORT}:moved-2` });
+    expect([t.src.closed, t.src.rescheduled]).toEqual([[], []]);
     expect(t.errors).toEqual([]);
   });
 
