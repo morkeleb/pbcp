@@ -131,10 +131,11 @@ const sent = toFrontMatter(parseCardOrThrow({
   <p>
     A task never lists <code>done</code> in its <code>actions</code>: done is implicit and the default, and a task marks
     nothing else <code>default</code>. It may offer more, such as <code>tomorrow</code>. When the person decides it, the
-    producer acts where the task lives. An outcome that ends the task (<code>done</code>, <code>dismissed</code>)
-    supersedes the card with a <code>log</code> artifact saying what happened; one that moves it (<code>tomorrow</code>)
-    supersedes it with a task for the new day, <code>&lt;id&gt;:moved-1</code>, because a moved task is still a task
-    (<a href={rfc('4.3')}>§4.3</a>, <a href={rfc('11.1')}>§11.1</a>). A card's time is not its identity: the id names the
+    producer acts where the task lives. An outcome that ends the task (<code>done</code>) supersedes the card with a
+    <code>log</code> artifact saying what happened; one that moves it (<code>tomorrow</code>) supersedes it with a task
+    for the new day, <code>&lt;id&gt;:moved-1</code>, because a moved task is still a task. <code>dismissed</code> ends the
+    card, not the task: nothing is sent, and if the task is later re-dated where it lives, a <code>moved-&lt;n&gt;</code> task
+    supersedes the dismissed card (<a href={rfc('4.3')}>§4.3</a>, <a href={rfc('11.1')}>§11.1</a>). A card's time is not its identity: the id names the
     task, never its date, and a task moved while its card is open is re-sent under the same id with its new day
     (<a href={rfc('8')}>§8</a>).
   </p>
