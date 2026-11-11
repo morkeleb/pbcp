@@ -323,6 +323,24 @@ describe('the fixtures catch broken heads', () => {
     await fails(core.C58, { head: sabotage(h, { put }) });
   });
 
+  it('C59: closing a task when a task supersedes it', async () => {
+    const h = inProcessHead();
+    // A head that shows the move as an end: the predecessor's decision dropped, or the successor stored closed.
+    const changes: HeadUnderTest['changes'] = async (t, after) => {
+      const res = await h.changes(t, after);
+      const body = res.body as { changes?: { card: Record<string, unknown> }[] };
+      for (const c of body.changes ?? []) if (c.card.supersedes && c.card.kind === 'task') c.card.state = 'decided';
+      return res;
+    };
+    await fails(core.C59, { head: sabotage(h, { changes }) });
+    const h2 = inProcessHead();
+    const put: HeadUnderTest['put'] = async (t, c) => {
+      const card = c as Record<string, unknown>;
+      return h2.put(t, typeof card === 'object' && card?.supersedes ? { ...card, about: undefined, at: undefined } : c);
+    };
+    await fails(core.C59, { head: sabotage(h2, { put }) });
+  });
+
   it('R12: falling back on an extended-tier type', async () => {
     const r = referenceRenderer();
     const draw: RenderUnderTest['render'] = async (body) => {

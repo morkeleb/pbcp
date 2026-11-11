@@ -33,6 +33,9 @@ export interface TodoistReader extends Pick<TodoistSource, 'get'> {
   close(id: string): Promise<void>;
   /** Sets the due date from natural language, `tomorrow`; returns the task as it now is. */
   reschedule(id: string, dueString: string): Promise<Task>;
+  /** Whether the activity log has the task completed at or after `since` (a timestamp). Tells a completion from a move,
+   *  which the task alone does not for a recurring task, and a completion from a deletion when `get` cannot (README, API). */
+  completedSince(id: string, since: string): Promise<boolean>;
 }
 
 type Obj = Record<string, unknown>;
@@ -107,5 +110,12 @@ export function restSource(token: string, opts: { project?: string; label?: stri
     project: async (p) => str(((await call('GET', `/projects/${e(p)}`)) as Obj | undefined)?.name) || undefined,
     close: async (t) => void (await call('POST', `/tasks/${e(t)}/close`)),
     reschedule: async (t, due_string) => task(await call('POST', `/tasks/${e(t)}`, { due_string }), t),
+    async completedSince(t, since) {
+      const events = await all(`/activities?object_type=item&object_id=${e(t)}&event_type=completed&date_from=${e(since)}`);
+      return events.some((x) => {
+        const ev = x as Obj;
+        return ev.event_type === 'completed' && str(ev.object_id) === t && !(Date.parse(str(ev.event_date)) < Date.parse(since));
+      });
+    },
   };
 }

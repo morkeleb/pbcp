@@ -1,0 +1,133 @@
+{
+  "name": "C59 a decided task superseded by a task has moved: the successor is stored open on its new day, and the predecessor is superseded with its decision and its day intact",
+  "rfc": [
+    "§4.3",
+    "§6",
+    "§8"
+  ],
+  "covers": [
+    "§4.3 A head MUST treat a task superseded by a task as moved, not closed",
+    "§8 A card's time is not its identity"
+  ],
+  "steps": [
+    {
+      "op": "put",
+      "args": {
+        "token": "todo",
+        "card": {
+          "protocol": "pbcp/1",
+          "id": "todo:task:8840",
+          "kind": "task",
+          "to_person": "morten",
+          "producer": "todo",
+          "title": "Call the plumber",
+          "body": "About the dripping tap in the kitchen.",
+          "thread": "todo:project:home",
+          "emitted_at": "2026-11-05T06:00:00Z",
+          "about": "2026-11-05",
+          "at": "2026-11-05T15:00:00Z",
+          "actions": [
+            "tomorrow"
+          ]
+        }
+      },
+      "expect": {
+        "status": 201,
+        "body": {
+          "state": "open",
+          "about": "2026-11-05"
+        }
+      }
+    },
+    {
+      "op": "decide",
+      "args": {
+        "id": "todo:task:8840",
+        "decision": {
+          "decision": "tomorrow"
+        }
+      },
+      "expect": {
+        "status": 200,
+        "body": {
+          "state": "decided",
+          "decision": "tomorrow"
+        }
+      }
+    },
+    {
+      "op": "put",
+      "args": {
+        "token": "todo",
+        "card": {
+          "protocol": "pbcp/1",
+          "id": "todo:task:8840:moved-1",
+          "kind": "task",
+          "to_person": "morten",
+          "producer": "todo",
+          "title": "Call the plumber",
+          "body": "About the dripping tap in the kitchen.",
+          "thread": "todo:project:home",
+          "emitted_at": "2026-11-05T06:05:00Z",
+          "about": "2026-11-06",
+          "at": "2026-11-06T15:00:00Z",
+          "actions": [
+            "tomorrow"
+          ],
+          "supersedes": "todo:task:8840"
+        }
+      },
+      "expect": {
+        "status": 201,
+        "body": {
+          "kind": "task",
+          "state": "open",
+          "about": "2026-11-06",
+          "at": "2026-11-06T15:00:00Z",
+          "supersedes": "todo:task:8840",
+          "actions": [
+            "tomorrow"
+          ]
+        }
+      }
+    },
+    {
+      "op": "syncAll",
+      "args": {
+        "token": "todo",
+        "after": 0
+      },
+      "expect": {
+        "status": 200,
+        "body": {
+          "changes": [
+            {
+              "card": {
+                "id": "todo:task:8840",
+                "kind": "task",
+                "state": "superseded",
+                "decision": "tomorrow",
+                "about": "2026-11-05",
+                "at": "2026-11-05T15:00:00Z",
+                "decided_at": {
+                  "$present": true
+                }
+              }
+            },
+            {
+              "card": {
+                "id": "todo:task:8840:moved-1",
+                "kind": "task",
+                "state": "open",
+                "about": "2026-11-06",
+                "decision": {
+                  "$absent": true
+                }
+              }
+            }
+          ]
+        }
+      }
+    }
+  ]
+}
