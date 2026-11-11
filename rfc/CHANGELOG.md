@@ -29,7 +29,12 @@ Draft 0.9 adds a fourth kind, `task`: something the person is to do themselves, 
 
 **§7.3, §7.4 — decide.** A task accepts `done`, its listed actions or `dismissed`. `done` on a decision card that does not list it is `400 invalid_decision`, as any value not offered; on an artifact or signal any decision is `400 not_decidable`. No new codes. New fixture C55.
 
-**§8 — tasks in the brief.** A brief MUST include every open, unsnoozed task due on or before its day, with title, lead and due time, and MAY count them ("4 tasks due, 1 overdue"). A task's day follows the existing rule: `about`, else the day of `at`, else `received_at`.
+**§8 — tasks in the brief.** A brief MUST name every open, unsnoozed task due on or before its day, with its due time, and MAY count them ("4 tasks due, 1 overdue"); see Folds for when it gives the lead. A task's day follows the existing rule: `about`, else the day of `at`, else `received_at`.
+
+**Folds (§3.1, §4.1a, §8, §9, §11.1, §11.3).**
+- **Names everything:** a brief MUST still name every open, unsnoozed decision and every open task due on or before its day, each linked; it MUST give the lead of a decision with no `default` or with `urgency: immediate`, and of an overdue task.
+- **Explains what needs the person:** any other decision MAY be folded under its default action with the producer's other cards that share it, each named ("6 the mail reader proposes archiving: …"); a fold MUST NOT decide for the person, and a bare approve on it is each card's own decision. Tasks MAY be counted and listed in a section of their own.
+- **Fold policy:** per label, `list` (default) or `count` (§9); a brief SHOULD count the tasks of a `count` label. It changes the fold, not the card. A producer that would act without asking acts and reports in one `log` artifact a day (§4.1a, §11.1). Interface behaviour, untested by fixtures; no fixture changes.
 
 **§11.1 — a task reader.** A to-do tool's items due today or overdue become tasks; `done` completes the item in the tool and is followed by a superseding `log` artifact, `tomorrow` reschedules it and is followed by a superseding task for the new day (`moved-<n>`); an item completed in the tool supersedes its card with the `log` artifact, and one moved there is re-PUT; a recurring item is a new card per occurrence, its id carrying the occurrence's original due date.
 
