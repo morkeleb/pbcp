@@ -84,7 +84,7 @@ Every outcome carries `references: [<order id>]`, `thread: <order id>`, `orders.
 
 | Card field | From |
 |---|---|
-| `id` | `todoist:task:<task id>`; for a recurring task, `todoist:task:<task id>:<due day>`, a new card per occurrence (§11.1 step 5) |
+| `id` | `todoist:task:<task id>`; for a recurring task, `todoist:task:<task id>:<due day>`, a new card per occurrence, its date the day the occurrence was first due, kept when it moves (§5, §11.1 step 5); after a decided move, `…:moved-<n>` (below) |
 | `title` | the task's `content`, on one line |
 | `about` | the due day (`YYYY-MM-DD`); for a due time Todoist gives as an instant, its day in `TODOIST_TZ` |
 | `at`, `until` | only when the task has a due time: the time (floating times read in `TODOIST_TZ`), and the time plus the duration, if any |
@@ -97,7 +97,68 @@ Every outcome carries `references: [<order id>]`, `thread: <order id>`, `orders.
 
 An open card is sent again each pass, so a change to the task revises it (§5). Urgency counts for equality, so a p1 card is revised to `immediate` on the pass after its due time comes within 3 hours.
 
-**Rate.** Todoist allows about 450 requests per 15 minutes. Each pass makes one listing call (one per 200 tasks); subtasks and comments are fetched only for a task new to the reader or whose listing changed (its content, description, due, duration, priority, labels, project, parent or `updated_at`), and the body built from them is reused otherwise. Project names are fetched once per project and kept while the process runs. The trade-off: a new comment or subtask alone does not change the task's listing, so it shows on the card at the task's next change, or after a restart; a renamed project likewise shows after a restart. The signatures and names are held in memory only.
+**Moves.** A card's time is not its identity (§8). A task moved to another day in Todoist while its card is open is re-PUT under the same id with the new `about`, `at` and `until`, and a recurring occurrence keeps its date segment when it moves. The reader keeps sending a card until it is closed or moved, even when its task is no longer due today: a task that leaves the `today | overdue` listing is fetched by id each pass to learn what happened — deleted, completed, or moved.
+
+**Rate.** Todoist allows about 450 requests per 15 minutes. Each pass makes one listing call (one per 200 tasks), one `GET` per open card whose task is not in the listing (moved to a later day, or a `moved-<n>` waiting for its day), and an activity-log call only when a recurring task's day changed or a task is gone; subtasks and comments are fetched only for a task new to the reader or whose listing changed (its content, description, due, duration, priority, labels, project, parent or `updated_at`), and the body built from them is reused otherwise. Project names are fetched once per project and kept while the process runs. The trade-off: a new comment or subtask alone does not change the task's listing, so it shows on the card at the task's next change, or after a restart; a renamed project likewise shows after a restart. The signatures and names are held in memory only.
+
+**Decisions.** On `done` the task is completed in Todoist (`close`); on `tomorrow` it is rescheduled with `due_string: "tomorrow"`; on `dismissed` it is left as it is. An outcome either ends the task or moves it (§4.3):
+
+| What happened | Card |
+|---|---|
+| `done`, completed now | `Done in Todoist` |
+| `done` or `tomorrow` on a task Todoist already has completed (or, recurring, already moved past this occurrence) | `Already completed`, and no call |
+| `dismissed` | `Dismissed`, saying it was left as it is in Todoist; no call |
+| `tomorrow` | a task card `todoist:task:<id>:moved-<n>` for the new day: same title, body, thread, source, labels and `actions: [tomorrow]`, the new `about`, `at`, `until`; it supersedes the decided card and is decided like it |
+| completed in Todoist while the card is open, no decision | `Done in Todoist` |
+| moved to another day (or its date removed) in Todoist while the card is open | no new card: the same id is re-PUT with the new day ([Moves](#reader)) |
+| deleted in Todoist while open | `Deleted in Todoist`, a `signal` (§6, retracting a card) |
+
+An ending supersedes the current card — the first, or the latest `moved-<n>` — at the next pass with a `log` artifact `todoist:task:<id>:closed`, its `summary` the task's title; a recurring occurrence's is `todoist:task:<id>:closed-<date>`, since the occurrence's card already uses the id's one `intent` segment for its date (§5 grammar). A decided occurrence that moves would be `todoist:task:<id>:<date>-moved-<n>`; the reader offers no `tomorrow` on a recurring task, so it does not arise from a decision here.
+
+A completion is told from a move by Todoist's activity log: a `completed` event for the task since its first card was sent ends the subject, so `Done in Todoist` is sent only for a completion. For a recurring task that matters, since completing an occurrence and postponing it both just change its due day. When the activity log cannot be read (it may need a paid plan; see [API](#api)), a recurring task due on another day is taken as completed, and a task `GET` reports deleted is taken as deleted.
+
+A task or occurrence whose card was closed is not sent again, even if it comes due again: a dismissed task stays dismissed.
+
+**Idempotency.** The key is the order id (A.4). Once a task is created, its id is kept in the executor's order state (`ctx.state`, in `PBCP_STORE` under `orders`, keyed by order id) until the order's outcome is accepted. An order claimed again after a crash reads the task from there and checks it, so a task completed (or deleted) while the executor was down is reported as such on the re-claim, not created again.
+
+The order id is also written into the description as `pbcp: <order id>`. When there is no state for the order (a crash between creating the task and recording it, or a lost store file), the connector looks through the open tasks labelled `pbcp` for one whose description contains that line and uses it. That fallback sees open tasks only: a task completed in that narrow window, or after the store file was lost, gets a second task on re-claim. Removing the label or the line in Todoist defeats the fallback, not the state.
+
+## Outcome
+
+The connector checks the task every `TODOIST_POLL_S`, renewing the lease first (`ctx.checkpoint()`); the wait is interrupted by a cancel. A Todoist error during a check is logged and retried at the next one. When the task is created, a progress card `todoist:order:<ulid>:progress-<claim_seq>-1` says `Added to Todoist: <content>` (not repeated on a re-claim that finds the task).
+
+| In Todoist | Outcome `todoist:order:<ulid>:outcome-<claim_seq>` | `exec_state` |
+|---|---|---|
+| Completed | `artifact` at `urgency: log` with `orders.result: done` (a completed task is a routine record, RFC §4.1a), `Done: <task content as it is now>`, body `Completed in Todoist, <time>.`, the time in `TODOIST_TZ`: `today 09:12`, or `Mon 26 Oct 16:00` on another day; with `TODOIST_TZ` unset, in UTC with the zone named: `today 08:12 UTC` | `done` |
+| Deleted | `signal` with `orders.result: failed`, `Not done: <order title>`, saying the task was deleted without being completed | `failed` |
+| (the person dismisses the order) | `signal` with `orders.result: failed`, `Stopped: <order title>`, saying the task was deleted | stays `cancelled` (the outcome is stale by design, A.5) |
+
+Every outcome carries `references: [<order id>]`, `thread: <order id>`, `orders.result` and the `orders.claim_seq` of the claim it reports on (A.3). Ids are per claim, so a re-claim after a lapsed lease (`claim_seq` 2) writes `outcome-2` beside any earlier run's cards; `runExecutor` builds the ids and fields.
+
+**Cancellation.** When renewal answers `410`, the task is deleted rather than completed, so it neither stays on the list nor shows in the person's completed history; that is the roll-back of A.5. If the delete fails, the executor's own `Stopped` outcome is posted instead, listing `Added to Todoist` as done. On shutdown (`SIGINT`, `SIGTERM`) or a lease lost to another executor the task is left alone: the next claim finds it through the order state (or its marker). Waits between checks use `ctx.sleep`, which a cancel, a lost lease or shutdown interrupts at once.
+
+## Reader
+
+`TODOIST_MODE=reader` runs a producer (RFC §11.1, "A task reader"). Every `TODOIST_POLL_S` it lists the tasks due today or overdue (Todoist's `today | overdue` filter) and submits a `kind: task` card for each. Tasks labelled `pbcp` are skipped: those are the executor's tasks for orders, already on the head as the order's cards.
+
+| Card field | From |
+|---|---|
+| `id` | `todoist:task:<task id>`; for a recurring task, `todoist:task:<task id>:<due day>`, a new card per occurrence, its date the day the occurrence was first due, kept when it moves (§5, §11.1 step 5); after a decided move, `…:moved-<n>` (below) |
+| `title` | the task's `content`, on one line |
+| `about` | the due day (`YYYY-MM-DD`); for a due time Todoist gives as an instant, its day in `TODOIST_TZ` |
+| `at`, `until` | only when the task has a due time: the time (floating times read in `TODOIST_TZ`), and the time plus the duration, if any |
+| `thread` | `todoist:project:<project id>`; for a subtask, `todoist:task:<parent id>` |
+| `labels` | the project's name and the task's labels, slugged to the §4.1 grammar (lowercase, `a`–`z`, digits and `-`, at most 32 characters), duplicates and empties dropped, at most 8 |
+| `source` | the task link (see [API](#api)), labelled `Todoist task` |
+| `body` | the description, then `## Subtasks` (open subtasks as `- [ ]` lines) and `## Comments`, each part only when it has content |
+| `urgency` | by §4.1a: due today or overdue → `brief`, whatever the priority; p1 (API priority 4) → `immediate` only when it has a due time today at most 3 hours away, or already passed today; due later or undated → `log` |
+| `actions` | `[tomorrow]`; none on a recurring task, since rescheduling by `due_string` would replace its recurrence. `done` is implicit (§4.1) |
+
+An open card is sent again each pass, so a change to the task revises it (§5). Urgency counts for equality, so a p1 card is revised to `immediate` on the pass after its due time comes within 3 hours.
+
+**Moves.** A card's time is not its identity (§8). A task moved to another day in Todoist while its card is open is re-PUT under the same id with the new `about`, `at` and `until`, and a recurring occurrence keeps its date segment when it moves. The reader keeps sending a card until it is closed or moved, even when its task is no longer due today: a task that leaves the `today | overdue` listing is fetched by id each pass to learn what happened — deleted, completed, or moved.
+
+**Rate.** Todoist allows about 450 requests per 15 minutes. Each pass makes one listing call (one per 200 tasks), one `GET` per open card whose task is not in the listing (moved to a later day, or a `moved-<n>` waiting for its day), and an activity-log call only when a recurring task's day changed or a task is gone; subtasks and comments are fetched only for a task new to the reader or whose listing changed (its content, description, due, duration, priority, labels, project, parent or `updated_at`), and the body built from them is reused otherwise. Project names are fetched once per project and kept while the process runs. The trade-off: a new comment or subtask alone does not change the task's listing, so it shows on the card at the task's next change, or after a restart; a renamed project likewise shows after a restart. The signatures and names are held in memory only.
 
 **Decisions.** On `done` the task is completed in Todoist (`close`); on `tomorrow` it is rescheduled with `due_string: "tomorrow"`; on `dismissed` it is left as it is. The card is not sent again, and at the next pass it is superseded by a `log` artifact `todoist:task:<id>:closed` (§4.3), its `summary` the task's title:
 
@@ -113,7 +174,7 @@ An open card is sent again each pass, so a change to the task revises it (§5). 
 
 A recurring occurrence's card already uses the id's one `intent` segment for its date, so its closing card is `todoist:task:<id>:closed-<due day>` (§5 grammar). A task that is not recurring but comes due again after its card was closed (it was rescheduled) gets a dated card the same way, `todoist:task:<id>:<due day>`, since the undated id is locked (§4.3).
 
-**Idempotency.** The store (`PBCP_STORE`, namespace `tasks`) keeps a record per task card id: the task, its due day, and what was done. A decision already recorded is not acted on again, whether it arrives again through sync, a re-sync or a repeated call, and the closing card is built from the record, so it is the same card each time. Before the call to Todoist the decision is marked in the record; a crash between the call and recording its result is recognised on the retry by its effect (the task completed, or due tomorrow), so it is neither repeated nor reported as `Already completed`. Without the record (a lost store) the decision is taken from the card itself, and an already-completed task is then reported as `Already completed`. Records are kept, so a closed card's id is never reused.
+**Idempotency.** The store (`PBCP_STORE`, namespace `tasks`) keeps a record per subject (a task, or one occurrence), under its first card's id: the task, its current card and due day, the number of `moved-<n>` cards minted so far, so a number is never reused, and what was done. A decision already recorded is not acted on again, whether it arrives again through sync, a re-sync or a repeated call, and the closing card is built from the record, so it is the same card each time. Before the call to Todoist the decision is marked in the record; a crash between the call and recording its result is recognised on the retry by its effect (the task completed, or due tomorrow), so it is neither repeated nor reported as `Already completed`, and a reschedule mints one `moved-<n>`. A decision on a card the subject has moved past is ignored. Without the record (a lost store) the decision is taken from the card itself, and an already-completed task is then reported as `Already completed`. Records are kept, so a closed card's id is never reused.
 
 **Two processes, one root.** The reader and the executor both use the root `todoist` with separate tokens and stores; each ignores the other's cards in its sync.
 
@@ -134,6 +195,7 @@ The reader adds, equally unverified:
 - `GET /api/v1/projects/{id}`: the project's `name`, once per project while the process runs.
 - `POST /api/v1/tasks/{id}/close`: completes the task; for a recurring one, the current occurrence.
 - `POST /api/v1/tasks/{id}` with `{ "due_string": "tomorrow" }`: Todoist reads it in the account's zone and drops any due time.
+- `GET /api/v1/activities?object_type=item&object_id={id}&event_type=completed&date_from={since}&limit=200[&cursor=…]`: the task's completions since its first card, `{ results, next_cursor }`, each with `event_type`, `object_id` and `event_date`; filtered again on the client. The activity log may be limited to paid plans; a failed call is handled as [Decisions](#reader) says.
 - **Task link.** The Done outcome links to the task (`source`, RFC §4.1, labelled `Todoist task`). The task's `url` is used when the API returns one; otherwise the link is `https://app.todoist.com/app/task/<id>`, the web app's task address, which is assumed rather than documented by the API. Not-done and cancelled outcomes have no link, since the task is gone.
 
 The normaliser in `src/source.ts` also accepts REST v2's `is_completed` and bare-array pages.

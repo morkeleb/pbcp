@@ -12,10 +12,10 @@ const [BANK, PLANTS, PASSPORT] = ['todoist:task:6Xfx0101', 'todoist:task:6Xfx010
 // 2026-11-05 10:00 in Copenhagen (CET, UTC+1).
 function setup() {
   const stub = stubHead({ now: () => '2026-11-05T09:00:00Z' });
-  const src = fixtureSource(FIX, { today: '2026-11-05' });
+  const clock = { now: new Date('2026-11-05T09:00:00Z') };
+  const src = fixtureSource(FIX, { today: '2026-11-05', now: () => clock.now });
   const head = new HeadClient({ baseUrl: 'https://head.test', token: 'todoist', fetch: stub.fetch });
   const errors: unknown[] = [];
-  const clock = { now: new Date('2026-11-05T09:00:00Z') };
   const reader = (store: StateStore) => todoistReader(src, store.kv<Rec>('tasks'), { toPerson: 'morten', timeZone: 'Europe/Copenhagen' }, () => clock.now);
   let store = memoryStore();
   let r = reader(store);
@@ -115,7 +115,7 @@ describe('todoist reader', () => {
     expect(t.errors).toEqual([]);
   });
 
-  it('on tomorrow reschedules the task and records Rescheduled', async () => {
+  it('on tomorrow reschedules the task and supersedes the card with a task for the new day, moved-1; no log artifact (§4.3)', async () => {
     const t = setup();
     await t.pass();
     t.stub.decideHere(PASSPORT, { decision: 'tomorrow' });
@@ -123,7 +123,97 @@ describe('todoist reader', () => {
     await t.pass();
     expect(t.src.rescheduled).toEqual(['6Xfx0103']);
     expect(t.src.closed).toEqual([]);
-    expect(t.card(`${PASSPORT}:closed`)).toMatchObject({ title: 'Rescheduled', body: 'Moved to 2026-11-06 in Todoist.', supersedes: PASSPORT });
+    expect(t.card(PASSPORT)).toMatchObject({ state: 'superseded', decision: 'tomorrow', about: '2026-11-05' });
+    expect(t.card(`${PASSPORT}:moved-1`)).toMatchObject({
+      kind: 'task', state: 'open', title: 'Renew the passport', about: '2026-11-06', urgency: 'log', supersedes: PASSPORT, actions: ['tomorrow'],
+      thread: 'todoist:project:6Xfp0001', labels: ['inbox'], source: { url: 'https://app.todoist.com/app/task/6Xfx0103' },
+    });
+    expect(t.card(`${PASSPORT}:closed`)).toBeUndefined();
+    // Its day comes: the same card, now brief; then tomorrow again is moved-2, and done closes the chain.
+    t.clock.now = new Date('2026-11-06T09:00:00Z');
+    t.src.today('2026-11-06');
+    await t.pass();
+    expect(t.card(`${PASSPORT}:moved-1`)).toMatchObject({ state: 'open', urgency: 'brief' });
+    t.stub.decideHere(`${PASSPORT}:moved-1`, { decision: 'tomorrow' });
+    await t.pass();
+    await t.pass();
+    expect(t.card(`${PASSPORT}:moved-2`)).toMatchObject({ kind: 'task', state: 'open', about: '2026-11-07', supersedes: `${PASSPORT}:moved-1` });
+    t.clock.now = new Date('2026-11-07T09:00:00Z');
+    t.src.today('2026-11-07');
+    await t.pass();
+    t.stub.decideHere(`${PASSPORT}:moved-2`, { decision: 'done' });
+    await t.pass();
+    await t.pass();
+    expect(t.src.closed).toEqual(['6Xfx0103']);
+    expect(t.card(`${PASSPORT}:closed`)).toMatchObject({ kind: 'artifact', title: 'Done in Todoist', supersedes: `${PASSPORT}:moved-2` });
+    expect([...t.stub.cards.keys()].filter((k) => k.startsWith(PASSPORT)).sort()).toEqual([PASSPORT, `${PASSPORT}:closed`, `${PASSPORT}:moved-1`, `${PASSPORT}:moved-2`]);
+    expect(t.errors).toEqual([]);
+  });
+
+  it('acts on tomorrow once: a re-sync or a crash after the Todoist call neither reschedules twice nor mints another moved-<n>', async () => {
+    const t = setup();
+    await t.pass();
+    t.stub.decideHere(PASSPORT, { decision: 'tomorrow' });
+    const reschedule = t.src.reschedule;
+    t.src.reschedule = async (id, d) => { await reschedule(id, d); throw new Error('crash'); };
+    await t.pass();
+    t.src.reschedule = reschedule;
+    await t.pass();
+    await t.onDecision(t.card(PASSPORT));
+    t.resync();
+    await t.pass();
+    await t.pass();
+    expect(t.src.rescheduled).toEqual(['6Xfx0103']);
+    expect([...t.stub.cards.keys()].filter((k) => k.startsWith(`${PASSPORT}:`))).toEqual([`${PASSPORT}:moved-1`]);
+  });
+
+  it('re-PUTs an open card under the same id when its task is moved in Todoist, and keeps it while it is not due today (§5, §8)', async () => {
+    const t = setup();
+    await t.pass();
+    t.src.move('6Xfx0101', '2026-11-08');
+    await t.pass();
+    await t.pass();
+    expect(t.card(BANK)).toMatchObject({ kind: 'task', state: 'open', about: '2026-11-08', urgency: 'log' });
+    expect(t.card(BANK).at).toBeUndefined(); // the time of day went with the move
+    expect(t.card(`${BANK}:closed`)).toBeUndefined();
+    t.src.move('6Xfx0101', '2026-11-05');
+    await t.pass();
+    expect(t.card(BANK)).toMatchObject({ state: 'open', about: '2026-11-05', urgency: 'brief' });
+    expect(t.errors).toEqual([]);
+  });
+
+  it('keeps a recurring occurrence\'s original date in its id when it moves, and closes it only when the activity log has it completed', async () => {
+    const t = setup();
+    await t.pass();
+    t.src.move('6Xfx0102', '2026-11-06'); // postponed, not completed
+    await t.pass();
+    expect(t.card(PLANTS)).toMatchObject({ state: 'open', about: '2026-11-06', urgency: 'log' });
+    expect(t.card('todoist:task:6Xfx0102:closed-2026-11-04')).toBeUndefined();
+    t.src.complete('6Xfx0102'); // every day: the next occurrence is due on the 7th
+    await t.pass();
+    await t.pass();
+    expect(t.card('todoist:task:6Xfx0102:closed-2026-11-04')).toMatchObject({ kind: 'artifact', title: 'Done in Todoist', supersedes: PLANTS });
+    expect([...t.stub.cards.keys()].filter((k) => k.startsWith('todoist:task:6Xfx0102:20'))).toEqual([PLANTS]); // the 7th is not due yet
+    expect(t.errors).toEqual([]);
+  });
+
+  it('without the activity log, takes a recurring task due on another day as completed, as before', async () => {
+    const t = setup();
+    await t.pass();
+    t.src.completedSince = async () => { throw new Error('403'); };
+    t.src.move('6Xfx0102', '2026-11-06');
+    await t.pass();
+    await t.pass();
+    expect(t.card('todoist:task:6Xfx0102:closed-2026-11-04')).toMatchObject({ title: 'Done in Todoist' });
+  });
+
+  it('supersedes a card whose task was deleted in Todoist with a Deleted in Todoist signal (§6)', async () => {
+    const t = setup();
+    await t.pass();
+    t.src.remove('6Xfx0101');
+    await t.pass();
+    expect(t.card(`${BANK}:closed`)).toMatchObject({ kind: 'signal', urgency: 'log', title: 'Deleted in Todoist', supersedes: BANK });
+    expect(t.card(`${BANK}:closed`).source).toBeUndefined();
   });
 
   it('records Already completed when the person marks done a task Todoist already has completed, without completing it again', async () => {
@@ -146,7 +236,7 @@ describe('todoist reader', () => {
     expect(t.card(`${BANK}:closed`)).toMatchObject({ title: 'Done in Todoist', body: 'Completed in Todoist.', supersedes: BANK });
     expect(t.card(BANK)).toMatchObject({ state: 'superseded' });
     expect(t.card(BANK).decision).toBeUndefined();
-    expect(t.card(`todoist:task:6Xfx0102:closed-2026-11-04`)).toMatchObject({ title: 'Changed in Todoist', supersedes: PLANTS });
+    expect(t.card(`todoist:task:6Xfx0102:closed-2026-11-04`)).toMatchObject({ title: 'Done in Todoist', body: 'Completed in Todoist.', supersedes: PLANTS });
     expect(t.card('todoist:task:6Xfx0102:2026-11-05')).toMatchObject({ kind: 'task', state: 'open', about: '2026-11-05' });
     expect(t.errors).toEqual([]);
   });
