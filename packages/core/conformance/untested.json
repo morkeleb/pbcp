@@ -184,6 +184,18 @@
     "why": "interface behaviour a fixture cannot observe"
   },
   {
+    "requirement": "§8 A brief MUST give the lead",
+    "why": "interface behaviour a fixture cannot observe"
+  },
+  {
+    "requirement": "§8 A fold MUST NOT decide for the person",
+    "why": "interface behaviour a fixture cannot observe"
+  },
+  {
+    "requirement": "§8 the MUST to name every open task above",
+    "why": "interface behaviour a fixture cannot observe"
+  },
+  {
     "requirement": "§8 A brief MAY state how many",
     "why": "interface behaviour a fixture cannot observe"
   },
@@ -237,10 +249,6 @@
   },
   {
     "requirement": "§4.5 A head SHOULD present a day's open tasks together",
-    "why": "interface behaviour a fixture cannot observe"
-  },
-  {
-    "requirement": "§8 A brief MUST likewise include every open task",
     "why": "interface behaviour a fixture cannot observe"
   },
   {
