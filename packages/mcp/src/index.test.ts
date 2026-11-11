@@ -43,6 +43,8 @@ describe('@pbcp/mcp', () => {
     expect(submit).not.toContain('Write the time nowhere else');
     expect(submit).toContain('"task" to do something themselves');
     expect(submit).toContain('"done" is implicit');
+    expect(submit).toContain('supersede it with a "task" card for the new day, id "<task id>:moved-1"');
+    expect(submit).toContain('Name the task in its id, never its date');
     expect(submit).toContain('Set "sensitivity" to "confirm" on a decision whose effect is money');
     expect(submit).toContain('Set it to "private" when the content is not for a notification');
     const { tools } = await client.listTools();
