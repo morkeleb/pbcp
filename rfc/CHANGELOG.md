@@ -2,7 +2,7 @@
 
 ## 0.9 (unreleased)
 
-Draft 0.9 adds a fourth kind, `task`: something the person is to do themselves, which stays open until they mark it done. A task is decided with the existing decision operation and needs no new field, operation or error code; `at`, `until`, `about`, `thread` and `source` carry what a to-do tool knows about it. It also adds a producer-owned field, `sensitivity`, which keeps a card's content off surfaces the owner does not fully control and can require the person to identify themselves again before a decision is recorded; it brings one new error code, `403 reauthentication_required`. In-process conformance: 62 → 69 cases (core C52–C58).
+Draft 0.9 adds a fourth kind, `task`: something the person is to do themselves, which stays open until they mark it done. A task is decided with the existing decision operation and needs no new field, operation or error code; `at`, `until`, `about`, `thread` and `source` carry what a to-do tool knows about it. It also adds a producer-owned field, `sensitivity`, which keeps a card's content off surfaces the owner does not fully control and can require the person to identify themselves again before a decision is recorded; it brings one new error code, `403 reauthentication_required`. In-process conformance: 62 → 70 cases (core C52–C59).
 
 **§4.1 — `kind: task`.**
 - **Shape:** the `kind` enum gains `task`, and `actions` is allowed on a task. On a task, `at` is when it is due (the start of its window), `until` the end of the window, `about` its day when it has no due time, `source` where it lives, `thread` its project or parent task.
@@ -12,7 +12,12 @@ Draft 0.9 adds a fourth kind, `task`: something the person is to do themselves, 
 
 **§4.2 — fields.** `decision` is meaningful on a task (`done`, a listed action, or `dismissed`); `acknowledged_at` is never set on a task, which is decided, not acknowledged.
 
-**§4.3 — deciding a task.** The decision operation (§7.3) with `done`, a listed action id, or `dismissed`; `edited` and `delegated` are not decisions on a task. The producer acts on the decision where the task lives and then supersedes the task with a `log` artifact recording the result; a task completed in its own tool is superseded the same way, without a decision. New fixtures C52, C56.
+**§4.3 — deciding a task.** The decision operation (§7.3) with `done`, a listed action id, or `dismissed`; `edited` and `delegated` are not decisions on a task. The producer acts on the decision where the task lives. An outcome that ends the task supersedes it with a `log` artifact recording the result, and one that moves it re-PUTs it or supersedes it with a task (see Moves); a task completed in its own tool is superseded by the `log` artifact, without a decision. New fixtures C52, C56.
+
+**Moves (§4.3, §5, §8, §11.1, §11.3).**
+- **Identity:** a card's time is not its identity; an id names the subject, not its date, and a date in an id names one occurrence of a recurring subject by its original date (as iCalendar's `RECURRENCE-ID`), so an occurrence keeps its id when it moves.
+- **Ending or moving:** a task's outcome ends it (`done`, `dismissed`, completed or deleted where it lives: superseded by a `log` artifact, a `signal` for a deletion) or moves it (a reschedule, or a due date changed where it lives: re-PUT while open; once decided, superseded by a `kind: task` card `<id>:moved-<n>`, or `<date>-moved-<n>` for an occurrence). The `Rescheduled` log artifact is gone.
+- **Heads:** a head MUST treat a task superseded by a task as moved, not closed, shows it once on the successor's day, and counts it in no closed list. New fixture C59.
 
 **§4.4 — default.** On a task, `done` is the default and no listed option may be.
 
@@ -26,7 +31,7 @@ Draft 0.9 adds a fourth kind, `task`: something the person is to do themselves, 
 
 **§8 — tasks in the brief.** A brief MUST include every open, unsnoozed task due on or before its day, with title, lead and due time, and MAY count them ("4 tasks due, 1 overdue"). A task's day follows the existing rule: `about`, else the day of `at`, else `received_at`.
 
-**§11.1 — a task reader.** A to-do tool's items due today or overdue become tasks; `done` completes the item in the tool, `tomorrow` reschedules it, and each is followed by a superseding `log` artifact; an item completed in the tool supersedes its card the same way; a recurring item is a new card per occurrence, its id carrying the due date.
+**§11.1 — a task reader.** A to-do tool's items due today or overdue become tasks; `done` completes the item in the tool and is followed by a superseding `log` artifact, `tomorrow` reschedules it and is followed by a superseding task for the new day (`moved-<n>`); an item completed in the tool supersedes its card with the `log` artifact, and one moved there is re-PUT; a recurring item is a new card per occurrence, its id carrying the occurrence's original due date.
 
 **§11.3 — head checklist** gains task validation, task presentation and tasks in the brief.
 
@@ -52,7 +57,7 @@ Draft 0.9 adds a fourth kind, `task`: something the person is to do themselves, 
 
 **§14.** The handling rules of `sensitivity` join §4.5 and §8 as interface obligations not tested by fixtures.
 
-**Status.** Both implementations pass the 62 cases of the 0.8 suite; the in-process reference also passes the 69 of 0.9, which `pbcp-head` has not run yet.
+**Status.** Both implementations pass the 62 cases of the 0.8 suite; the in-process reference also passes the 70 of 0.9, which `pbcp-head` has not run yet.
 
 **Connectors.** todoist gains a reader mode that sends due and overdue items as tasks; goalpath sends the owner's dated items as tasks; the MCP `submit_card` description and the hermes skills say when to use a task, and describe `sensitivity`; an executor's `complete_order` and the n8n Submit node can set it. The readers (todoist, goalpath, imap) leave it absent.
 
