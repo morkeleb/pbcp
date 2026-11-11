@@ -197,14 +197,19 @@ describe('todoist reader', () => {
     expect(t.errors).toEqual([]);
   });
 
-  it('without the activity log, takes a recurring task due on another day as completed, as before', async () => {
+  it('without the activity log, takes a recurring task due on another day as moved and re-PUTs it, never Done in Todoist', async () => {
     const t = setup();
     await t.pass();
     t.src.completedSince = async () => { throw new Error('403'); };
     t.src.move('6Xfx0102', '2026-11-06');
     await t.pass();
     await t.pass();
-    expect(t.card('todoist:task:6Xfx0102:closed-2026-11-04')).toMatchObject({ title: 'Done in Todoist' });
+    expect(t.card(PLANTS)).toMatchObject({ state: 'open', about: '2026-11-06' });
+    t.src.complete('6Xfx0102'); // completed, but the reader cannot see it: the next occurrence reads as a move
+    await t.pass();
+    expect(t.card(PLANTS)).toMatchObject({ state: 'open', about: '2026-11-07' });
+    expect(t.card('todoist:task:6Xfx0102:closed-2026-11-04')).toBeUndefined();
+    expect(t.errors).toEqual([]);
   });
 
   it('supersedes a card whose task was deleted in Todoist with a Deleted in Todoist signal (§6)', async () => {

@@ -196,8 +196,8 @@ export function todoistReader(src: TodoistReader, kv: KeyValue<Rec>, cfg: Reader
         if (open) {
           followed.add(open.key);
           if (open.rec.acting || open.rec.result) continue; // a decision under way
-          // A recurring task due on another day was completed (its next occurrence) or moved: the activity log says which.
-          if (!(recurring && day !== open.rec.date && (await completed(open.rec)) !== false)) {
+          // A recurring task due on another day was completed (its next occurrence) or moved: only the activity log's yes ends it.
+          if (!(recurring && day !== open.rec.date && (await completed(open.rec)) === true)) {
             yield await revise(open.key, open.rec, t, today, now);
             continue;
           }
@@ -216,7 +216,7 @@ export function todoistReader(src: TodoistReader, kv: KeyValue<Rec>, cfg: Reader
         const t = await src.get(rec.item), day = dueDay(t, zone);
         if (t.state === 'deleted') await end(key, rec, (await completed(rec)) ? 'completed' : 'deleted');
         else if (t.state === 'done') await end(key, rec, 'completed');
-        else if (t.due?.recurring && day !== rec.date && (await completed(rec)) !== false) await end(key, rec, 'completed');
+        else if (t.due?.recurring && day !== rec.date && (await completed(rec)) === true) await end(key, rec, 'completed');
         else yield await revise(key, rec, t, today, now); // moved in Todoist, or a successor waiting for its day
       }
       for (const key of await kv.keys(PREFIX)) {
