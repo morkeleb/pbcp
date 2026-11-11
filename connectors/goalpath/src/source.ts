@@ -13,6 +13,8 @@ export interface GoalPathSource {
   milestones(): Promise<Milestone[]>;
   /** Items assigned to the current user, Accepted included. */
   myItems(): Promise<Item[]>;
+  /** One item, whoever it is assigned to; undefined when GoalPath says it does not exist (deleted). */
+  item(itemId: string): Promise<Item | undefined>;
   /** Confirmed code links of an item; suggested ones are dropped. */
   codeActivity(itemId: string): Promise<CodeLink[]>;
   /** Unplanned share of completed work per week, oldest first; empty when unavailable. */
@@ -64,6 +66,7 @@ export const parse = {
       acceptedAt: str(i.acceptedAt), url: str(i.url), due: date(due), dueAt: instant(due), description: str(i.description),
     }];
   }),
+  item: (raw: unknown): Item | undefined => parse.items([obj(pick(obj(raw), 'item') ?? raw)])[0],
   codeActivity: (raw: unknown): CodeLink[] => list(obj(raw).confirmed).map((l) => {
     const n = str(pick(l, 'number', 'prNumber')), sha = str(pick(l, 'sha', 'commitSha'));
     const checks = list(pick(l, 'checks', 'checkRuns'), 'checks').flatMap((c) => {
@@ -94,6 +97,8 @@ export function toolSource(call: CallTool, projectId: string): GoalPathSource {
       return Promise.all(ms.map(async (m) => ({ ...m, ...defined(parse.forecast(await call('get_milestone_forecast', { milestoneId: m.id }).catch(() => ({})))) })));
     },
     myItems: async () => parse.items(await call('list_my_items', { projectId, includeAccepted: true })),
+    // A missing item is a tool error whose text says "not found"; any other error is thrown, and the pass is retried.
+    item: (itemId) => call('get_item', { itemId }).then(parse.item, (e: unknown) => (/not found/i.test(String((e as Error)?.message ?? e)) ? undefined : Promise.reject(e))),
     codeActivity: async (itemId) => parse.codeActivity(await call('list_code_activity', { itemId })),
     unplannedTrend: (weekCount) => call('get_unplanned_work_trend', { projectId, weekCount }).then(parse.trend, () => []),
     dependencies: async () => parse.graph(await call('get_dependency_graph', { projectId })),

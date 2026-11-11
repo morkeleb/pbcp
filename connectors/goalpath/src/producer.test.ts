@@ -4,7 +4,7 @@ import { stubHead } from '@pbcp/client/testing';
 import { isId, type ProducerCard } from '@pbcp/core';
 import { describe, expect, it } from 'vitest';
 import { fixtureSource, loadFixtures } from './fixture-source.js';
-import { answeredCard, approvalId, ganttTitle, goalpathProducer, labelOf, NAMESPACE, taskId } from './producer.js';
+import { answeredCard, approvalId, ganttTitle, goalpathProducer, labelOf, movedId, NAMESPACE, taskId } from './producer.js';
 
 const FIX = fileURLToPath(new URL('../fixtures', import.meta.url));
 const M = (n: number) => `7a1e0c2e-4d4b-4c51-9b1a-00000000000${n}`;
@@ -41,9 +41,11 @@ function setup(now = '2026-10-26T12:00:00Z') {
   const forecast = (n: number) => (data.get_milestone_forecast as Record<string, Record<string, unknown>>)[M(n)]!;
   /** A process restart: what runProducer keeps in memory (parked and 409-answered cards) is gone; the store stays. */
   const restart = () => attempts.clear();
-  /** The item is no longer assigned to you: list_my_items stops listing it. */
-  const drop = (n: string) => void items.splice(items.findIndex((i) => i.id === I(n)), 1);
-  return { stub, gp, store, producer, drop, pass, errors, parked, answers, restart, item, forecast, at: (t: string) => void (clock = new Date(t)) };
+  /** The item is no longer assigned to you: list_my_items stops listing it, get_item still has it. */
+  const drop = (n: string) => void (data.get_item = { ...(data.get_item as object), [I(n)]: items.splice(items.findIndex((i) => i.id === I(n)), 1)[0] });
+  /** The item is deleted in GoalPath: get_item answers "Item not found". */
+  const remove = (n: string) => void items.splice(items.findIndex((i) => i.id === I(n)), 1);
+  return { stub, gp, store, producer, drop, remove, pass, errors, parked, answers, restart, item, forecast, at: (t: string) => void (clock = new Date(t)) };
 }
 
 describe('goalpath producer', () => {
@@ -346,7 +348,7 @@ describe('goalpath producer', () => {
       expect(gp.writes).toEqual([]);
     });
 
-    it('closes the task of an item that leaves your list', async () => {
+    it('closes the task of an item no longer assigned to you', async () => {
       const { pass, stub, gp, drop } = dated();
       await pass();
       drop('15');
@@ -356,29 +358,92 @@ describe('goalpath producer', () => {
       expect(gp.writes).toEqual([]);
     });
 
-    it('gives an item due again on another day, after its task closed, a dated task that closes as closed-<date>', async () => {
-      const { pass, stub, gp, item } = dated();
+    it('supersedes the task of an item deleted in GoalPath with a signal (§6)', async () => {
+      const { pass, stub, remove } = dated();
+      await pass();
+      remove('15');
+      const closed = tasksOf(await pass()).find((c) => c.id.startsWith(TASK));
+      expect(closed).toMatchObject({ id: `${TASK}:closed`, kind: 'signal', urgency: 'log', supersedes: TASK, title: 'GP-15 Offline mode for receipts: deleted in GoalPath', source: { url: 'https://goalpath.example/i/15' } });
+      expect(stub.cards.get(TASK)).toMatchObject({ state: 'superseded' });
+      expect(tasksOf(await pass()).filter((c) => c.id.startsWith(TASK))).toEqual([]);
+    });
+
+    it('re-PUTs an open task under the same id when its item is re-dated (§5, §8)', async () => {
+      const { pass, stub, item } = dated();
+      await pass();
+      item('15').deadline = '2026-11-02T09:00:00Z';
+      const [moved] = tasksOf(await pass()).filter((c) => c.id.startsWith(TASK));
+      expect(moved).toMatchObject({ id: TASK, kind: 'task', about: '2026-11-02', at: '2026-11-02T09:00:00Z', urgency: 'log' });
+      expect(moved).not.toHaveProperty('supersedes');
+      expect(stub.cards.get(TASK)).toMatchObject({ state: 'open', about: '2026-11-02' });
+      expect([...stub.cards.keys()].filter((k) => k.startsWith(TASK))).toEqual([TASK]);
+    });
+
+    it('keeps an open task whose item lost its due date, on the day last sent, until it is closed or moved', async () => {
+      const { pass, stub, item } = dated();
+      await pass();
+      delete item('15').deadline;
+      expect(tasksOf(await pass()).filter((c) => c.id.startsWith(TASK))).toMatchObject([{ id: TASK, about: '2026-10-26' }]);
+      expect(stub.cards.get(TASK)).toMatchObject({ state: 'open', about: '2026-10-26' });
+      item('15').deadline = '2026-10-28';
+      expect(tasksOf(await pass()).filter((c) => c.id.startsWith(TASK))).toMatchObject([{ id: TASK, about: '2026-10-28' }]);
+    });
+
+    it('supersedes a dismissed task whose item is then re-dated with a moved-<n> task, numbered from the store (§4.3)', async () => {
+      const { pass, stub, gp, item, store } = dated();
+      await pass();
+      stub.decideHere(TASK, { decision: 'dismissed' });
+      item('15').deadline = '2026-11-02'; // re-dated in GoalPath before the reader closed the dismissed task
+      await pass(); // produce re-PUTs nothing new; sync brings the decision
+      const M1 = `${TASK}:moved-1`, M2 = `${TASK}:moved-2`;
+      expect(movedId(TASK, 1)).toBe(M1);
+      const [first] = tasksOf(await pass()).filter((c) => c.id.startsWith(TASK));
+      expect(first).toMatchObject({ id: M1, kind: 'task', supersedes: TASK, about: '2026-11-02', urgency: 'log', title: 'GP-15 Offline mode for receipts' });
+      expect(isId(M1)).toBe(true);
+      expect(stub.cards.get(TASK)).toMatchObject({ state: 'superseded', decision: 'dismissed', about: '2026-10-26' });
+      expect(stub.cards.get(M1)).toMatchObject({ state: 'open' });
+      // Open again: a re-date re-PUTs the successor under its own id, still superseding the first.
+      item('15').deadline = '2026-11-03';
+      expect(tasksOf(await pass()).filter((c) => c.id.startsWith(TASK))).toMatchObject([{ id: M1, about: '2026-11-03', supersedes: TASK }]);
+      stub.decideHere(M1, { decision: 'dismissed' });
+      item('15').deadline = '2026-11-09';
+      await pass();
+      expect(tasksOf(await pass()).filter((c) => c.id.startsWith(TASK))).toMatchObject([{ id: M2, supersedes: M1, about: '2026-11-09' }]);
+      expect(await store.kv(NAMESPACE).get(`task:${I('15')}`)).toMatchObject({ card: M2, prev: M1, moves: 2 });
+      stub.decideHere(M2, { decision: 'done' });
+      await pass();
+      const [closed] = tasksOf(await pass()).filter((c) => c.id.startsWith(TASK));
+      expect(closed).toMatchObject({ id: `${TASK}:closed`, kind: 'artifact', supersedes: M2, title: 'GP-15 Offline mode for receipts: done in GoalPath' });
+      expect(gp.writes).toEqual([['set_item_status', { itemId: I('15'), status: 'Accepted' }]]);
+      expect([...stub.cards.keys()].filter((k) => k.startsWith(TASK)).sort()).toEqual([TASK, `${TASK}:closed`, M1, M2].sort());
+    });
+
+    it('sends a closed task no more, even when its item is re-dated: a dismissed task stays dismissed', async () => {
+      const { pass, stub, item } = dated();
       await pass();
       stub.decideHere(TASK, { decision: 'dismissed' });
       await pass();
       await pass(); // the `:closed` card
       item('15').deadline = '2026-11-02';
-      const DATED = `${TASK}:2026-11-02`;
-      const [again] = tasksOf(await pass()).filter((c) => c.id.startsWith(TASK));
-      expect(again).toMatchObject({ id: DATED, kind: 'task', about: '2026-11-02', urgency: 'log', title: 'GP-15 Offline mode for receipts' });
-      expect(again).not.toHaveProperty('supersedes');
-      expect(isId(DATED)).toBe(true);
-      expect(stub.cards.get(TASK)).toMatchObject({ state: 'superseded' });
-      expect(tasksOf(await pass()).filter((c) => c.id.startsWith(TASK)).map((c) => c.id)).toEqual([DATED]); // re-sent while open, nothing new
-      stub.decideHere(DATED, { decision: 'done' });
-      await pass();
-      expect(gp.writes).toEqual([['set_item_status', { itemId: I('15'), status: 'Accepted' }]]);
-      const [closed] = tasksOf(await pass()).filter((c) => c.id.startsWith(TASK));
-      expect(closed).toMatchObject({ id: `${TASK}:closed-2026-11-02`, kind: 'artifact', supersedes: DATED, title: 'GP-15 Offline mode for receipts: done in GoalPath' });
-      expect(isId(closed!.id)).toBe(true);
-      expect(stub.cards.get(DATED)).toMatchObject({ state: 'superseded', decision: 'done' });
-      item('15').status = 'Accepted';
       expect(tasksOf(await pass()).filter((c) => c.id.startsWith(TASK))).toEqual([]);
+      expect([...stub.cards.keys()].filter((k) => k.startsWith(TASK))).toEqual([TASK, `${TASK}:closed`]);
+    });
+
+    it('follows an older dated task under its id, and moves and closes it with its date segment', async () => {
+      const { pass, stub, item, store } = dated();
+      const OLD = taskId(I('15'), '2026-10-26');
+      await store.kv(NAMESPACE).set(`task:${I('15')}`, { card: TASK, item: I('15'), date: '2026-10-20', label: 'GP-15 Offline mode for receipts', thread: M(5), submitted: true, decision: 'dismissed', closed: true });
+      await store.kv(NAMESPACE).set(`task:${I('15')}:2026-10-26`, { card: OLD, item: I('15'), date: '2026-10-26', label: 'GP-15 Offline mode for receipts', thread: M(5), submitted: true });
+      expect(tasksOf(await pass()).filter((c) => c.id.startsWith(TASK)).map((c) => c.id)).toEqual([OLD]);
+      stub.decideHere(OLD, { decision: 'dismissed' });
+      item('15').deadline = '2026-11-02';
+      await pass();
+      const [moved] = tasksOf(await pass()).filter((c) => c.id.startsWith(TASK));
+      expect(moved).toMatchObject({ id: `${OLD}-moved-1`, supersedes: OLD, about: '2026-11-02' });
+      expect(isId(moved!.id)).toBe(true);
+      stub.decideHere(moved!.id, { decision: 'dismissed' });
+      await pass();
+      expect(tasksOf(await pass()).filter((c) => c.id.startsWith(TASK))).toMatchObject([{ id: `${TASK}:closed-2026-10-26`, supersedes: moved!.id }]);
     });
 
     it('makes no task of an item in the approval queue, and closes an open task whose item enters it', async () => {
