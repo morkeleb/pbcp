@@ -1,0 +1,177 @@
+{
+  "name": "C60 an option's ask is stored and returned as sent, in either form, and counts for equality",
+  "rfc": [
+    "§4.4",
+    "§5",
+    "§7.2"
+  ],
+  "covers": [
+    "§4.4 a head MUST reject with `400 invalid_card` a card with an `ask`",
+    "§7.2 MUST increase whenever its current representation changes"
+  ],
+  "steps": [
+    {
+      "op": "put",
+      "args": {
+        "token": "mail",
+        "card": {
+          "protocol": "pbcp/1",
+          "id": "mail:reply:4411",
+          "kind": "decision",
+          "to_person": "morten",
+          "producer": "mail",
+          "title": "Reply to Anna re invoice timing",
+          "summary": "Anna asks to pay the September invoice on the 20th instead of the 15th. The proposed reply agrees for September only.",
+          "body": "Anna (Nordic Supply) asks whether the September invoice can be paid on the 20th instead of the 15th.\n\n## Proposed reply\n\n> Hi Anna, the 20th is fine for September.",
+          "emitted_at": "2026-11-20T07:00:00Z",
+          "actions": [
+            {
+              "id": "send",
+              "label": "Send",
+              "default": true
+            },
+            {
+              "id": "redraft",
+              "label": "Redraft",
+              "ask": "What should change?"
+            },
+            "edit"
+          ]
+        }
+      },
+      "expect": {
+        "status": 201,
+        "body": {
+          "state": "open",
+          "actions": [
+            {
+              "id": "send",
+              "label": "Send",
+              "default": true
+            },
+            {
+              "id": "redraft",
+              "label": "Redraft",
+              "ask": "What should change?"
+            },
+            "edit"
+          ]
+        }
+      },
+      "save": {
+        "seq": "body.change_seq"
+      }
+    },
+    {
+      "op": "put",
+      "args": {
+        "token": "mail",
+        "card": {
+          "protocol": "pbcp/1",
+          "id": "mail:reply:4411",
+          "kind": "decision",
+          "to_person": "morten",
+          "producer": "mail",
+          "title": "Reply to Anna re invoice timing",
+          "summary": "Anna asks to pay the September invoice on the 20th instead of the 15th. The proposed reply agrees for September only.",
+          "body": "Anna (Nordic Supply) asks whether the September invoice can be paid on the 20th instead of the 15th.\n\n## Proposed reply\n\n> Hi Anna, the 20th is fine for September.",
+          "emitted_at": "2026-11-20T07:00:00Z",
+          "actions": [
+            {
+              "id": "send",
+              "label": "Send",
+              "default": true
+            },
+            {
+              "id": "redraft",
+              "label": "Redraft",
+              "ask": "What should change?"
+            },
+            "edit"
+          ]
+        }
+      },
+      "expect": {
+        "status": 200,
+        "body": {
+          "change_seq": {
+            "$var": "seq"
+          }
+        }
+      }
+    },
+    {
+      "op": "put",
+      "args": {
+        "token": "mail",
+        "card": {
+          "protocol": "pbcp/1",
+          "id": "mail:reply:4411",
+          "kind": "decision",
+          "to_person": "morten",
+          "producer": "mail",
+          "title": "Reply to Anna re invoice timing",
+          "summary": "Anna asks to pay the September invoice on the 20th instead of the 15th. The proposed reply agrees for September only.",
+          "body": "Anna (Nordic Supply) asks whether the September invoice can be paid on the 20th instead of the 15th.\n\n## Proposed reply\n\n> Hi Anna, the 20th is fine for September.",
+          "emitted_at": "2026-11-20T07:00:00Z",
+          "actions": [
+            {
+              "id": "send",
+              "label": "Send",
+              "default": true
+            },
+            {
+              "id": "redraft",
+              "label": "Redraft",
+              "ask": "What should the new draft say?"
+            },
+            "edit"
+          ]
+        }
+      },
+      "expect": {
+        "status": 200,
+        "body": {
+          "change_seq": {
+            "$gt": {
+              "$var": "seq"
+            }
+          },
+          "actions": [
+            {
+              "id": "send"
+            },
+            {
+              "id": "redraft",
+              "ask": "What should the new draft say?"
+            },
+            "edit"
+          ]
+        }
+      }
+    },
+    {
+      "op": "put",
+      "args": {
+        "token": "mail",
+        "card": "---\nprotocol: pbcp/1\nid: mail:reply:4412\nkind: decision\nto_person: morten\nproducer: mail\ntitle: Reply to Jonas re delivery date\nemitted_at: \"2026-11-20T07:05:00Z\"\nactions:\n  - id: send\n    default: true\n  - id: redraft\n    label: Redraft\n    ask: What should change?\n---\n\nJonas asks when the order ships.\n\n## Proposed reply\n\n> Hi Jonas, it ships Thursday.\n"
+      },
+      "expect": {
+        "status": 201,
+        "body": {
+          "actions": [
+            {
+              "id": "send",
+              "default": true
+            },
+            {
+              "id": "redraft",
+              "label": "Redraft",
+              "ask": "What should change?"
+            }
+          ]
+        }
+      }
+    }
+  ]
+}

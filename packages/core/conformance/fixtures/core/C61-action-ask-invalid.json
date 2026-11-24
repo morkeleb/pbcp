@@ -1,0 +1,245 @@
+{
+  "name": "C61 an ask that is empty, longer than 120 characters or not a string is 400 invalid_card, and nothing is stored",
+  "rfc": [
+    "§4.4",
+    "§7.4"
+  ],
+  "covers": [
+    "§4.4 a head MUST reject with `400 invalid_card` a card with an `ask`"
+  ],
+  "steps": [
+    {
+      "op": "put",
+      "args": {
+        "token": "mail",
+        "card": {
+          "protocol": "pbcp/1",
+          "id": "mail:reply:bad-1",
+          "kind": "decision",
+          "to_person": "morten",
+          "producer": "mail",
+          "title": "Reply to Anna re invoice timing",
+          "summary": "Anna asks to pay the September invoice on the 20th instead of the 15th. The proposed reply agrees for September only.",
+          "body": "Anna (Nordic Supply) asks whether the September invoice can be paid on the 20th instead of the 15th.\n\n## Proposed reply\n\n> Hi Anna, the 20th is fine for September.",
+          "emitted_at": "2026-11-20T07:00:00Z",
+          "actions": [
+            {
+              "id": "send",
+              "default": true
+            },
+            {
+              "id": "redraft",
+              "ask": {
+                "$repeat": [
+                  "x",
+                  121
+                ]
+              }
+            }
+          ]
+        }
+      },
+      "expect": {
+        "status": 400,
+        "body": {
+          "error": "invalid_card"
+        }
+      }
+    },
+    {
+      "op": "put",
+      "args": {
+        "token": "mail",
+        "card": {
+          "protocol": "pbcp/1",
+          "id": "mail:reply:bad-2",
+          "kind": "decision",
+          "to_person": "morten",
+          "producer": "mail",
+          "title": "Reply to Anna re invoice timing",
+          "summary": "Anna asks to pay the September invoice on the 20th instead of the 15th. The proposed reply agrees for September only.",
+          "body": "Anna (Nordic Supply) asks whether the September invoice can be paid on the 20th instead of the 15th.\n\n## Proposed reply\n\n> Hi Anna, the 20th is fine for September.",
+          "emitted_at": "2026-11-20T07:00:00Z",
+          "actions": [
+            {
+              "id": "send",
+              "default": true
+            },
+            {
+              "id": "redraft",
+              "ask": ""
+            }
+          ]
+        }
+      },
+      "expect": {
+        "status": 400,
+        "body": {
+          "error": "invalid_card"
+        }
+      }
+    },
+    {
+      "op": "put",
+      "args": {
+        "token": "mail",
+        "card": {
+          "protocol": "pbcp/1",
+          "id": "mail:reply:bad-3",
+          "kind": "decision",
+          "to_person": "morten",
+          "producer": "mail",
+          "title": "Reply to Anna re invoice timing",
+          "summary": "Anna asks to pay the September invoice on the 20th instead of the 15th. The proposed reply agrees for September only.",
+          "body": "Anna (Nordic Supply) asks whether the September invoice can be paid on the 20th instead of the 15th.\n\n## Proposed reply\n\n> Hi Anna, the 20th is fine for September.",
+          "emitted_at": "2026-11-20T07:00:00Z",
+          "actions": [
+            {
+              "id": "send",
+              "default": true
+            },
+            {
+              "id": "redraft",
+              "ask": 7
+            }
+          ]
+        }
+      },
+      "expect": {
+        "status": 400,
+        "body": {
+          "error": "invalid_card"
+        }
+      }
+    },
+    {
+      "op": "put",
+      "args": {
+        "token": "mail",
+        "card": {
+          "protocol": "pbcp/1",
+          "id": "mail:reply:bad-4",
+          "kind": "decision",
+          "to_person": "morten",
+          "producer": "mail",
+          "title": "Reply to Anna re invoice timing",
+          "summary": "Anna asks to pay the September invoice on the 20th instead of the 15th. The proposed reply agrees for September only.",
+          "body": "Anna (Nordic Supply) asks whether the September invoice can be paid on the 20th instead of the 15th.\n\n## Proposed reply\n\n> Hi Anna, the 20th is fine for September.",
+          "emitted_at": "2026-11-20T07:00:00Z",
+          "actions": [
+            {
+              "id": "send",
+              "default": true
+            },
+            {
+              "id": "redraft",
+              "ask": [
+                "What should change?"
+              ]
+            }
+          ]
+        }
+      },
+      "expect": {
+        "status": 400,
+        "body": {
+          "error": "invalid_card"
+        }
+      }
+    },
+    {
+      "op": "put",
+      "args": {
+        "token": "mail",
+        "card": {
+          "protocol": "pbcp/1",
+          "id": "mail:reply:bad-5",
+          "kind": "decision",
+          "to_person": "morten",
+          "producer": "mail",
+          "title": "Reply to Anna re invoice timing",
+          "summary": "Anna asks to pay the September invoice on the 20th instead of the 15th. The proposed reply agrees for September only.",
+          "body": "Anna (Nordic Supply) asks whether the September invoice can be paid on the 20th instead of the 15th.\n\n## Proposed reply\n\n> Hi Anna, the 20th is fine for September.",
+          "emitted_at": "2026-11-20T07:00:00Z",
+          "actions": [
+            {
+              "id": "send",
+              "default": true
+            },
+            {
+              "id": "redraft",
+              "ask": {
+                "text": "What should change?"
+              }
+            }
+          ]
+        }
+      },
+      "expect": {
+        "status": 400,
+        "body": {
+          "error": "invalid_card"
+        }
+      }
+    },
+    {
+      "op": "put",
+      "args": {
+        "token": "mail",
+        "card": "---\nprotocol: pbcp/1\nid: mail:reply:bad-6\nkind: decision\nto_person: morten\nproducer: mail\ntitle: Reply to Jonas re delivery date\nemitted_at: \"2026-11-20T07:05:00Z\"\nactions:\n  - id: redraft\n    ask: \"\"\n---\n\nJonas asks when the order ships.\n"
+      },
+      "expect": {
+        "status": 400,
+        "body": {
+          "error": "invalid_card"
+        }
+      }
+    },
+    {
+      "op": "put",
+      "args": {
+        "token": "mail",
+        "card": {
+          "protocol": "pbcp/1",
+          "id": "mail:reply:ok-1",
+          "kind": "decision",
+          "to_person": "morten",
+          "producer": "mail",
+          "title": "Reply to Anna re invoice timing",
+          "summary": "Anna asks to pay the September invoice on the 20th instead of the 15th. The proposed reply agrees for September only.",
+          "body": "Anna (Nordic Supply) asks whether the September invoice can be paid on the 20th instead of the 15th.\n\n## Proposed reply\n\n> Hi Anna, the 20th is fine for September.",
+          "emitted_at": "2026-11-20T07:00:00Z",
+          "actions": [
+            {
+              "id": "redraft",
+              "ask": {
+                "$repeat": [
+                  "x",
+                  120
+                ]
+              }
+            }
+          ]
+        }
+      },
+      "expect": {
+        "status": 201
+      }
+    },
+    {
+      "op": "syncAll",
+      "args": {
+        "token": "mail",
+        "after": 0
+      },
+      "expect": {
+        "status": 200,
+        "body": {
+          "changes": {
+            "$len": 1
+          }
+        }
+      }
+    }
+  ]
+}

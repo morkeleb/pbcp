@@ -2,7 +2,7 @@
 
 ## 0.9 (unreleased)
 
-Draft 0.9 adds a fourth kind, `task`: something the person is to do themselves, which stays open until they mark it done. A task is decided with the existing decision operation and needs no new field, operation or error code; `at`, `until`, `about`, `thread` and `source` carry what a to-do tool knows about it. It also adds a producer-owned field, `sensitivity`, which keeps a card's content off surfaces the owner does not fully control and can require the person to identify themselves again before a decision is recorded; it brings one new error code, `403 reauthentication_required`. In-process conformance: 62 → 70 cases (core C52–C59).
+Draft 0.9 adds a fourth kind, `task`: something the person is to do themselves, which stays open until they mark it done. A task is decided with the existing decision operation and needs no new field, operation or error code; `at`, `until`, `about`, `thread` and `source` carry what a to-do tool knows about it. It also adds a producer-owned field, `sensitivity`, which keeps a card's content off surfaces the owner does not fully control and can require the person to identify themselves again before a decision is recorded; it brings one new error code, `403 reauthentication_required`. In-process conformance: 62 → 74 cases (core C52–C63).
 
 **§4.1 — `kind: task`.**
 - **Shape:** the `kind` enum gains `task`, and `actions` is allowed on a task. On a task, `at` is when it is due (the start of its window), `until` the end of the window, `about` its day when it has no due time, `source` where it lives, `thread` its project or parent task.
@@ -20,6 +20,12 @@ Draft 0.9 adds a fourth kind, `task`: something the person is to do themselves, 
 - **Heads:** a head MUST treat a task superseded by a task as moved, not closed, shows it once on the successor's day, and counts it in no closed list. New fixture C59.
 
 **§4.4 — default.** On a task, `done` is the default and no listed option may be.
+
+**§4.4, §4.5 — an option that asks (`OPEN.md` 12).**
+- **Shape:** an object entry in `actions` may carry `ask`, a plain-text question of 1 to 120 characters (`{ "id": "redraft", "label": "Redraft", "ask": "What should change?" }`). It is not allowed on `edit`; an `ask` that is not such a string, or on `edit`, is `400 invalid_card`. It counts for equality like the rest of the option (§5). New fixtures C60–C62.
+- **Head:** when the person picks the option, the head MUST put the question and a focused text field in front of them before recording, not behind the comment disclosure. The text is sent as `comment`. The comment stays optional: the head still MUST NOT require it, and a decision without one is accepted (§7.3 is unchanged). New fixture C63.
+- **Producer:** a producer MUST handle an option with `ask` decided without a `comment` and MUST NOT answer it with the proposal it already made.
+- **Surfaces:** a surface that cannot collect text (a notification action, an assistant connector) SHOULD NOT offer the option directly, and opens the card in the head instead. A voice surface asks aloud and takes the spoken answer as the comment.
 
 **§4.5 — presenting a task.** `done` is the primary control and the only one styled as primary; the lead and the due time are visible; a head SHOULD list a day's open tasks together, overdue first and marked. Overdue is derived (open, and `at` or the end of the `about` day has passed), never a field.
 
