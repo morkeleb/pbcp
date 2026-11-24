@@ -1,5 +1,5 @@
 {
-  "name": "C61 an ask that is empty, longer than 120 characters or not a string is 400 invalid_card, and nothing is stored",
+  "name": "C61 an ask that is empty, blank, more than one line, longer than 120 code points or not a string is 400 invalid_card, and nothing is stored",
   "rfc": [
     "§4.4",
     "§7.4"
@@ -68,6 +68,105 @@
             {
               "id": "redraft",
               "ask": ""
+            }
+          ]
+        }
+      },
+      "expect": {
+        "status": 400,
+        "body": {
+          "error": "invalid_card"
+        }
+      }
+    },
+    {
+      "op": "put",
+      "args": {
+        "token": "mail",
+        "card": {
+          "protocol": "pbcp/1",
+          "id": "mail:reply:bad-blank",
+          "kind": "decision",
+          "to_person": "morten",
+          "producer": "mail",
+          "title": "Reply to Anna re invoice timing",
+          "summary": "Anna asks to pay the September invoice on the 20th instead of the 15th. The proposed reply agrees for September only.",
+          "body": "Anna (Nordic Supply) asks whether the September invoice can be paid on the 20th instead of the 15th.\n\n## Proposed reply\n\n> Hi Anna, the 20th is fine for September.",
+          "emitted_at": "2026-11-20T07:00:00Z",
+          "actions": [
+            {
+              "id": "send",
+              "default": true
+            },
+            {
+              "id": "redraft",
+              "ask": "   "
+            }
+          ]
+        }
+      },
+      "expect": {
+        "status": 400,
+        "body": {
+          "error": "invalid_card"
+        }
+      }
+    },
+    {
+      "op": "put",
+      "args": {
+        "token": "mail",
+        "card": {
+          "protocol": "pbcp/1",
+          "id": "mail:reply:bad-lf",
+          "kind": "decision",
+          "to_person": "morten",
+          "producer": "mail",
+          "title": "Reply to Anna re invoice timing",
+          "summary": "Anna asks to pay the September invoice on the 20th instead of the 15th. The proposed reply agrees for September only.",
+          "body": "Anna (Nordic Supply) asks whether the September invoice can be paid on the 20th instead of the 15th.\n\n## Proposed reply\n\n> Hi Anna, the 20th is fine for September.",
+          "emitted_at": "2026-11-20T07:00:00Z",
+          "actions": [
+            {
+              "id": "send",
+              "default": true
+            },
+            {
+              "id": "redraft",
+              "ask": "What should\nchange?"
+            }
+          ]
+        }
+      },
+      "expect": {
+        "status": 400,
+        "body": {
+          "error": "invalid_card"
+        }
+      }
+    },
+    {
+      "op": "put",
+      "args": {
+        "token": "mail",
+        "card": {
+          "protocol": "pbcp/1",
+          "id": "mail:reply:bad-cr",
+          "kind": "decision",
+          "to_person": "morten",
+          "producer": "mail",
+          "title": "Reply to Anna re invoice timing",
+          "summary": "Anna asks to pay the September invoice on the 20th instead of the 15th. The proposed reply agrees for September only.",
+          "body": "Anna (Nordic Supply) asks whether the September invoice can be paid on the 20th instead of the 15th.\n\n## Proposed reply\n\n> Hi Anna, the 20th is fine for September.",
+          "emitted_at": "2026-11-20T07:00:00Z",
+          "actions": [
+            {
+              "id": "send",
+              "default": true
+            },
+            {
+              "id": "redraft",
+              "ask": "What should change?\r"
             }
           ]
         }
@@ -201,6 +300,40 @@
         "token": "mail",
         "card": {
           "protocol": "pbcp/1",
+          "id": "mail:reply:bad-7",
+          "kind": "decision",
+          "to_person": "morten",
+          "producer": "mail",
+          "title": "Reply to Anna re invoice timing",
+          "summary": "Anna asks to pay the September invoice on the 20th instead of the 15th. The proposed reply agrees for September only.",
+          "body": "Anna (Nordic Supply) asks whether the September invoice can be paid on the 20th instead of the 15th.\n\n## Proposed reply\n\n> Hi Anna, the 20th is fine for September.",
+          "emitted_at": "2026-11-20T07:00:00Z",
+          "actions": [
+            {
+              "id": "redraft",
+              "ask": {
+                "$repeat": [
+                  "😀",
+                  121
+                ]
+              }
+            }
+          ]
+        }
+      },
+      "expect": {
+        "status": 400,
+        "body": {
+          "error": "invalid_card"
+        }
+      }
+    },
+    {
+      "op": "put",
+      "args": {
+        "token": "mail",
+        "card": {
+          "protocol": "pbcp/1",
           "id": "mail:reply:ok-1",
           "kind": "decision",
           "to_person": "morten",
@@ -227,6 +360,37 @@
       }
     },
     {
+      "op": "put",
+      "args": {
+        "token": "mail",
+        "card": {
+          "protocol": "pbcp/1",
+          "id": "mail:reply:ok-2",
+          "kind": "decision",
+          "to_person": "morten",
+          "producer": "mail",
+          "title": "Reply to Anna re invoice timing",
+          "summary": "Anna asks to pay the September invoice on the 20th instead of the 15th. The proposed reply agrees for September only.",
+          "body": "Anna (Nordic Supply) asks whether the September invoice can be paid on the 20th instead of the 15th.\n\n## Proposed reply\n\n> Hi Anna, the 20th is fine for September.",
+          "emitted_at": "2026-11-20T07:00:00Z",
+          "actions": [
+            {
+              "id": "redraft",
+              "ask": {
+                "$repeat": [
+                  "😀",
+                  120
+                ]
+              }
+            }
+          ]
+        }
+      },
+      "expect": {
+        "status": 201
+      }
+    },
+    {
       "op": "syncAll",
       "args": {
         "token": "mail",
@@ -236,7 +400,7 @@
         "status": 200,
         "body": {
           "changes": {
-            "$len": 1
+            "$len": 2
           }
         }
       }

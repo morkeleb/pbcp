@@ -58,16 +58,17 @@ export const isLabel = (s: string): boolean => /^[a-z0-9-]{1,32}$/.test(s);
 const Id = z.string().refine(isId, 'must match the id grammar (§5)');
 const NonEmpty = z.string().min(1);
 
-/** §4.4 `ask`: a plain-text question of 1 to this many characters (code points). */
+/** §4.4 `ask`: one line of plain text, not blank, of 1 to this many characters (code points). */
 export const ASK_MAX = 120;
-export const isAsk = (s: unknown): s is string => typeof s === 'string' && s.length > 0 && [...s].length <= ASK_MAX;
+export const isAsk = (s: unknown): s is string =>
+  typeof s === 'string' && s.trim().length > 0 && !/[\r\n]/.test(s) && [...s].length <= ASK_MAX;
 
 export const ActionObjectSchema = z.looseObject({
   id: z.string().refine(isIntent, 'must match the intent grammar (§5)'),
   label: z.string().optional(),
   body: z.string().optional(),
   default: z.boolean().optional(),
-  ask: z.string().refine(isAsk, `ask must be 1–${ASK_MAX} characters of plain text (§4.4)`).optional(),
+  ask: z.string().refine(isAsk, `ask must be one line, not blank, 1–${ASK_MAX} characters (§4.4)`).optional(),
 });
 export const ActionSchema = z.union([z.string().refine(isIntent, 'must match the intent grammar (§5)'), ActionObjectSchema]);
 

@@ -341,6 +341,31 @@ describe('the fixtures catch broken heads', () => {
     await fails(core.C59, { head: sabotage(h2, { put }) });
   });
 
+  // A head that does not know `ask`: it drops it from every option, so it neither keeps nor validates it.
+  const withoutAsk = (c: unknown): unknown => {
+    if (typeof c === 'string') return c.replace(/^ {4}ask: .*\n/gm, '');
+    const card = c as Record<string, unknown>;
+    if (typeof card !== 'object' || card === null || !Array.isArray(card.actions)) return c;
+    return { ...card, actions: card.actions.map((a: unknown) => (typeof a === 'object' && a !== null ? { ...a, ask: undefined } : a)) };
+  };
+
+  it('C60, C61, C62: dropping ask from an option instead of storing or refusing it', async () => {
+    for (const f of [core.C60, core.C61, core.C62]) {
+      const h = inProcessHead();
+      await fails(f, { head: sabotage(h, { put: async (t, c) => h.put(t, withoutAsk(c)) }) });
+    }
+  });
+
+  it('C63: requiring a comment on an option with ask, or dropping it', async () => {
+    const h = inProcessHead();
+    const require: HeadUnderTest['decide'] = async (id, d) =>
+      d.comment === undefined ? { status: 400, body: { error: 'invalid_decision' } } : h.decide(id, d);
+    await fails(core.C63, { head: sabotage(h, { decide: require }) });
+    const h2 = inProcessHead();
+    const drop: HeadUnderTest['decide'] = async (id, d) => h2.decide(id, { ...d, comment: undefined });
+    await fails(core.C63, { head: sabotage(h2, { decide: drop }) });
+  });
+
   it('R12: falling back on an extended-tier type', async () => {
     const r = referenceRenderer();
     const draw: RenderUnderTest['render'] = async (body) => {

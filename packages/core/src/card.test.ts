@@ -154,6 +154,9 @@ describe('parseCard', () => {
     expect(parseCard(minimal({ kind: 'task', actions: [{ id: 'reschedule', ask: 'To when?' }] })).ok).toBe(true);
     refused(minimal({ actions: [{ id: 'a', ask: 'x'.repeat(ASK_MAX + 1) }] }), 'invalid_card');
     refused(minimal({ actions: [{ id: 'a', ask: '' }] }), 'invalid_card');
+    refused(minimal({ actions: [{ id: 'a', ask: '   ' }] }), 'invalid_card');
+    refused(minimal({ actions: [{ id: 'a', ask: 'What should\nchange?' }] }), 'invalid_card');
+    refused(minimal({ actions: [{ id: 'a', ask: 'What should change?\r' }] }), 'invalid_card');
     refused(minimal({ actions: [{ id: 'a', ask: 7 }] }), 'invalid_card');
     refused(minimal({ actions: [{ id: 'a', ask: ['What?'] }] }), 'invalid_card');
     refused(minimal({ actions: ['approve', { id: 'edit', ask: 'What instead?' }] }), 'invalid_card');
