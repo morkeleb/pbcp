@@ -1,0 +1,60 @@
+{
+  "name": "C62 ask on the edit entry is 400 invalid_card, and nothing is stored",
+  "rfc": [
+    "§4.4",
+    "§7.4"
+  ],
+  "covers": [
+    "§4.4 a head MUST reject with `400 invalid_card` a card with an `ask`"
+  ],
+  "steps": [
+    {
+      "op": "put",
+      "args": {
+        "token": "mail",
+        "card": {
+          "protocol": "pbcp/1",
+          "id": "mail:reply:4413",
+          "kind": "decision",
+          "to_person": "morten",
+          "producer": "mail",
+          "title": "Reply to Anna re invoice timing",
+          "summary": "Anna asks to pay the September invoice on the 20th instead of the 15th. The proposed reply agrees for September only.",
+          "body": "Anna (Nordic Supply) asks whether the September invoice can be paid on the 20th instead of the 15th.\n\n## Proposed reply\n\n> Hi Anna, the 20th is fine for September.",
+          "emitted_at": "2026-11-20T07:00:00Z",
+          "actions": [
+            {
+              "id": "send",
+              "default": true
+            },
+            {
+              "id": "edit",
+              "ask": "What should it say instead?"
+            }
+          ]
+        }
+      },
+      "expect": {
+        "status": 400,
+        "body": {
+          "error": "invalid_card"
+        }
+      }
+    },
+    {
+      "op": "syncAll",
+      "args": {
+        "token": "mail",
+        "after": 0
+      },
+      "expect": {
+        "status": 200,
+        "body": {
+          "changes": {
+            "$len": 0
+          }
+        }
+      }
+    }
+  ]
+}

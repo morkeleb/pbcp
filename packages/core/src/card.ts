@@ -58,11 +58,16 @@ export const isLabel = (s: string): boolean => /^[a-z0-9-]{1,32}$/.test(s);
 const Id = z.string().refine(isId, 'must match the id grammar (§5)');
 const NonEmpty = z.string().min(1);
 
+/** §4.4 `ask`: a plain-text question of 1 to this many characters (code points). */
+export const ASK_MAX = 120;
+export const isAsk = (s: unknown): s is string => typeof s === 'string' && s.length > 0 && [...s].length <= ASK_MAX;
+
 export const ActionObjectSchema = z.looseObject({
   id: z.string().refine(isIntent, 'must match the intent grammar (§5)'),
   label: z.string().optional(),
   body: z.string().optional(),
   default: z.boolean().optional(),
+  ask: z.string().refine(isAsk, `ask must be 1–${ASK_MAX} characters of plain text (§4.4)`).optional(),
 });
 export const ActionSchema = z.union([z.string().refine(isIntent, 'must match the intent grammar (§5)'), ActionObjectSchema]);
 
@@ -192,12 +197,15 @@ export function parseCardOrThrow(input: unknown): ProducerCard {
   return card;
 }
 
-/** §4.4: at most one default, no duplicate ids (a string and an object with the same id are the same option). */
+/** §4.4: at most one default, no duplicate ids (a string and an object with the same id are the same option), no `ask` on `edit`. */
 function checkActions(actions: Action[] | undefined): void {
   if (!actions) return;
   const ids = actions.map(actionId);
   const reserved = ids.find((id) => (BUILTIN_DECISIONS as readonly string[]).includes(id));
   if (reserved !== undefined) throw new PbcpError('invalid_card', `${reserved} is a protocol decision and cannot be an action id`);
+  if (actions.some((a) => typeof a === 'object' && a.id === EDIT_ACTION && a.ask !== undefined)) {
+    throw new PbcpError('invalid_card', 'ask is not allowed on the edit entry (§4.4)');
+  }
   const dup = ids.find((id, i) => ids.indexOf(id) !== i);
   if (dup !== undefined) throw new PbcpError('duplicate_action', `duplicate action id ${dup}`);
   if (actions.filter((a) => typeof a === 'object' && a.default === true).length > 1) {

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { actionId, effectiveActions, equal, HEAD_OWNED_FIELDS, parseCard, parseCardOrThrow, toFrontMatter, toJSON, type ProducerCard } from './card.js';
+import { actionId, ASK_MAX, effectiveActions, equal, HEAD_OWNED_FIELDS, parseCard, parseCardOrThrow, toFrontMatter, toJSON, type ProducerCard } from './card.js';
 import type { ErrorCode } from './errors.js';
 
 const RFC_FILE = `---
@@ -144,6 +144,25 @@ describe('parseCard', () => {
     for (const reserved of ['dismissed', 'edited', 'delegated']) refused(minimal({ actions: ['a', reserved] }), 'invalid_card');
     refused(minimal({ actions: [{ id: 'edited' }] }), 'invalid_card');
     expect(parseCard(minimal({ actions: [{ id: 'a', default: true }, { id: 'b', default: false }] })).ok).toBe(true);
+  });
+
+  it('accepts ask on an object entry, 1–120 characters, and refuses the rest with invalid_card (§4.4)', () => {
+    const redraft = { id: 'redraft', label: 'Redraft', ask: 'What should change?' };
+    expect(parseCardOrThrow(minimal({ actions: ['approve', redraft] })).actions).toEqual(['approve', redraft]);
+    expect(parseCard(minimal({ actions: [{ id: 'a', ask: 'x'.repeat(ASK_MAX) }] })).ok).toBe(true);
+    expect(parseCard(minimal({ actions: [{ id: 'a', ask: '😀'.repeat(ASK_MAX) }] })).ok).toBe(true); // characters, not UTF-16 units
+    expect(parseCard(minimal({ kind: 'task', actions: [{ id: 'reschedule', ask: 'To when?' }] })).ok).toBe(true);
+    refused(minimal({ actions: [{ id: 'a', ask: 'x'.repeat(ASK_MAX + 1) }] }), 'invalid_card');
+    refused(minimal({ actions: [{ id: 'a', ask: '' }] }), 'invalid_card');
+    refused(minimal({ actions: [{ id: 'a', ask: 7 }] }), 'invalid_card');
+    refused(minimal({ actions: [{ id: 'a', ask: ['What?'] }] }), 'invalid_card');
+    refused(minimal({ actions: ['approve', { id: 'edit', ask: 'What instead?' }] }), 'invalid_card');
+  });
+
+  it('counts ask for equality, like the rest of the option (§5)', () => {
+    const a = parseCardOrThrow(minimal({ actions: [{ id: 'redraft', ask: 'What should change?' }] }));
+    expect(equal(a, parseCardOrThrow(minimal({ actions: [{ id: 'redraft', ask: 'What should change?' }] })))).toBe(true);
+    expect(equal(a, parseCardOrThrow(minimal({ actions: [{ id: 'redraft' }] })))).toBe(false);
   });
 
   it('accepts labels within the rules and refuses the rest with invalid_card (§4.1)', () => {

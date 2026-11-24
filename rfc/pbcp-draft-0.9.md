@@ -334,7 +334,7 @@ A producer that wants the person to pick between alternatives rather than approv
 - `id` is the decision value the head records and the producer syncs; it follows the `intent` grammar in §5. So does a bare string entry. The protocol decisions `dismissed`, `edited` and `delegated` are reserved: a head MUST reject a card that uses one as an `id` with `400`.
 - `label` is the short text shown on the control; absent, the head shows `id`.
 - `body` is markdown shown beside the option — the consequence, the cost, the thing to know. It is the producer's argument for that option and lives on the option, not in the card body, so the head can lay out choices side by side.
-- `ask` is a short question to the person, for an option that means nothing without their words: what to change in a redraft, what to filter on, when to reschedule to. `{ "id": "redraft", "label": "Redraft", "ask": "What should change?" }`. It is plain text, never markdown, 1 to 120 characters, and is allowed only on an object entry other than `edit`; a card with an `ask` that is not such a string, or with `ask` on the `edit` entry, is rejected with `400 invalid_card`. When the person picks the option, the head puts the question in front of them with a text field (§4.5), and what they write is the decision's `comment` (§7.3); nothing else on the wire changes. The comment stays optional: a producer MUST handle a decision on an option with `ask` that carries no `comment`, by acting on what it has or by asking again in a new card, and MUST NOT answer it with the proposal it already made.
+- `ask` is a short question to the person, for an option that means nothing without their words: what to change in a redraft, what to filter on, when to reschedule to. `{ "id": "redraft", "label": "Redraft", "ask": "What should change?" }`. It is plain text, never markdown, 1 to 120 characters, and is allowed only on an object entry other than `edit`; a head MUST reject with `400 invalid_card` a card with an `ask` that is not such a string, or with `ask` on the `edit` entry. When the person picks the option, the head puts the question in front of them with a text field (§4.5), and what they write is the decision's `comment` (§7.3); nothing else on the wire changes. The comment stays optional: a producer MUST handle a decision on an option with `ask` that carries no `comment`, by acting on what it has or by asking again in a new card, and MUST NOT answer it with the proposal it already made.
 - `default` marks at most one option. The head MUST pre-select it and MUST treat a bare approve gesture on the card (a swipe, a voice "yes", a keyboard shortcut) as choosing it. With no default, there is no bare approve and the person must pick. On a task, `done` is the default and no listed option may be (§4.1).
 - The built-in `edit` entry means "none of these — here is what I want": the person supplies text and the decision is recorded as `edited` with `edited_proposal`, exactly as in §4.3. `edit` is never itself recorded as a decision value. The entry controls only what the head *offers*: a producer that wants free text as an option includes `edit` in the list, and a head SHOULD NOT offer free text on a card that leaves it out. It does not restrict the decide operation, which accepts `edited` on any decision card (§7.3); a producer that receives `edited` on a closed choice acts on it as §4.3 requires.
 
@@ -726,7 +726,7 @@ Sources: [Wave Federation Protocol](https://en.wikipedia.org/wiki/Google_Wave_Fe
 
 <!-- coverage: generated from the fixtures by scripts/conformance-map.ts; edit their `covers` or packages/core/conformance/untested.json, not this table -->
 
-128 requirements: 61 exercised by a fixture, 67 untested.
+132 requirements: 62 exercised by a fixture, 70 untested.
 
 | § | Requirement | Fixtures |
 | --- | --- | --- |
@@ -777,6 +777,8 @@ Sources: [Wave Federation Protocol](https://en.wikipedia.org/wiki/Google_Wave_Fe
 | 4.3 | A decision is the authorisation, and the producer that asked acts on it (§11.1 walks the loop); a head MUST NOT mint an order (Appendix A) as a consequence of … | untested: an absence a fixture could check (decide, then an executor's sync holds no order); left for a later draft |
 | 4.3 | A head MUST treat a task superseded by a task as moved, not closed. | C59 |
 | 4.4 | The protocol decisions `dismissed`, `edited` and `delegated` are reserved: a head MUST reject a card that uses one as an `id` with `400`. | C21 |
+| 4.4 | It is plain text, never markdown, 1 to 120 characters, and is allowed only on an object entry other than `edit`; a head MUST reject with `400 invalid_card` a … | C60, C61, C62 |
+| 4.4 | The comment stays optional: a producer MUST handle a decision on an option with `ask` that carries no `comment`, by acting on what it has or by asking again in … | untested: client-side behaviour (a producer's) |
 | 4.4 | The head MUST pre-select it and MUST treat a bare approve gesture on the card (a swipe, a voice "yes", a keyboard shortcut) as choosing it. | untested: interface behaviour a fixture cannot observe |
 | 4.4 | The entry controls only what the head *offers*: a producer that wants free text as an option includes `edit` in the list, and a head SHOULD NOT offer free text … | untested: interface behaviour a fixture cannot observe |
 | 4.4 | A head MUST reject a card with two defaults or a duplicate `id` with `400`. | C21 |
@@ -788,6 +790,8 @@ Sources: [Wave Federation Protocol](https://en.wikipedia.org/wiki/Google_Wave_Fe
 | 4.5 | A head MUST NOT require the person to open the card on its own to decide it. | untested: interface behaviour a fixture cannot observe |
 | 4.5 | - **The comment is optional.** A head MUST NOT require `comment` to record a decision. | untested: interface behaviour a fixture cannot observe |
 | 4.5 | It SHOULD offer the comment behind a disclosure rather than as a field the person has to pass. | untested: interface behaviour a fixture cannot observe |
+| 4.5 | - **An option that asks.** When the person picks an option that carries `ask` (§4.4), the head MUST put the question and a text field in front of them before … | untested: interface behaviour a fixture cannot observe |
+| 4.5 | A surface that cannot collect text, such as a notification action or an assistant connector, SHOULD NOT offer such an option directly; it opens the card in the … | untested: interface behaviour a fixture cannot observe: notifications and assistant connectors are outside the protocol's operations |
 | 4.5 | - **Confirmation.** When the head records a decision, or an acknowledgement (§4.2), it MUST confirm that in its interface in a way the person can tell apart … | untested: interface behaviour a fixture cannot observe |
 | 4.5 | - **Identifying again.** A head MUST present a `sensitivity: confirm` card (§4.1) with its controls, as this section requires of any card, and MUST say on or … | untested: interface behaviour a fixture cannot observe |
 | 4.5 | - **Done is the primary control.** A head MUST offer `done` as the task's primary control and the only control styled as primary; the task's listed actions and … | untested: interface behaviour a fixture cannot observe |
@@ -810,11 +814,11 @@ Sources: [Wave Federation Protocol](https://en.wikipedia.org/wiki/Google_Wave_Fe
 | 7 | HTTP is the protocol; an MCP server exposing `submit_card`, `poll_changes` and, when the head implements the `orders` extension, `claim_order` is an adapter … | untested: outside the HTTP operations the fixtures drive |
 | 7.1 | `{id}` is the card's id, percent-encoded as a URL path segment; the decoded value MUST equal the card's `id`, or the head rejects the card with `400`. | untested: transport (the URL id), left to each head's own tests (§14) |
 | 7.2 | The head MUST assign `change_seq` from one strictly increasing counter per head — gaps are allowed, and an atomic change to several cards takes several … | C05, C09, C10 |
-| 7.2 | A card's `change_seq` MUST increase whenever its current representation changes, owner-side fields included (§4.2), and a sequence value once assigned MUST … | C02, C11, C37, C38, C41 |
+| 7.2 | A card's `change_seq` MUST increase whenever its current representation changes, owner-side fields included (§4.2), and a sequence value once assigned MUST … | C02, C11, C37, C38, C41, C60 |
 | 7.2 | The durable-consumer pattern a producer MUST follow: | untested: client-side behaviour (a producer's) |
 | 7.2 | A producer that parks MUST report every parked change, at least by logging the card id, its `seq` and the failure; it MUST NOT park a change it has not … | untested: client-side behaviour (a producer's) |
 | 7.3 | A producer token MUST be refused with `401`, before the request is otherwise examined. | C30 |
-| 7.3 | (Appendix A uses decide for the person to cancel an order; giving an order is another owner action of the same kind, A.1; an executor's claim is a producer … | C19, C21, C55 |
+| 7.3 | (Appendix A uses decide for the person to cancel an order; giving an order is another owner action of the same kind, A.1; an executor's claim is a producer … | C19, C21, C55, C63 |
 | 7.3 | On a task, `decision` MUST be `done`, one of the task's `actions`, or `dismissed` (§4.3). | C52, C56 |
 | 7.4 | A head MUST NOT send a code under a status other than its own. | C15, C26, C27, C29, C34, C42, C43, C44, C50, C53 |
 | 7.4 | A `429` carries `Retry-After` in seconds; a producer SHOULD NOT send another request to that head before it has elapsed. | untested: client-side behaviour (a producer's) |

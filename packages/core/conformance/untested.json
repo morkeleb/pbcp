@@ -72,6 +72,10 @@
     "why": "client-side behaviour (a producer's)"
   },
   {
+    "requirement": "§4.4 a producer MUST handle a decision on an option with `ask`",
+    "why": "client-side behaviour (a producer's)"
+  },
+  {
     "requirement": "§4.5 The actions are the controls",
     "why": "interface behaviour a fixture cannot observe"
   },
@@ -262,6 +266,14 @@
   {
     "requirement": "§4.5 Identifying again.",
     "why": "interface behaviour a fixture cannot observe"
+  },
+  {
+    "requirement": "§4.5 the head MUST put the question and a text field in front of them",
+    "why": "interface behaviour a fixture cannot observe"
+  },
+  {
+    "requirement": "§4.5 SHOULD NOT offer such an option directly",
+    "why": "interface behaviour a fixture cannot observe: notifications and assistant connectors are outside the protocol's operations"
   },
   {
     "requirement": "§9 MUST NOT lower it below what the producer sent",
